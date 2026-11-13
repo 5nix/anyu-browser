@@ -52,3 +52,31 @@ export function canBookmarkUrl(url: string): boolean {
 export function canBookmarkTab(tab: { kind: string; url: string; crashed: boolean; error: unknown } | null | undefined): boolean {
   return !!tab && tab.kind === 'web' && !tab.crashed && !tab.error && canBookmarkUrl(tab.url);
 }
+
+export const MAX_SUBSCRIPTION_URL_LENGTH = 2048;
+
+export type SubscriptionBlockReason = 'empty' | 'tooLong' | 'invalidUrl' | 'needsOpenGate';
+
+export function subscriptionUrlError(value: string): 'empty' | 'tooLong' | 'invalidUrl' | null {
+  const url = value.trim();
+  if (!url) return 'empty';
+  if (url.length > MAX_SUBSCRIPTION_URL_LENGTH) return 'tooLong';
+  if (!URL.canParse(url) || !['http:', 'https:'].includes(new URL(url).protocol)) return 'invalidUrl';
+  return null;
+}
+
+export function isSubscriptionUrl(value: string): boolean {
+  return subscriptionUrlError(value) === null;
+}
+
+export function subscriptionFetchBlock(
+  url: string,
+  via: 'direct' | 'proxy',
+  gateOpen: boolean,
+): SubscriptionBlockReason | null {
+  const urlErr = subscriptionUrlError(url);
+  if (urlErr) return urlErr;
+  if (via === 'proxy' && !gateOpen) return 'needsOpenGate';
+  return null;
+}
+

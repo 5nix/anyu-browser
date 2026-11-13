@@ -24,3 +24,20 @@ export class NavigationFailures {
   redirect(url: string): void { this.current = url; }
   accepts(url: string): boolean { return url === this.current; }
 }
+
+/** Chromium's built-in PDF viewer extension origin; only its own child stream frame may navigate inside it. */
+export const PDF_VIEWER_ORIGIN = 'chrome-extension://mhjfbmdgcfjbbpaeojofohoefgiehjai';
+const PDF_VIEWER_PREFIX = `${PDF_VIEWER_ORIGIN}/`;
+
+export function isAllowedPdfViewerFrame(
+  url: string,
+  isMainFrame: boolean,
+  initiatorOrigin?: string,
+  parentOrigin?: string,
+): boolean {
+  return !isMainFrame
+    && url.startsWith(PDF_VIEWER_PREFIX)
+    && initiatorOrigin === PDF_VIEWER_ORIGIN
+    && parentOrigin === PDF_VIEWER_ORIGIN;
+}
+

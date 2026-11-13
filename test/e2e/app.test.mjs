@@ -1836,3 +1836,40 @@ test('appearance settings synchronize and survive restart', async (t) => {
   await check(port2);
   assert.deepEqual(await evaluate(port2, u => u.endsWith('/shell.html'), "cave.getState().then(s => [s.accent, s.theme])"), ['violet', 'dark']);
 });
+
+test('pdf: online PDFs render in the built-in viewer through the proxy', async (t) => {
+  const { w, port, shell } = await launch(t, { tls: true, blank: true, open: true });
+  const evalUrl = async (wsUrl, expression) => {
+    const ws = new WebSocket(wsUrl);
+    await new Promise((r, j) => ((ws.onopen = r), (ws.onerror = j)));
+    try {
+      ws.send(JSON.stringify({ id: 1, method: 'Runtime.evaluate', params: { expression, awaitPromise: true, returnByValue: true } }));
+      const msg = await new Promise((r) => (ws.onmessage = (m) => { const d = JSON.parse(m.data); if (d.id === 1) r(d); }));
+      if (msg.error) throw new Error(msg.error.message);
+      return msg.result?.result?.value;
+    } finally {
+      ws.close();
+    }
+  };
+  for (const url of ['http://pdf.cave.test/sample.pdf', 'https://secure.cave.test/sample.pdf']) {
+    await shell(`cave.newTab(${JSON.stringify(url)})`);
+    await waitFor(async () => {
+      const targets = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
+      const viewers = targets.filter((x) => x.url.startsWith('chrome-extension://mhjfbmdgcfjbbpaeojofohoefgiehjai/'));
+      for (const viewer of viewers) {
+        const info = await evalUrl(viewer.webSocketDebuggerUrl, `(() => {
+          const toolbar = document.querySelector('pdf-viewer')?.shadowRoot?.querySelector('viewer-toolbar');
+          return toolbar ? { loading: toolbar.hasAttribute('loading_'), docLength: toolbar.docLength } : null;
+        })()`).catch(() => null);
+        if (info && !info.loading && info.docLength === 1) return true;
+      }
+      return false;
+    }, 20000);
+    await shell("cave.run('tab.close')");
+  }
+  assert.ok(w.socks.targets.some((x) => x.host === 'pdf.cave.test' && x.port === 80));
+  assert.ok(w.socks.targets.some((x) => x.host === 'secure.cave.test' && x.port === 443));
+  assert.ok(w.fixture.requests.some((x) => x.host === 'pdf.cave.test' && x.url === '/sample.pdf'));
+  assert.ok(w.httpsFixture.requests.some((x) => x.host === 'secure.cave.test' && x.url === '/sample.pdf'));
+});
+

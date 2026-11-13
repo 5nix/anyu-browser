@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import type { Permission, CheckItem, PanelData, SearchEngine, SettingsSection, ShellState } from '../../shared/ipc.ts';
 import { MAX_MONITOR_URLS, type Profile, type SubscriptionVia } from '../../shared/profile.ts';
 import { t, setLocale, type LocalePreference } from '../../shared/i18n/index.ts';
-import { SEARCH_PRESETS, isSearchEngine } from '../../shared/url.ts';
+import { SEARCH_PRESETS, isSearchEngine, subscriptionFetchBlock } from '../../shared/url.ts';
 import { switchText } from '../../shared/switch.ts';
 import { cave } from '../bridge.ts';
 import { ConditionList, GateSummary, gateStatus, regionName } from '../gate-status.tsx';
@@ -102,6 +102,17 @@ function NodesSection({ active, state, data, act, confirm, busy }: Props) {
   const remove = async (id: string, sourceName: string) => {
     if (await confirm(t('set.nodes.removeTitle'), t('set.nodes.removeBody', { name: sourceName }), t('set.nodes.remove'), true)) await act(() => cave.removeSource(id));
   };
+  const gateOpen = state.gate.state === 'open';
+  const subBlock = subscriptionFetchBlock(subUrl, subVia, gateOpen);
+  const subFetching = busy.has('sub-update');
+  const subDisabled = subBlock !== null || subFetching;
+  const subReason = !subUrl.trim() ? null
+    : subFetching ? t('set.nodes.fetching')
+    : subBlock === 'tooLong' ? t('set.nodes.urlTooLong')
+    : subBlock === 'invalidUrl' ? t('set.nodes.urlInvalid')
+    : subBlock === 'needsOpenGate' ? t('set.nodes.proxyNeedsGate')
+    : null;
+  useEffect(() => { if (!gateOpen && !editor && subVia === 'proxy') setSubVia('direct'); }, [gateOpen, editor, subVia]);
   useEffect(() => { if (!active) { setEditor(false); setRenaming(null); setEditingSource(null); } }, [active]);
   return <section data-section="nodes" class="entering" hidden={!active}>
     <h2>{t('set.nodes.title')}</h2>
@@ -123,12 +134,12 @@ function NodesSection({ active, state, data, act, confirm, busy }: Props) {
       </div>
     </div>
     </div>
-    <div class="nodes-toolbar"><span></span><button id="delays" disabled={busy.has('delays') || !nodes.length} onClick={() => act(() => cave.testDelays(), 'delays')} class="btn"><Icon name="zap" />{t('set.nodes.delays')}</button><button id="add-source" onClick={() => setEditor(true)} class="btn"><Icon name="plus" />{t('set.nodes.add')}</button></div>
+    <div class="nodes-toolbar"><span></span><button id="delays" disabled={busy.has('delays') || !nodes.length} onClick={() => act(() => cave.testDelays(), 'delays')} class="btn"><Icon name="zap" />{t('set.nodes.delays')}</button><button id="add-source" onClick={() => { if (!gateOpen) setSubVia('direct'); setEditor(true); }} class="btn"><Icon name="plus" />{t('set.nodes.add')}</button></div>
     {editor && <div id="source-editor" class="source-editor">
       <div class="editor-head"><div class="label"><b>{t('set.nodes.addTitle')}</b></div><button class="icon-btn sm" aria-label={t('set.nodes.close')} onClick={() => setEditor(false)}><Icon name="x" /></button></div>
       <label class="editor-field"><span>{t('set.nodes.url')}</span><input id="sub-url" value={subUrl} onInput={e => setSubUrl(e.currentTarget.value)} placeholder="https://…" spellcheck={false} /></label>
       <label class="editor-field"><span>{t('set.nodes.method')}</span><select id="sub-via" value={subVia} onChange={e => setSubVia(e.currentTarget.value as SubscriptionVia)}><option value="direct">{t('set.nodes.direct')}</option><option value="proxy">{t('set.nodes.proxy')}</option></select></label>
-      <div class="editor-actions"><button id="import-file" class="btn link" onClick={() => act(async () => { if (await cave.importSubscriptionFile()) setEditor(false); }, 'import-file')}>{t('set.nodes.file')}</button><button id="toggle-paste" class="btn link" onClick={() => setPasteOpen(!pasteOpen)}>{t('set.nodes.paste')}</button><button id="sub-fetch" class="btn primary" disabled={!subUrl.trim() || state.gate.state !== 'open' || busy.has('sub-update')} onClick={() => act(async () => { await cave.addSubscription(subUrl.trim(), subVia); setSubUrl(''); setEditor(false); }, 'sub-update')}>{t('set.nodes.fetchNodes')}</button></div>
+      <div class="editor-actions"><button id="import-file" class="btn link" onClick={() => act(async () => { if (await cave.importSubscriptionFile()) setEditor(false); }, 'import-file')}>{t('set.nodes.file')}</button><button id="toggle-paste" class="btn link" onClick={() => setPasteOpen(!pasteOpen)}>{t('set.nodes.paste')}</button><span class="editor-fetch">{subReason && <small id="sub-fetch-reason">{subReason}</small>}<button id="sub-fetch" class="btn primary" disabled={subDisabled} onClick={() => act(async () => { await cave.addSubscription(subUrl.trim(), subVia); setSubUrl(''); setEditor(false); }, 'sub-update')}>{t('set.nodes.fetchNodes')}</button></span></div>
       {pasteOpen && <div id="paste" class="editor-paste"><textarea id="paste-text" value={pasteText} onInput={e => setPasteText(e.currentTarget.value)} rows={6} placeholder={t('set.nodes.placeholder')} spellcheck={false}></textarea><div class="end"><button id="paste-import" class="btn primary" disabled={!pasteText.trim()} onClick={() => act(async () => { await cave.importSubscriptionText(pasteText); setPasteText(''); setPasteOpen(false); setEditor(false); }, 'paste-import')}>{t('set.nodes.import')}</button></div></div>}
     </div>}
     {data.profile.proxy.sources.map(source => {
@@ -137,7 +148,7 @@ function NodesSection({ active, state, data, act, confirm, busy }: Props) {
       return <div class="source-card" data-source={source.id} key={source.id}>
         <header><span class="source-icon"><Icon name={source.origin.kind === 'subscription' ? 'rss' : 'file'} /></span><div class="label">{renaming === source.id ? <input class="source-name" value={name} maxLength={256} onInput={e => setName(e.currentTarget.value)} /> : <b title={source.name}>{source.name}</b>}<small title={detail}>{detail}</small></div>
           {renaming === source.id ? <><button class="btn link source-save" disabled={!name.trim()} onClick={() => act(async () => { await cave.renameSource(source.id, name); setRenaming(null); })}>{t('set.nodes.saveName')}</button><button class="icon-btn sm" aria-label={t('set.nodes.close')} onClick={() => setRenaming(null)}><Icon name="x" /></button></> : <>
-          <button class="btn link source-update" disabled={busy.has(source.id) || (source.origin.kind === 'subscription' && state.gate.state !== 'open')} onClick={() => {
+          <button class="btn link source-update" disabled={busy.has(source.id) || (source.origin.kind === 'subscription' && source.origin.via === 'proxy' && !gateOpen)} onClick={() => {
             if (source.origin.kind === 'subscription') void act(() => cave.updateSource(source.id), source.id);
             else if (source.origin.kind === 'file') void act(() => cave.updateSourceFile(source.id), source.id);
             else { setReplacement(''); setEditingSource(source.id); }

@@ -23,10 +23,23 @@ test('store migrates the legacy profile and definitions together and persists th
 test('existing sources, external ports and exit countries complete setup only during migration', async () => {
   const { defaultProfile, normalizeProfile } = await import('../../src/shared/profile.ts');
   const base = defaultProfile('en', 'UTC');
+  const complete = { started: true, identityHandled: true, personaliseHandled: true, dismissed: true, finished: true };
   const source = { proxy: { sources: [{ id: 's', name: 's', origin: { kind: 'text' }, nodes: [], updatedAt: null }], selected: null } };
   for (const old of [source, { externalProxy: { ...base.externalProxy, port: 7890 } }, { egressCountry: 'JP' }]) {
-    assert.deepEqual(normalizeProfile(old, base).setup, { started: true, identityHandled: true, personaliseHandled: true, dismissed: true });
+    assert.deepEqual(normalizeProfile(old, base).setup, complete);
+    // Unreadable setup choices on a configured profile also mean an existing user.
+    assert.deepEqual(normalizeProfile({ ...old, setup: { started: 'yes' } }, base).setup, complete);
   }
   assert.deepEqual(normalizeProfile({}, base).setup, base.setup);
   assert.deepEqual(normalizeProfile({ ...source, setup: base.setup }, base).setup, base.setup);
+});
+
+test('a configured profile from before setup is written back with setup finished and never shows it', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'cave-setup-'));
+  try {
+    await writeFile(join(dir, 'profile.json'), JSON.stringify({ version: 1, egressCountry: 'JP' }));
+    const store = await ProfileStore.open(dir);
+    assert.equal(store.current.setup.finished, true);
+    assert.equal(JSON.parse(await readFile(join(dir, 'profile.json'), 'utf8')).setup.finished, true);
+  } finally { await rm(dir, { recursive: true, force: true }); }
 });

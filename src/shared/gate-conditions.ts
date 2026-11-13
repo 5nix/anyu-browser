@@ -13,3 +13,14 @@ export function gateConditions(gate: GateView, facts: { coreUp?: boolean; select
   const exit: Condition = gate.state === 'open' ? 'ok' : facts.country === '' || is('core.noCountry') || is('core.checkFailed') || (gate.state === 'closed' && !!gate.egress) ? 'failed' : 'unknown';
   return { switch: gate.paused ? 'failed' : 'ok', core, node, exit } as const;
 }
+
+export type GateReason = 'paused' | 'starting' | 'down' | 'noNode' | 'noExternal' | 'noCountry' | 'checking' | 'mismatch' | 'checkFailed' | 'open' | 'other';
+/** Which viewGate reason this snapshot carries, in either interface language. */
+export function gateReason(gate: GateView): GateReason {
+  if (gate.state === 'open') return 'open';
+  const keys = ['paused', 'starting', 'down', 'noNode', 'noExternal', 'noCountry', 'checking', 'mismatch', 'checkFailed'] as const;
+  const prefix = (text: string) => text.split('{')[0];
+  // Longest prefix first, so that no reason is mistaken for one that starts the same way.
+  const candidates = keys.flatMap(key => [coreZh, coreEn].map(r => ({ key, text: prefix(r[`core.${key}`]) }))).sort((a, b) => b.text.length - a.text.length);
+  return candidates.find(c => c.text && gate.reason.startsWith(c.text))?.key ?? 'other';
+}

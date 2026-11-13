@@ -70,7 +70,6 @@ SmartScreen 弹出 **“Windows 已保护你的电脑”** 时，点击 **更多
   - 本地字体访问接口（`queryLocalFonts`）已拒绝，但网页仍可通过测量字体渲染宽度或 `document.fonts` 检测到本机已安装的字体，包括新安装的字体。
   - `window.chrome` 仅包含 Electron 自带字段，与 Google Chrome 不完全相同。
   - 在极端启动时序下，`SharedWorker` 的首批代码可能在调试器覆盖下发前执行。
-- **内置 PDF 查看器**：Windows 真机验收中，打开 PDF 时会显示查看器工具栏但正文为空白（尚未修复）。
 - **宿主 TUN 嗅探与 Reality 节点**：默认模式下若宿主机开启了带目标覆盖（`override-destination`）的 TLS 嗅探（例如 FlClash），Reality 节点连接可能失败；可在 Windows 上改用备选模式，或在宿主代理客户端中把节点 IP 加入 `sniffer.skip-dst-address` 例外。
 - **订阅与出口核对**：订阅仅支持 Clash YAML 的 `proxies:` 列表（不解析分享链接或 `proxy-providers`）；出口核对依赖内置 trace 端点（及监控网址列表），不可达时外网保持关闭；节点使用域名而非 IP 时，内核在建立隧道前会通过 `1.1.1.1` / `https://1.1.1.1/dns-query` 解析该域名。
 - **会话与配置**：所有标签页共享同一个浏览器会话（尚无多容器隔离）；Cookie 依赖系统钥匙串或 DPAPI 加密，跨操作系统拷贝配置文件夹时登录状态可能失效；不支持浏览器扩展与账号同步；更改时区、语言、地理坐标、平台或通知开关后需要重启 Anyu 才会生效。

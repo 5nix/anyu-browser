@@ -1,14 +1,14 @@
 # Windows 真机验收 — 2026-11-13
 
-本次结果不是“全部通过”。**默认继续跟随系统路由/TUN；原始 LA-9929-US-Home 在当前宿主 TUN 串联路径核对失败并保持关闭。** 新增的“独立连接节点（绕过宿主机 TUN）”是默认关闭的可选功能，不能算作默认路径已修复。开启后，同一原始节点通过 US 核对，13/13 自检通过。订阅链接、节点密钥和私有配置没有提交。
+本次结果不是“全部通过”。**默认 TUN 路径的问题已探明并在实际宿主修正后验证通过：FlClash 的 TLS 嗅探将 Reality 节点 IP 改成伪装 SNI 的目标。仅为节点 IP 加嗅探例外、经用户确认重启宿主核心后，Anyu 保持默认系统路由、独立出站开关关闭，原始 LA-9929-US-Home 核对 US、自检 13/13、网页加载和杀内核重检均通过。** 新增“独立连接节点”仍只是默认关闭的可选功能，不用于替代本次默认 TUN 验证。PDF 等未完成项仍按下表记录。订阅链接、节点密钥和私有配置没有提交。
 
 ## 环境与方法
 
 - Windows 11 专业版 10.0.26200，x64；Node 24.22.0，npm 11.19.1。
 - Electron 45.3.0 / Chromium 156.0.8078.96；固定 mihomo v1.19.34 Windows x64，经仓库 SHA-256 校验。
-- 宿主 FlClash TUN 开启（Meta Tunnel），宿主代理端口 7890；宿主内核 v1.19.32。未修改宿主的路由、代理或安全设置。
+- 宿主 FlClash TUN 开启（Meta Tunnel），宿主代理端口 7890；宿主内核 v1.19.32。追加诊断中仅给活动配置增加节点 IP 的嗅探例外，并经用户明确同意重启核心；未关闭 TUN、未更换宿主节点、未增加 DIRECT 规则。
 - 实际使用用户指定的 LA-9929-US-Home，预期 US。原始节点参数保留，只在生成的 runtime.yaml 选择组中改写内部节点名。
-- 源码和包均通过 startWorld() 启动。用户授权过前台操作，后按 Esc 停止电脑控制；之后只做后台/CDP 与源码验证，不再操作原生界面。
+- 源码和包均通过 startWorld() 启动。用户曾按 Esc 停止电脑控制，之后明确重新允许电脑操作；本次宿主重启也得到单独确认。Anyu 的最终默认 TUN 回归通过后台 harness + CDP 完成。
 - 初始基线 50d3a45；远端重建为 bfe8806 后确认差异仅为 CI，PR 基于新的 main。
 
 ## 结果
@@ -22,11 +22,11 @@
 | zip 直接运行 | 通过 | 最终 zip 解压后启动其中的 Anyu.exe；两项 Windows smoke 测试通过，包括开关切换和杀内核。 |
 | 全新环境进入代理/节点页 | 修复后通过 | 原来停在空白页；现在无节点时打开设置节点页。目标分类保存在 ShellState，避免初始化 IPC 事件丢失。当前 UI 分类名是“代理”。 |
 | 红色关闭状态、未导入节点原因、阻止导航 | 通过 | 空目录启动；访问 example.com 只显示状态卡并保留待打开网址，本地 fixture 与 SOCKS 节点都未收到请求；出口检查失败。 |
-| 原始节点 + 默认系统 TUN 路由 | 失败 / 保持关闭通过 | 出口核对 ERR_CONNECTION_CLOSED，core.log 显示到节点上游超时；12/13，不放行。不能报告为默认联网通过。 |
-| 默认路径诊断 | 备注 | 原始订阅、宿主 FlClash 同名节点和 Anyu 生成节点的协议字段一致。另用独立核心把该节点显式串联到宿主 HTTP 代理也超时；故障不局限于 Anyu 窗口层，根因尚未确定。 |
+| 原始节点 + 默认系统 TUN 路由 | 修正宿主嗅探例外后通过 | 修改前 12/13、ERR_CONNECTION_CLOSED 且保持关闭。修改后独立出站 false、runtime 无 interface-name，原始节点 US 核对及 13/13 通过，example.com 标题为 Example Domain。 |
+| 默认路径诊断 | 已定位并由真实宿主对照确认 | FlClash 的 TLS 嗅探覆盖了 Reality 的真实目标。仅加入节点目标 IP 的 skip-dst-address 后，保留 TUN 和当前宿主节点，实际 HTTP 代理链及 Anyu 默认 TUN 路线均从失败变成功。详见追加诊断。 |
 | 新功能：独立连接节点 | 通过 | 默认 false。开启后自动选择 OS 有效出站接口；同一原名节点得到 US，13/13。关闭移除 interface-name，回到系统路由。没有改写订阅。 |
 | 开关切换、手动暂停、国家不符 | 通过 | 变更前关闸并停内核；已暂停时改开关仍暂停。真实 US 出口临时要求 JP 后保持关闭，改回 US 才重新放行。 |
-| 杀内核、页面失败、重启重检 | 通过 / 备注 | taskkill /PID /F 结束单个测试内核。独立出站真实节点：约 152ms 关闭、页面 ERR_CONNECTION_RESET、约 4.86s 核对后恢复。默认模式本地 fixture 约 0.1s 关闭、约 1.3s 恢复。独立模式多出路由查询耗时，未达到约 1 秒的恢复时长。 |
+| 杀内核、页面失败、重启重检 | 通过 / 备注 | 最终默认 TUN 真实节点：约 153ms 关闭、加载页失败、约 3.93s 核对后恢复，改为要求 JP 时保持关闭。独立出站此前约 152ms 关闭、约 4.86s 恢复；默认模式本地 fixture 约 0.1s 关闭、约 1.3s 恢复。真实网络上的恢复时间包含出口请求，未达到约 1 秒的总恢复时长。 |
 | 故障间隙无外网连接、无 DNS 泄漏的连续抓包 | 未完成 | PktMon 报“拒绝访问”。TCP 快照只见浏览器本机连接；快照不是连续 TCP/UDP/DNS 证据，不能据此证明整个间隙零泄漏。没有修改安全设置或提权。 |
 | 随机端口、不占用 7890/9090 | 通过 | runtime.yaml 监听均为 127.0.0.1 随机端口，控制器随机；宿主 FlClash 保持运行且宿主代理访问核对端点成功。 |
 | Windows 平台通行密钥 | 通过（用户协助） | WebAuthn.io 平台可用性返回 true；网页注册成功。用户确认亲眼看到 Windows 验证器并手动完成。未自动操作 PIN/认证对话框。 |
@@ -45,9 +45,73 @@
 
 ## 独立出站开关的边界
 
+### 追加诊断：宿主 TUN 嗅探改写 Reality 目标
+
+这不是“宿主网络能通，所以第二层代理一定也能通”。宿主核心自己发出的 Reality 连接不会再次进入自己的 TUN 嗅探；Anyu 核心是另一个进程，其连接会进入宿主 TUN，并被当作普通 TLS 连接嗅探。
+
+已读取正在运行的 FlClash 对应配置：TLS 嗅探端口包括 443、8443，`parse-pure-ip: true`、`override-destination: true`，没有跳过目标地址。Anyu 节点的真实目标为 `154.9.251.80:8443`，伪装 SNI 为 `www.bing.com`。FlClash 还包含 `RULE-SET,microsoft,DIRECT`，因此 SNI 被识别后也可能改变命中规则；这不代表 Anyu 添加了 DIRECT。
+
+使用两份隔离核心重建同一双层链，保留真实节点参数，只改变外层核心的目标覆盖开关：
+
+| 外层 TLS 嗅探目标覆盖 | 外层实际目标 | 结果 |
+| --- | --- | --- |
+| true | www.bing.com:8443 | TLS 握手失败，内层核心上游超时 |
+| false | 154.9.251.80:8443 | Reality 认证成功，最终 US / 98.236.136.107 |
+
+关键日志（来自隔离 A/B，不冒充宿主进程日志）：
+
+```text
+[Sniffer] Sniff tcp [127.0.0.1:63762]-->[154.9.251.80:8443] success, replace domain []-->[www.bing.com]
+[TCP] 127.0.0.1:63762 --> www.bing.com:8443 match InName(probe) using PROXY[LA-9929-Reality]
+
+REALITY Authentication: true, AEAD: *gcm.GCM
+[TCP] 127.0.0.1:63779 --> 154.9.251.80:8443 match InName(probe) using PROXY[LA-9929-Reality]
+```
+
+另做外层节点对照：LA-9929-Reality、Tokyo-VPS-Reality、LA-VPS-2-Reality 分别作为外层时，关闭目标覆盖的同一个 Home 内层节点均成功到达 US / 98.236.136.107。这排除了先前提出的“同服务器公网回连天然不通”的假设。
+
+在实际 FlClash 的 HTTP 代理入口触发同一 Home 节点握手时，Windows TCP 快照记录到 FlClashCore.exe 向 `23.199.47.74/78/79/80/84/85/86/87/88:8443` 发出 SynSent，目标没有保留节点 IP。该快照与 A/B 的目标改写机制一致；它不是完整抓包，不用于证明无泄漏。
+
+最小宿主兼容性修正为仅对节点目标添加 `sniffer.skip-dst-address: [154.9.251.80/32]`。它不增加 DIRECT 规则、不更换宿主节点、不绕过 TUN，只防止外层嗅探把内层代理的 SNI 当成目标网站。已在实际活动配置中加入并经用户同意重启核心，运行配置确认加载。第一次误按界面旧名称修改的旧配置文件已按备份恢复；最终用解析后的对象对比确认，实际活动文件相对原始备份只有此列表一项变化。
+
+修正后的真实宿主验证：
+
+- 同一原始 Home 节点显式经过正在运行的 FlClash HTTP 代理：US 核对成功。
+- Anyu `bypassHostTun: false`，runtime 没有 `interface-name`；FlClash `tun.enable: true`，TLS 嗅探和 `override-destination` 仍为 true，只有此节点 IP 被跳过。
+- 原始 LA-9929-US-Home → US / 98.236.136.107；自检 13/13；https://example.com/ 正常加载、标题 Example Domain。
+- 杀 Anyu 自己的核心：153ms 内观察到关闭，加载页面失败；3932ms 后出口重核对并恢复。
+- 预期国家改为 JP：实际仍为 US，闸门关闭；改回 US 后重新核对才恢复。
+
+此例外当前保存在宿主活动订阅的本地文件中，下次订阅更新可能覆盖它。需要在订阅源或宿主支持的持久配置覆盖中保留同一项。它不是 Anyu 自动替用户修改宿主的产品行为；本次是在用户授权的真机诊断中添加。
+
 关闭是默认行为，保留系统 TUN 路线。开启时只绑定核心的上游套接字，浏览器仍只连本机 SOCKS，所有国家/节点/核心条件照旧核对。找不到可用接口时保持关闭，不自动切回系统 TUN。以太网/Wi-Fi/移动接口按 OS 默认路由与接口度量选择；物理接口优先，也支持虚拟机的虚拟以太网。只有 TUN/PPP 等不支持的默认接口时，本功能不会放行。路由变化后仍需重新核对/重启核心；没有后台路由监控。
 
-## 默认系统/TUN 模式自检全文
+## 宿主嗅探修正后：默认 TUN 模式自检全文
+
+实际配置 bypassHostTun=false，未绑定网卡。
+
+```text
+Cave 自检报告  2026-11-13T13:30:07.092Z
+闸门：外网已放行（出口 US 与配置一致）
+配置：时区 Asia/Shanghai，语言 zh-CN, zh，出口国家 US，平台 host，独立连接节点（Windows）false
+最近出口：US 98.236.136.107
+通过 13/13
+✓ 1. 代理核心在运行 — Cave 自己拉起的核心，控制器应答正常
+✓ 2. 浏览器只走 Cave 的本机端口 — SOCKS5 127.0.0.1:63263，回环地址也不绕过
+✓ 3. 浏览器不做本地 DNS — 本地解析被拒绝，主机名交给代理在远端解析
+✓ 4. 时区等于配置 — 页面 Asia/Shanghai，Worker Asia/Shanghai
+✓ 5. 语言等于配置 — 页面 zh-CN, zh；Worker zh-CN, zh
+✓ 6. 代理不可用时连接会失败 — 没有备用出口：端口背后没有核心，连接就失败
+✓ 7. QUIC 已关闭 — --disable-quic
+✓ 8. IPv6 已关闭 — --disable-ipv6，核心 ipv6: false
+✓ 9. WebRTC 不走裸 UDP — disable_non_proxied_udp，本地候选 0 个、无 IP 地址
+✓ 10. 没有直连，私网被拒绝 — 规则末尾 MATCH,PROXY；回环与私网 REJECT；无 DIRECT
+✓ 11. 出口国家等于配置 — 最近一次：US（98.236.136.107，节点 LA-9929-US-Home），配置 US
+✓ 12. UA 与客户端提示一致 — Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36；品牌 Not:A-Brand / Chromium / Google Chrome；平台 Windows / Win32
+✓ 13. 呈现的平台与本机一致 — Windows
+```
+
+## 修正前默认系统/TUN 模式自检全文（失败基线）
 
 ```text
 Cave 自检报告  2026-11-13T12:10:16.716Z
@@ -139,4 +203,4 @@ CDP 只捕获 shell/overlay 自己的绘制区域，不含其他 WebContentsView
 
 ![菜单](validation/windows-menu.png)
 
-测试结束后检查本工作区及本次安装目录的 Electron / Anyu / cave-core 进程，确认没有遗留；宿主 FlClash 未结束。
+测试结束后检查本工作区及本次安装目录的 Electron / Anyu / cave-core 进程，确认没有遗留；宿主 FlClash 已在用户同意的核心重启后保持运行，TUN 开启。

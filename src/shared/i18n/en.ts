@@ -122,7 +122,7 @@ export const en: Record<keyof typeof zh, string> = {
   checkTemplate6: "Presented platform is {presented}, host is {host}: Worker navigator.platform, fonts, and WebGL renderer still reveal the host",
   checkTemplate7: "Cave self-check report  {date}",
   checkTemplate8: "Gate: {state} ({reason})",
-  checkTemplate9: "Profile: time zone {timezone}, languages {languages}, exit country {country}, platform {platform}",
+  checkTemplate9: "Profile: time zone {timezone}, languages {languages}, exit country {country}, platform {platform}, connection {connection}",
   checkTemplate10: "Last exit: {exit}",
   checkTemplate11: "Passed {passed}/{total}",
   settings: 'Settings',

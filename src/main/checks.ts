@@ -98,7 +98,7 @@ export function renderReport(items: CheckItem[], gate: GateView, profile: Profil
   return [
     t('checkTemplate7', { date: at.toISOString() }),
     t('checkTemplate8', { state, reason: gate.reason }),
-    t('checkTemplate9', { timezone: profile.timezone, languages: profile.acceptLanguages.join(', '), country: profile.egressCountry || t('checkText25'), platform: profile.platform }),
+    t('checkTemplate9', { timezone: profile.timezone, languages: profile.acceptLanguages.join(', '), country: profile.egressCountry || t('checkText25'), platform: profile.platform, connection: profile.connectionMode }),
     t('checkTemplate10', { exit: gate.egress ? `${gate.egress.country} ${gate.egress.ip}` : t('checkText31') }),
     t('checkTemplate11', { passed: items.filter((i) => i.pass).length, total: items.length }),
     ...items.map((i) => `${i.pass ? '✓' : '✗'} ${i.id}. ${i.title} — ${i.detail}`),

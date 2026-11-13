@@ -18,6 +18,7 @@ import { browserSession, pinNetwork, pinSessions, reservePorts } from './network
 import { applyFingerprint, buildIdentity, emulationCommands, type Identity, type PlatformHints } from './fingerprint.ts';
 import { applyPermissions } from './permissions.ts';
 import { Gatekeeper } from './gatekeeper.ts';
+import { resolveWindowsEgress } from './windows-egress.ts';
 import { FaviconFetcher } from './shell/favicons.ts';
 import { Browser } from './shell/browser.ts';
 import type { ShellWindow } from './shell/window.ts';
@@ -86,6 +87,7 @@ async function start(): Promise<void> {
   await mkdir(downloadsDir, { recursive: true });
 
   const gate = new Gatekeeper({
+    ...(process.platform === 'win32' ? { resolveOutboundInterface: resolveWindowsEgress } : {}),
     binary: coreBinary,
     dir: profileDir,
     ports,
@@ -354,10 +356,28 @@ async function start(): Promise<void> {
     updateProfile: async (patch) => {
       browser.cancelPermissions();
       const before = profile();
-      const next = await store.update(patch);
+      // A connection change must shut the old route down before the new one is saved or applied:
+      // mode switches and external-endpoint edits restart the core on the new outbound, while a
+      // monitor-URL-only edit just invalidates the last check and re-measures through it.
+      const routeChanged = (patch.connectionMode !== undefined && patch.connectionMode !== before.connectionMode)
+        || (patch.externalProxy !== undefined && JSON.stringify(patch.externalProxy) !== JSON.stringify(before.externalProxy));
+      const monitorChanged = patch.monitorUrls !== undefined && JSON.stringify(patch.monitorUrls) !== JSON.stringify(before.monitorUrls);
+      const wasPaused = gate.view.paused;
+      if (routeChanged) await gate.pause();
+      let next;
+      try {
+        next = await store.update(patch);
+      } catch (err) {
+        // The save failed, so the old route is still the configured one: restore it instead of
+        // leaving the gate paused with the core stopped.
+        if (routeChanged && !wasPaused) await gate.resume();
+        throw err;
+      }
       if (RESTART_FIELDS.some((k) => JSON.stringify(before[k]) !== JSON.stringify(next[k]))) restartNeeded = true;
       if (before.egressCountry !== next.egressCountry) await gate.setCountry(next.egressCountry);
       if (before.allowPrivateNetwork !== next.allowPrivateNetwork) await gate.refreshConfig();
+      if (routeChanged && !wasPaused) await gate.resume();
+      else if (monitorChanged) await gate.recheck();
       return panelData();
     },
     importSubscriptionFile: async () => {
@@ -450,7 +470,7 @@ async function start(): Promise<void> {
       if (['bookmarkAdd', 'bookmarkUpdate', 'bookmarkRemove'].includes(name) && e.sender !== win.chrome.webContents && e.sender !== win.overlay.webContents && e.sender !== win.bookmarks.webContents) return;
       if (e.sender === win.bookmarks.webContents && !['getState', 'bookmarkChildren', 'bookmarkMove', 'bookmarkAdd', 'bookmarkUpdate', 'bookmarkRemove', 'importBookmarks', 'newTab'].includes(name)) return;
       if (e.sender === win.bookmarks.webContents && name === 'newTab' && (typeof args[0] !== 'string' || args[0].length > 2048 || !/^https?:\/\//i.test(args[0]) || !URL.canParse(args[0]))) return;
-      if (['clearData', 'importSubscriptionFile', 'importSubscriptionText', 'addSubscription', 'updateSource', 'updateSourceFile', 'updateSourceText', 'renameSource', 'removeSource', 'selectNode', 'testDelays'].includes(name) && e.sender !== win.settings.webContents) throw new Error('forbidden');
+      if (['clearData', 'updateProfile', 'importSubscriptionFile', 'importSubscriptionText', 'addSubscription', 'updateSource', 'updateSourceFile', 'updateSourceText', 'renameSource', 'removeSource', 'selectNode', 'testDelays'].includes(name) && e.sender !== win.settings.webContents) throw new Error('forbidden');
       if (name === 'siteInfo' && e.sender !== win.overlay.webContents) return;
       if (name === 'removePermission' && e.sender !== win.settings.webContents) {
         const active = win.state.tabs.find(tab => tab.id === win.state.active && tab.kind === 'web');

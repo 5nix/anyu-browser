@@ -122,7 +122,7 @@ export const zh = {
   checkTemplate6: "配置呈现 {presented}，本机是 {host}：Worker 的 navigator.platform、字体、WebGL 渲染器仍会显示本机",
   checkTemplate7: "Cave 自检报告  {date}",
   checkTemplate8: "闸门：{state}（{reason}）",
-  checkTemplate9: "配置：时区 {timezone}，语言 {languages}，出口国家 {country}，平台 {platform}",
+  checkTemplate9: "配置：时区 {timezone}，语言 {languages}，出口国家 {country}，平台 {platform}，连接方式 {connection}",
   checkTemplate10: "最近出口：{exit}",
   checkTemplate11: "通过 {passed}/{total}",
   settings: '设置',

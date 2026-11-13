@@ -27,6 +27,10 @@ function Home() {
     dialog.current?.close();
   };
   return <main><div class="home">
+    <svg class="home-mark" viewBox="179.36 173.36 665.28 665.28" aria-hidden="true">
+      <path d="M228 540C332 560 430 430 512 296C594 430 692 560 796 540Q822 560 796 590C692 614 590 530 512 470C434 530 332 614 228 590Q202 560 228 540Z" fill="currentColor" />
+      <path d="M438 642a74 74 0 1 0 148 0a74 74 0 1 0 -148 0Z" fill="currentColor" />
+    </svg>
     <form class="search" onSubmit={(e) => { e.preventDefault(); const value = search.current?.value.trim(); if (value) void cave.navigate(value); }}>
       <Icon name="search" /><input ref={search} aria-label={t('homeSearch')} placeholder={t('homeSearch')} />
     </form>

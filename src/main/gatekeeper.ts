@@ -10,7 +10,7 @@ import { CoreProcess } from './proxy/process.ts';
 import { extractProxies } from './proxy/subscription.ts';
 import { initialGate, isOpen, needsCheck, reduceGate, viewGate, type CheckResult, type Egress, type GateEvent, type GateFacts } from './gate.ts';
 import { browserSession, fetchSubscription, fetchText, freshProbeSession, TRACE_URL } from './network.ts';
-import { acceptExit, measureExit, measureExitOnly } from './exit-check.ts';
+import { acceptExit, measureExit } from './exit-check.ts';
 import { randomUUID } from 'node:crypto';
 import { coreNodeName, selectedCoreName, sourceProxies, removeSource } from './proxy-sources.ts';
 import { externalProxyNode, EXTERNAL_NODE_NAME } from './external-proxy.ts';
@@ -106,13 +106,20 @@ export class Gatekeeper extends EventEmitter {
       await this.boot();
     });
 
-  measureExit = () => this.serial(() => measureExitOnly({
-    running: () => this.core.running,
-    expected: () => this.selectedName(),
-    selected: () => this.controller.selected(),
-    createSession: () => freshProbeSession(this.o.ports),
-    fetchTrace: ({ session }) => fetchText(session, TRACE_URL),
-  }));
+  measureExit = () => this.serial(async () => {
+    if (!this.core.running) throw new Error('Core is not running');
+    const expected = this.selectedName();
+    if (!expected) throw new Error('No selected node');
+    const egress = await measureExit({
+      selected: () => this.controller.selected(),
+      createSession: () => freshProbeSession(this.o.ports),
+      fetchTrace: ({ session }) => fetchText(session, TRACE_URL),
+    });
+    if (!this.core.running) throw new Error('Core is not running');
+    if (!egress.ip || !/^[A-Z]{2}$/.test(egress.country)) throw new Error('Invalid exit trace');
+    if (egress.node !== expected || this.selectedName() !== expected || await this.controller.selected() !== expected) throw new Error('Selected node changed');
+    return { country: egress.country, colo: 'colo' in egress && typeof egress.colo === 'string' ? egress.colo : '' };
+  });
 
   recheck = () => this.serial(() => this.dispatch({ type: 'recheck' }));
 

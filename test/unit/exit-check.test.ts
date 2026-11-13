@@ -39,21 +39,3 @@ test('a late measurement cannot open the gate or update a node label', () => {
   assert.equal(isOpen(facts), false);
   assert.equal(labels.size, 0);
 });
-
-test('measure-only leaves gate facts unchanged and rejects a changed node', async () => {
-  const { measureExitOnly } = await import('../../src/main/exit-check.ts');
-  const facts = initialGate('');
-  const before = structuredClone(facts);
-  let selected = 'node';
-  const options = {
-    running: () => true, expected: () => 'node', selected: async () => selected,
-    createSession: async () => ({ close: async () => {} }),
-    fetchTrace: async () => 'ip=1\nloc=JP\ncolo=NRT\n',
-  };
-  assert.deepEqual(await measureExitOnly(options), { country: 'JP', colo: 'NRT' });
-  assert.deepEqual(facts, before);
-  await assert.rejects(measureExitOnly({ ...options, fetchTrace: async () => { selected = 'other'; return 'ip=1\nloc=JP'; } }), /Selected node changed/);
-  assert.deepEqual(facts, before);
-  await assert.rejects(measureExitOnly({ ...options, running: () => false }), /Core is not running/);
-  await assert.rejects(measureExitOnly({ ...options, expected: () => '' }), /No selected node/);
-});

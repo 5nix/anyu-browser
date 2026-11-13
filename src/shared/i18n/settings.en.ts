@@ -3,6 +3,23 @@ import type { settingsZh } from './settings.zh.ts';
 
 
 export const settingsEn: Record<keyof typeof settingsZh, string> = {
+  'set.nodes.connection': 'Connection',
+  'set.nodes.modeSystem': 'Built-in node · via system route',
+  'set.nodes.modeSystemHint': 'The core connects to the selected node following system routing; with a host TUN running, the connection passes through that TUN.',
+  'set.nodes.modeIndependent': 'Built-in node · bypass host TUN',
+  'set.nodes.modeIndependentHint': 'The core connects to the selected node through the physical uplink the OS picks, not through a host TUN. With no usable uplink it stays closed.',
+  'set.nodes.modeIndependentUnsupported': 'Currently available on Windows only.',
+  'set.nodes.modeExternal': 'Local proxy port · forwarded by the built-in core',
+  'set.nodes.modeExternalHint': 'The core uses the local port below as its only outbound; the browser still talks only to the built-in core and the gate keeps verifying and cutting off. Node selection happens in that proxy software.',
+  'set.nodes.extProtocol': 'Protocol',
+  'set.nodes.extHost': 'Host (this machine only)',
+  'set.nodes.extPort': 'Port',
+  'set.nodes.extUser': 'Username (optional)',
+  'set.nodes.extPass': 'Password (optional)',
+  'set.nodes.monitorUrl': 'Monitor URL (optional)',
+  'set.nodes.monitorUrlHint': 'The exit check goes through this URL; it must be https and return trace text with ip= and loc= lines. Empty uses the default Cloudflare address. If the exit seen through it is direct or mismatches the configured country, the gate cuts every connection. Monitoring samples this one URL only; per-domain splits inside the proxy software are not visible.',
+  'set.nodes.saveConnection': 'Save connection settings',
+  'set.nodes.externalActive': 'The local proxy port is in use; the subscription nodes below take no part. Selecting a node switches back to a built-in node mode.',
   "set.nodes.pasted": "Pasted",
   "set.nodes.rename": "Rename source",
   "set.nodes.saveName": "Save",

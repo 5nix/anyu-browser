@@ -4,6 +4,19 @@ import { t, type TranslationKey } from './i18n/index.ts';
 
 export type PresentedPlatform = 'host' | 'macos' | 'windows';
 
+/** How the built-in core reaches the outside world. The gate logic is the same for all three. */
+export type ConnectionMode = 'system' | 'independent' | 'external';
+
+/** A local HTTP/SOCKS endpoint of proxy software already running on this machine (external mode). */
+export interface ExternalProxy {
+  protocol: 'socks5' | 'http';
+  host: string;
+  /** 0 means not configured yet; external mode then has no node and the gate stays closed. */
+  port: number;
+  username: string;
+  password: string;
+}
+
 export interface Geolocation { latitude: number; longitude: number; accuracy: number }
 
 export interface Profile {
@@ -19,6 +32,15 @@ export interface Profile {
   /** Which desktop OS pages are told this is. "host" follows the machine. */
   platform: PresentedPlatform;
   allowPrivateNetwork: boolean;
+  /** system: core dials the selected node on the system route (a host TUN may carry it).
+   *  independent: core dials the selected node via an OS-resolved uplink, bypassing a host TUN.
+   *  external: the core's only outbound is externalProxy; node selection belongs to that software. */
+  connectionMode: ConnectionMode;
+  externalProxy: ExternalProxy;
+  /** Exit-check endpoint override (trace format: ip=/loc= lines). Empty uses the built-in default.
+   *  In external mode this is the monitored URL: if the exit seen through it goes direct or
+   *  mismatches the configured country, the gate cuts every connection. */
+  monitorUrl: string;
   notifications: boolean;
   /** subscriptionVia: "direct" fetches the subscription URL once over the system network; "proxy" through the selected node */
   proxy: ProxySources;
@@ -109,6 +131,9 @@ export function defaultProfile(hostLocale: string, hostTimezone: string): Profil
     egressCountry: '',
     platform: 'host',
     allowPrivateNetwork: false,
+    connectionMode: 'system',
+    externalProxy: { protocol: 'socks5', host: '127.0.0.1', port: 0, username: '', password: '' },
+    monitorUrl: '',
     notifications: false,
     proxy: { sources: [], selected: null },
   };
@@ -133,6 +158,17 @@ export function validateProfile(input: unknown, fallback: Profile): Profile {
   const platform = pick('platform');
   if (!['host', 'macos', 'windows'].includes(platform)) fail('platform', 'profilePlatform');
 
+  // Profiles written by the previous build used bypassHostTun for what is now independent mode.
+  const connectionMode = raw.connectionMode === undefined && raw.bypassHostTun === true ? 'independent' : pick('connectionMode');
+  if (!['system', 'independent', 'external'].includes(connectionMode)) fail('connectionMode', 'profileInvalid');
+
+  const externalProxy = externalProxyValue(pick('externalProxy'));
+
+  // HTTPS only: this endpoint's answer opens the gate, and a plaintext answer could be forged
+  // by anything on the path the check is supposed to verify.
+  const monitorUrl = String(pick('monitorUrl') ?? '').trim();
+  if (monitorUrl && (monitorUrl.length > 2048 || !URL.canParse(monitorUrl) || new URL(monitorUrl).protocol !== 'https:')) fail('monitorUrl', 'profileInvalid');
+
   const proxy = normalizeProxySources(raw.proxy ?? fallback.proxy);
 
   return {
@@ -144,9 +180,25 @@ export function validateProfile(input: unknown, fallback: Profile): Profile {
     egressCountry: country,
     platform,
     allowPrivateNetwork: pick('allowPrivateNetwork') === true,
+    connectionMode,
+    externalProxy,
+    monitorUrl,
     notifications: pick('notifications') === true,
     proxy,
   };
+}
+
+/** Strict shape for the external endpoint; a malformed one is a profile error, not a silent default. */
+function externalProxyValue(v: any): ExternalProxy {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) fail('externalProxy', 'profileInvalid');
+  const host = typeof v.host === 'string' ? v.host.trim() : '';
+  const username = typeof v.username === 'string' ? v.username : '';
+  const password = typeof v.password === 'string' ? v.password : '';
+  if (!['socks5', 'http'].includes(v.protocol)
+    || !host || host.length > 255 || /\s/.test(host)
+    || !Number.isInteger(v.port) || v.port < 0 || v.port > 65535
+    || username.length > 256 || password.length > 256) fail('externalProxy', 'profileInvalid');
+  return { protocol: v.protocol, host, port: v.port, username, password };
 }
 
 /** Load stored data defensively; invalid fields use safe defaults, never a previously enabled capability. */
@@ -157,9 +209,11 @@ export function normalizeProfile(input: unknown, fallback: Profile, legacyNodes:
     try { validateProfile({ ...defaults, [key]: value }, defaults); return true; } catch { return false; }
   };
   const sanitized: Record<string, unknown> = {};
-  for (const key of ['locale', 'acceptLanguages', 'timezone', 'geolocation', 'egressCountry', 'platform', 'allowPrivateNetwork', 'notifications'] as const) {
+  for (const key of ['locale', 'acceptLanguages', 'timezone', 'geolocation', 'egressCountry', 'platform', 'allowPrivateNetwork', 'connectionMode', 'externalProxy', 'monitorUrl', 'notifications'] as const) {
     if (raw[key] !== undefined && valid(key, raw[key])) sanitized[key] = raw[key];
   }
+  // Legacy migration: bypassHostTun from the previous build means independent mode.
+  if (sanitized.connectionMode === undefined && raw.bypassHostTun === true) sanitized.connectionMode = 'independent';
   const result = validateProfile(sanitized, defaults);
   result.proxy = normalizeProxySources(raw.proxy, legacyNodes);
   return result;

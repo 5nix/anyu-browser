@@ -47,6 +47,35 @@ test('normalize: unknown keys are dropped, booleans must be true to enable', () 
   assert.equal(p.allowPrivateNetwork, true);
 });
 
+test('connection mode defaults to system and survives normalization', () => {
+  assert.equal(base.connectionMode, 'system');
+  assert.equal(normalizeProfile({}, base).connectionMode, 'system');
+  assert.equal(normalizeProfile({ connectionMode: 'external' }, base).connectionMode, 'external');
+  assert.equal(normalizeProfile({ connectionMode: 'bogus' }, base).connectionMode, 'system');
+  assert.throws(() => validateProfile({ connectionMode: 'bogus' }, base), /connectionMode/);
+});
+
+test('legacy bypassHostTun migrates to independent mode', () => {
+  assert.equal(normalizeProfile({ bypassHostTun: true }, base).connectionMode, 'independent');
+  assert.equal(normalizeProfile({ bypassHostTun: 'true' }, base).connectionMode, 'system');
+  assert.equal(validateProfile({ bypassHostTun: true }, base).connectionMode, 'independent');
+  assert.equal(validateProfile({ connectionMode: 'system', bypassHostTun: true }, base).connectionMode, 'system');
+});
+
+test('external proxy and monitor URL are validated', () => {
+  const p = normalizeProfile({ externalProxy: { protocol: 'http', host: ' 127.0.0.1 ', port: 7890, username: 'u', password: 'x' }, monitorUrl: ' https://example.com/trace ' }, base);
+  assert.deepEqual(p.externalProxy, { protocol: 'http', host: '127.0.0.1', port: 7890, username: 'u', password: 'x' });
+  assert.equal(p.monitorUrl, 'https://example.com/trace');
+  // A malformed endpoint falls back to the safe default instead of enabling a capability.
+  assert.equal(normalizeProfile({ externalProxy: { protocol: 'socks5', host: '127.0.0.1', port: 70000, username: '', password: '' } }, base).externalProxy.port, 0);
+  assert.equal(normalizeProfile({ monitorUrl: 'ftp://example.com/trace' }, base).monitorUrl, '');
+  // Plaintext is not accepted: the monitor answer is what opens the gate.
+  assert.equal(normalizeProfile({ monitorUrl: 'http://example.com/trace' }, base).monitorUrl, '');
+  assert.throws(() => validateProfile({ externalProxy: { protocol: 'socks5', host: '127.0.0.1', port: -1, username: '', password: '' } }, base), /externalProxy/);
+  assert.throws(() => validateProfile({ monitorUrl: 'not a url' }, base), /monitorUrl/);
+  assert.throws(() => validateProfile({ monitorUrl: 'http://example.com/trace' }, base), /monitorUrl/);
+});
+
 test('languagesFor adds the base language', () => {
   assert.deepEqual(languagesFor('de-DE'), ['de-DE', 'de']);
   assert.deepEqual(languagesFor('en'), ['en']);

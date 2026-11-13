@@ -13,6 +13,7 @@ import { browserSession, fetchSubscription, fetchText, freshProbeSession, TRACE_
 import { acceptExit, measureExit } from './exit-check.ts';
 import { randomUUID } from 'node:crypto';
 import { coreNodeName, selectedCoreName, sourceProxies, removeSource } from './proxy-sources.ts';
+import { externalProxyNode, EXTERNAL_NODE_NAME } from './external-proxy.ts';
 import type { DelayOutcome } from '../shared/ipc.ts';
 import type { Profile, SubscriptionVia, ProxySourceOrigin } from '../shared/profile.ts';
 
@@ -26,6 +27,8 @@ export interface GatekeeperOptions {
   secret: string;
   profile: () => Profile;
   saveProxy: (patch: Partial<Profile['proxy']>) => Promise<void>;
+  /** Independent mode only: resolve the OS uplink the core's upstream sockets bind to. */
+  resolveOutboundInterface?: () => Promise<string | undefined>;
 }
 
 export class Gatekeeper extends EventEmitter {
@@ -38,6 +41,7 @@ export class Gatekeeper extends EventEmitter {
   private countries = new Map<string, string>();
   private delayOutcomes = new Map<string, DelayOutcome>();
   private quitting = false;
+  private outboundInterface: string | undefined;
   private files: { runtime: string; log: string };
 
   constructor(private o: GatekeeperOptions) {
@@ -53,10 +57,15 @@ export class Gatekeeper extends EventEmitter {
   }
 
   get view() {
-    const view = viewGate(this.facts);
+    const base = viewGate(this.facts);
+    // External mode has no subscription node to import; say what is actually missing.
+    const view = this.o.profile().connectionMode === 'external' && !this.selectedName() && base.state === 'closed' && this.facts.core === 'up' && !this.facts.hasNode
+      ? { ...base, reason: t('core.noExternal') } : base;
     if (!view.egress) return view;
     const selected = this.o.profile().proxy.selected;
-    return { ...view, egress: { ...view.egress, node: selected && coreNodeName(selected.source, selected.node) === view.egress.node ? selected.node : view.egress.node } };
+    const node = view.egress.node === EXTERNAL_NODE_NAME ? t('core.localPortNode')
+      : selected && coreNodeName(selected.source, selected.node) === view.egress.node ? selected.node : view.egress.node;
+    return { ...view, egress: { ...view.egress, node } };
   }
   get open() {
     return isOpen(this.facts);
@@ -162,8 +171,17 @@ export class Gatekeeper extends EventEmitter {
   });
 
   async nodes() {
-    const proxy = this.o.profile().proxy;
+    const profile = this.o.profile();
+    const proxy = profile.proxy;
     const rows = proxy.sources.flatMap(source => source.nodes.map(node => ({ source: source.id, name: String(node.name), type: String(node.type), delay: this.delayOutcomes.get(coreNodeName(source.id, String(node.name))) ?? { status: 'untested' as const }, country: this.countries.get(coreNodeName(source.id, String(node.name))) ?? '' })));
+    if (profile.connectionMode === 'external') {
+      // Subscription rows stay listed (selecting one switches back to a built-in mode); the
+      // synthetic local-port row leads and is the current selection.
+      const node = externalProxyNode(profile.externalProxy);
+      const label = t('core.localPortNode');
+      const synthetic = node ? [{ source: 'external', name: label, type: String(node.type), delay: this.delayOutcomes.get(EXTERNAL_NODE_NAME) ?? { status: 'untested' as const }, country: this.countries.get(EXTERNAL_NODE_NAME) ?? '' }] : [];
+      return { nodes: [...synthetic, ...rows], selected: node ? { source: 'external', node: label } : null };
+    }
     return { nodes: rows, selected: proxy.selected };
   }
 
@@ -176,8 +194,10 @@ export class Gatekeeper extends EventEmitter {
       this.delayOutcomes.set(name, outcome);
       if (outcome.status === 'timeout') this.countries.delete(name);
     }
-    const selected = selectedCoreName(this.o.profile().proxy);
-    if (selected && this.delayOutcomes.get(selected)?.status === 'timeout') await this.dispatch({ type: 'node-changed', hasNode: false });
+    const selected = this.selectedName();
+    // A latency timeout alone never closes the gate in external mode: the exit probe is the
+    // authority there, and a stale timeout must not stick (see boot()).
+    if (selected && this.o.profile().connectionMode !== 'external' && this.delayOutcomes.get(selected)?.status === 'timeout') await this.dispatch({ type: 'node-changed', hasNode: false });
     else this.emit('change', this.view);
   });
 
@@ -195,7 +215,9 @@ export class Gatekeeper extends EventEmitter {
     if (!selectedCoreName(next)) next.selected = null;
     await this.o.saveProxy(next);
     try { await this.writeAndReload(); } catch (error) { await this.core.stop(); throw error; }
-    const current = selectedCoreName(this.o.profile().proxy);
+    // In external mode the outbound in use is the synthetic local-port node, not a subscription
+    // selection: importing or removing a source must not change the gate's node state.
+    const current = this.selectedName();
     await this.dispatch({ type: 'node-changed', hasNode: !!current && this.delayOutcomes.get(current)?.status !== 'timeout' });
   }
 
@@ -210,7 +232,19 @@ export class Gatekeeper extends EventEmitter {
   }
 
   private async proxies(): Promise<Record<string, unknown>[]> {
+    // External mode replaces every subscription node with the one synthetic local-port node;
+    // the core remains the gatekeeper and that node is its only outbound.
+    if (this.o.profile().connectionMode === 'external') {
+      const node = externalProxyNode(this.o.profile().externalProxy);
+      return node ? [node] : [];
+    }
     return sourceProxies(this.o.profile().proxy);
+  }
+
+  /** The core-side name of the outbound currently in use, per connection mode. */
+  private selectedName(): string {
+    if (this.o.profile().connectionMode === 'external') return externalProxyNode(this.o.profile().externalProxy) ? EXTERNAL_NODE_NAME : '';
+    return selectedCoreName(this.o.profile().proxy);
   }
 
   private async writeConfig(): Promise<void> {
@@ -221,8 +255,9 @@ export class Gatekeeper extends EventEmitter {
         secret: this.o.secret,
         open: isOpen(this.facts),
         proxies: await this.proxies(),
-        selected: selectedCoreName(this.o.profile().proxy),
+        selected: this.selectedName(),
         allowPrivateNetwork: this.o.profile().allowPrivateNetwork,
+        outboundInterface: this.outboundInterface,
       }),
     );
   }
@@ -259,8 +294,17 @@ export class Gatekeeper extends EventEmitter {
   }
 
   private async boot(): Promise<void> {
-    await this.writeConfig();
     try {
+      // Independent mode resolves its uplink again on every boot: a stale interface must not
+      // select a host TUN, and failing to resolve one keeps the gate closed (no fallback route).
+      if (this.o.profile().connectionMode === 'independent') {
+        if (!this.o.resolveOutboundInterface) throw new Error(t('core.independentUnavailable'));
+        this.outboundInterface = await this.o.resolveOutboundInterface();
+        // A resolver that comes back empty-handed is a failure, not permission to use the
+        // system route: independent mode exists precisely to not follow it.
+        if (!this.outboundInterface) throw new Error(t('core.noWindowsUplink'));
+      } else this.outboundInterface = undefined;
+      await this.writeConfig();
       await this.core.start(this.controller);
     } catch (err: any) {
       this.emit('error', err.message);
@@ -268,7 +312,9 @@ export class Gatekeeper extends EventEmitter {
       return;
     }
     this.backoff = 1000;
-    await this.dispatch({ type: 'core-up', hasNode: !!selectedCoreName(this.o.profile().proxy) && this.delayOutcomes.get(selectedCoreName(this.o.profile().proxy))?.status !== 'timeout' });
+    // External mode's liveness is decided by the exit probe, not by an earlier latency test.
+    if (this.o.profile().connectionMode === 'external') this.delayOutcomes.delete(EXTERNAL_NODE_NAME);
+    await this.dispatch({ type: 'core-up', hasNode: !!this.selectedName() && this.delayOutcomes.get(this.selectedName())?.status !== 'timeout' });
   }
 
   private onCoreExit(): void {
@@ -300,7 +346,7 @@ export class Gatekeeper extends EventEmitter {
 
   private async finishCheck(generation: number, result: CheckResult): Promise<void> {
     if (generation !== this.facts.generation || !this.core.running) return;
-    if ('egress' in result && (result.egress.node !== selectedCoreName(this.o.profile().proxy) || await this.controller.selected().catch(() => '') !== result.egress.node)) result = { ok: false, kind: 'failed', error: 'Selected node changed' };
+    if ('egress' in result && (result.egress.node !== this.selectedName() || await this.controller.selected().catch(() => '') !== result.egress.node)) result = { ok: false, kind: 'failed', error: 'Selected node changed' };
     if ('egress' in result) acceptExit(generation, this.facts.generation, result.egress, this.countries);
     await this.dispatch({ type: 'check-finished', generation, result, at: Date.now() });
   }
@@ -311,7 +357,10 @@ export class Gatekeeper extends EventEmitter {
       const egress = await measureExit({
         selected: () => this.controller.selected(),
         createSession: () => freshProbeSession(this.o.ports),
-        fetchTrace: ({ session }) => fetchText(session, TRACE_URL),
+        // The monitor URL is the exit-check endpoint: in external mode it is the watched URL,
+        // fetched through the local port like everything else; a direct or wrong-country exit
+        // fails this check and the gate cuts all connections.
+        fetchTrace: ({ session }) => fetchText(session, this.o.profile().monitorUrl.trim() || TRACE_URL),
       });
       return egress.country === this.facts.country ? { ok: true, egress } : { ok: false, kind: 'mismatch', egress };
     } catch (err: any) {

@@ -72,12 +72,28 @@ function NodesSection({ active, state, data, act, confirm, busy }: Props) {
   const [renaming, setRenaming] = useState<string | null>(null), [name, setName] = useState('');
   const [editingSource, setEditingSource] = useState<string | null>(null), [replacement, setReplacement] = useState('');
   const nodes = data.nodes.nodes, selected = data.nodes.selected;
+  const mode = data.profile.connectionMode;
+  const [ext, setExt] = useState(() => ({ ...data.profile.externalProxy, protocol: data.profile.externalProxy.protocol as string, port: data.profile.externalProxy.port ? String(data.profile.externalProxy.port) : '' }));
+  const setExtField = (key: string, value: string) => setExt(prev => ({ ...prev, [key]: value }));
+  const [monitor, setMonitor] = useState(data.profile.monitorUrl);
+  const connRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (connRef.current?.contains(document.activeElement)) return;
+    const p = data.profile.externalProxy;
+    setExt({ ...p, port: p.port ? String(p.port) : '' });
+    setMonitor(data.profile.monitorUrl);
+  }, [data.profile]);
+  const saveConnection = () => act(() => cave.updateProfile({
+    externalProxy: { ...ext, protocol: ext.protocol as 'socks5' | 'http', host: ext.host.trim(), port: Number(ext.port) || 0 },
+  }), 'connection');
   const isSelected = (n: typeof nodes[number]) => n.source === selected?.source && n.name === selected?.node;
   const select = async (n: typeof nodes[number]) => {
     if (isSelected(n) && n.delay.status !== 'timeout') return;
     const current = nodes.find(isSelected);
-    if (current && !isSelected(n) && !await confirm(t('set.nodes.switchTitle'), switchText(current, n, data.profile.egressCountry), t('set.nodes.switch'))) return;
-    await act(() => cave.selectNode(n.source, n.name));
+    if (current && !isSelected(n) && mode !== 'external' && !await confirm(t('set.nodes.switchTitle'), switchText(current, n, data.profile.egressCountry), t('set.nodes.switch'))) return;
+    // Picking a subscription node while on the local port means going back to a built-in node.
+    if (mode === 'external') await act(async () => { await cave.updateProfile({ connectionMode: 'system' }); await cave.selectNode(n.source, n.name); });
+    else await act(() => cave.selectNode(n.source, n.name));
   };
   const remove = async (id: string, sourceName: string) => {
     if (await confirm(t('set.nodes.removeTitle'), t('set.nodes.removeBody', { name: sourceName }), t('set.nodes.remove'), true)) await act(() => cave.removeSource(id));
@@ -85,6 +101,26 @@ function NodesSection({ active, state, data, act, confirm, busy }: Props) {
   useEffect(() => { if (!active) { setEditor(false); setRenaming(null); setEditingSource(null); } }, [active]);
   return <section data-section="nodes" class="entering" hidden={!active}>
     <h2>{t('set.nodes.title')}</h2>
+    <div class="card" ref={connRef}>
+      <div class="label"><b>{t('set.nodes.connection')}</b></div>
+      <label class="row"><div class="label"><b>{t('set.nodes.modeSystem')}</b><small>{t('set.nodes.modeSystemHint')}</small></div><input type="radio" name="connection-mode" checked={mode === 'system'} disabled={busy.has('connection')} onChange={() => act(() => cave.updateProfile({ connectionMode: 'system' }), 'connection')} /></label>
+      <label class="row"><div class="label"><b>{t('set.nodes.modeIndependent')}</b><small>{t('set.nodes.modeIndependentHint')}{cave.platform !== 'win32' && ` ${t('set.nodes.modeIndependentUnsupported')}`}</small></div><input type="radio" name="connection-mode" checked={mode === 'independent'} disabled={busy.has('connection') || cave.platform !== 'win32'} onChange={() => act(() => cave.updateProfile({ connectionMode: 'independent' }), 'connection')} /></label>
+      <label class="row"><div class="label"><b>{t('set.nodes.modeExternal')}</b><small>{t('set.nodes.modeExternalHint')}</small></div><input type="radio" name="connection-mode" checked={mode === 'external'} disabled={busy.has('connection')} onChange={() => act(() => cave.updateProfile({ connectionMode: 'external' }), 'connection')} /></label>
+      {mode === 'external' && <div class="source-editor">
+        <p><small>{t('set.nodes.externalActive')}</small></p>
+        <label class="editor-field"><span>{t('set.nodes.extProtocol')}</span><select id="ext-protocol" value={ext.protocol} onChange={e => setExtField('protocol', e.currentTarget.value)}><option value="socks5">SOCKS5</option><option value="http">HTTP</option></select></label>
+        <label class="editor-field"><span>{t('set.nodes.extHost')}</span><input id="ext-host" value={ext.host} onInput={e => setExtField('host', e.currentTarget.value)} spellcheck={false} /></label>
+        <label class="editor-field"><span>{t('set.nodes.extPort')}</span><input id="ext-port" type="number" min="1" max="65535" value={ext.port} onInput={e => setExtField('port', e.currentTarget.value)} spellcheck={false} /></label>
+        <label class="editor-field"><span>{t('set.nodes.extUser')}</span><input id="ext-user" value={ext.username} onInput={e => setExtField('username', e.currentTarget.value)} spellcheck={false} /></label>
+        <label class="editor-field"><span>{t('set.nodes.extPass')}</span><input id="ext-pass" type="password" value={ext.password} onInput={e => setExtField('password', e.currentTarget.value)} spellcheck={false} /></label>
+        <div class="editor-actions"><button id="save-connection" class="btn primary" disabled={busy.has('connection')} onClick={saveConnection}>{t('set.nodes.saveConnection')}</button></div>
+      </div>}
+      <div class="source-editor">
+        <label class="editor-field"><span>{t('set.nodes.monitorUrl')}</span><input id="monitor-url" value={monitor} onInput={e => setMonitor(e.currentTarget.value)} placeholder="https://www.cloudflare.com/cdn-cgi/trace" spellcheck={false} /></label>
+        <p><small>{t('set.nodes.monitorUrlHint')}</small></p>
+        <div class="editor-actions"><button id="save-monitor" class="btn primary" disabled={busy.has('connection')} onClick={() => act(() => cave.updateProfile({ monitorUrl: monitor.trim() }), 'connection')}>{t('set.nodes.saveConnection')}</button></div>
+      </div>
+    </div>
     <div class="nodes-toolbar"><span></span><button id="delays" disabled={busy.has('delays') || !nodes.length} onClick={() => act(() => cave.testDelays(), 'delays')} class="btn"><Icon name="zap" />{t('set.nodes.delays')}</button><button id="add-source" onClick={() => setEditor(true)} class="btn"><Icon name="plus" />{t('set.nodes.add')}</button></div>
     {editor && <div id="source-editor" class="source-editor">
       <div class="editor-head"><div class="label"><b>{t('set.nodes.addTitle')}</b></div><button class="icon-btn sm" aria-label={t('set.nodes.close')} onClick={() => setEditor(false)}><Icon name="x" /></button></div>

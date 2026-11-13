@@ -50,6 +50,16 @@ let the owner decide. A verified result never justifies an interruption.
 10. If a test truly cannot work without a foreground window, do not run it: say so in
     your report and name the test.
 
+## Writing tests
+
+16. A fix does not come with a new e2e test by default. Add an e2e test only when it guards
+    the operating premise (rule 12: proxy-only, fail closed, no leak) or a flow that has
+    broken for a user more than once. Pure logic gets at most one small unit test. Copy,
+    CSS, layout and one-off UI fixes get none: verify them once by hand through CDP and say
+    what you looked at.
+17. Before adding a test, look for an existing one that already launches the same world and
+    add an assertion there. Every new `startWorld()` costs seconds on every later run.
+
 ## Code boundaries
 
 11. Do not change `src/main/gate.ts`, `src/main/gatekeeper.ts`, `src/main/network.ts` or

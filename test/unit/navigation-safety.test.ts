@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { recordInPageVisit, allowedSiteOrigin, NavigationFailures } from '../../src/shared/navigation-safety.ts';
+import { recordInPageVisit, allowedSiteOrigin, NavigationFailures, PDF_VIEWER_ORIGIN, isAllowedPdfViewerFrame } from '../../src/shared/navigation-safety.ts';
 
 test('in-page history records path and query changes, not fragment-only changes', () => {
   assert.equal(recordInPageVisit('https://a.test/p#one', 'https://a.test/p#two'), false);
@@ -23,3 +23,13 @@ test('older failures cannot replace the current navigation error', () => {
   nav.start('https://b.test');
   assert.equal(nav.accepts('https://b.test'), true);
 });
+
+test('built-in PDF viewer stream frame is allowed only from within the PDF viewer itself', () => {
+  const stream = `${PDF_VIEWER_ORIGIN}/00000000-0000-0000-0000-000000000001`;
+  assert.equal(isAllowedPdfViewerFrame(stream, false, PDF_VIEWER_ORIGIN, PDF_VIEWER_ORIGIN), true);
+  assert.equal(isAllowedPdfViewerFrame(stream, true, PDF_VIEWER_ORIGIN, PDF_VIEWER_ORIGIN), false);
+  assert.equal(isAllowedPdfViewerFrame(stream, false, 'https://example.test', PDF_VIEWER_ORIGIN), false);
+  assert.equal(isAllowedPdfViewerFrame(stream, false, PDF_VIEWER_ORIGIN, 'https://example.test'), false);
+  assert.equal(isAllowedPdfViewerFrame('chrome-extension://other/index.html', false, PDF_VIEWER_ORIGIN, PDF_VIEWER_ORIGIN), false);
+});
+

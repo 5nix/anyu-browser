@@ -1,6 +1,6 @@
 import { certificateFailure, failureKind } from './recovery.ts';
 import { t } from '../../shared/i18n/index.ts';
-import { NavigationFailures } from '../../shared/navigation-safety.ts';
+import { isAllowedPdfViewerFrame, NavigationFailures } from '../../shared/navigation-safety.ts';
 // One tab: a page in its own view, and what the chrome shows about it. A tab does not know
 // which window it is in; the window that holds it is its host and hears what happens to it.
 import { WebContentsView, type BrowserWindowConstructorOptions, type WebContents } from 'electron';
@@ -228,7 +228,7 @@ export class Tab {
         this.host!.opened(options.webContents!, disposition !== 'background-tab'),
     }));
     wc.on('will-frame-navigate', (e) => {
-      if (!WEB.test(e.url)) e.preventDefault();
+      if (!WEB.test(e.url) && !isAllowedPdfViewerFrame(e.url, e.isMainFrame, e.initiator?.origin, e.frame?.parent?.origin)) e.preventDefault();
     });
     wc.on('destroyed', () => this.host?.closed(this));
   }

@@ -7,7 +7,7 @@ import { join, dirname, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const dir = join(dirname(fileURLToPath(import.meta.url)), 'fixtures');
-const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript' };
+const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.pdf': 'application/pdf' };
 
 // QM and QN are user-assigned ISO region codes, used here as synthetic exits.
 export function startFixtureServer({ port = 0, host = '127.0.0.1', country = 'QM', tls } = {}) {

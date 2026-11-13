@@ -1,0 +1,6 @@
+/* The shadow of the open card. This page is a click-through window laid over the card with
+   64px to spare on every side; the box below coincides with the card and paints only outside it. */
+html, body { height: 100%; margin: 0; background: transparent; overflow: hidden; }
+#shadow { position: fixed; inset: 64px; border-radius: var(--r-pop); box-shadow: var(--shadow-pop); opacity: 0; transition: opacity 140ms ease-out; }
+/* Same timing as .surface.card in overlay.css: there at once, fading only when it leaves. */
+body.in #shadow { opacity: 1; transition: none; }

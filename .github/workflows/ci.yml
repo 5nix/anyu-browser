@@ -1,0 +1,94 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      full:
+        description: Also run the end-to-end tests and the three-platform build
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: node scripts/fetch-core.mjs
+      - run: npm test
+
+  e2e:
+    if: inputs.full
+    needs: test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: node scripts/fetch-core.mjs
+      - name: System packages for the end-to-end tests
+        run: sudo apt-get update && sudo apt-get install -y xvfb strace
+      - name: End-to-end (Xvfb, local fixtures only)
+        run: xvfb-run -a -s "-screen 0 1600x1000x24" npm run test:e2e
+
+  build:
+    if: inputs.full
+    needs: test
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            cores: darwin arm64, darwin x64
+            target: --mac
+          - os: windows-latest
+            cores: win32 x64
+            target: --win
+          - os: ubuntu-24.04
+            cores: linux x64
+            target: --linux
+    runs-on: ${{ matrix.os }}
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      # The mac bundle is ad-hoc signed (no secrets), so PR builds get the same artifact.
+      CSC_FOR_PULL_REQUEST: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Fetch the pinned proxy core
+        shell: bash
+        run: |
+          IFS=',' read -ra pairs <<< "${{ matrix.cores }}"
+          for pair in "${pairs[@]}"; do node scripts/fetch-core.mjs $pair; done
+      - run: npm run build
+      - run: npx electron-builder ${{ matrix.target }} --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: anyu-${{ runner.os }}
+          if-no-files-found: error
+          path: |
+            release/*.dmg
+            release/*.zip
+            release/*.exe
+            release/*.AppImage
+            release/*.tar.gz

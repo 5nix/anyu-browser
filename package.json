@@ -1,0 +1,140 @@
+{
+  "name": "anyu-browser",
+  "productName": "Anyu",
+  "private": true,
+  "version": "0.1.0",
+  "description": "A privacy-isolated desktop browser whose only route out is a bundled proxy core.",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/main.mjs",
+  "scripts": {
+    "core": "node scripts/fetch-core.mjs",
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc -p .",
+    "start": "npm run build && electron .",
+    "test": "npm run typecheck && node --test test/unit/*.test.ts",
+    "test:e2e": "npm run build && node --test --test-concurrency=1 test/e2e/*.test.mjs",
+    "dist": "npm run build && electron-builder --publish never"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "electron": "45.3.0",
+    "electron-builder": "^26.18.0",
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2",
+    "yaml": "^2.9.1"
+  },
+  "build": {
+    "appId": "app.anyu.browser",
+    "productName": "Anyu",
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**",
+      "package.json"
+    ],
+    "asar": true,
+    "extraResources": [
+      {
+        "from": "resources/proxy-core",
+        "to": "proxy-core",
+        "filter": [
+          "LICENSE",
+          "NOTICE"
+        ]
+      }
+    ],
+    "mac": {
+      "icon": "resources/icon.icns",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
+      "category": "public.app-category.productivity",
+      "identity": "-",
+      "hardenedRuntime": false,
+      "extraResources": [
+        {
+          "from": "vendor/proxy-core/darwin-${arch}",
+          "to": "proxy-core",
+          "filter": [
+            "cave-core*"
+          ]
+        }
+      ]
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "extraResources": [
+        {
+          "from": "vendor/proxy-core/win32-${arch}",
+          "to": "proxy-core",
+          "filter": [
+            "cave-core*"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "tar.gz",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "category": "Network",
+      "extraResources": [
+        {
+          "from": "vendor/proxy-core/linux-${arch}",
+          "to": "proxy-core",
+          "filter": [
+            "cave-core*"
+          ]
+        }
+      ]
+    },
+    "publish": null
+  },
+  "dependencies": {
+    "preact": "^11.2.0"
+  }
+}

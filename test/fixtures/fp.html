@@ -1,0 +1,49 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Cave fingerprint fixture</title>
+<h1 id="status">collecting…</h1>
+<script src="probe.js"></script>
+<script>
+const withTimeout = (p, ms = 5000) => Promise.race([p, new Promise((r) => setTimeout(() => r({ error: 'timeout' }), ms))]);
+async function webrtc() {
+  const pc = new RTCPeerConnection({ iceServers: [] });
+  pc.createDataChannel('x');
+  const cands = [];
+  pc.onicecandidate = (e) => e.candidate && cands.push(e.candidate.candidate);
+  await pc.setLocalDescription(await pc.createOffer());
+  await new Promise((r) => { pc.onicegatheringstatechange = () => pc.iceGatheringState === 'complete' && r(); setTimeout(r, 3000); });
+  pc.close();
+  return cands;
+}
+function geo() {
+  return new Promise((r) => navigator.geolocation.getCurrentPosition(
+    (p) => r({ latitude: p.coords.latitude, longitude: p.coords.longitude, accuracy: p.coords.accuracy }),
+    (e) => r({ error: e.code + ' ' + e.message }), { timeout: 4000 }));
+}
+async function main() {
+  const result = { main: await collect() };
+  result.headers = await (await fetch('/headers')).json();
+  result.screen = { width: screen.width, height: screen.height, availWidth: screen.availWidth, dpr: devicePixelRatio };
+  result.chromeObject = typeof window.chrome === 'object' ? Object.keys(window.chrome) : null;
+  result.plugins = [...navigator.plugins].map((p) => p.name);
+  result.pdfViewerEnabled = navigator.pdfViewerEnabled;
+  result.permissions = {};
+  for (const name of ['geolocation', 'notifications', 'camera', 'microphone', 'clipboard-read']) {
+    result.permissions[name] = await navigator.permissions.query({ name }).then((s) => s.state, (e) => 'error:' + e.message);
+  }
+  result.mediaDevices = await navigator.mediaDevices.enumerateDevices().then((d) => d.map((x) => ({ kind: x.kind, label: x.label, id: x.deviceId })), (e) => String(e));
+  result.webrtc = await withTimeout(webrtc());
+  result.geolocation = await withTimeout(geo(), 6000);
+  result.worker = await withTimeout(new Promise((r) => { const w = new Worker('worker.js'); w.onmessage = (e) => r(e.data); }));
+  result.shared = await withTimeout(new Promise((r) => { const w = new SharedWorker('shared.js'); w.port.onmessage = (e) => r(e.data); w.port.start(); }));
+  result.serviceWorker = await withTimeout((async () => {
+    const reg = await navigator.serviceWorker.register('sw.js');
+    await navigator.serviceWorker.ready;
+    return new Promise((r) => { navigator.serviceWorker.onmessage = (e) => r(e.data.sw); (reg.active || reg.installing || reg.waiting).postMessage('go'); });
+  })());
+  result.webgl = (() => { const gl = document.createElement('canvas').getContext('webgl'); if (!gl) return null; const d = gl.getExtension('WEBGL_debug_renderer_info'); return d ? { vendor: gl.getParameter(d.UNMASKED_VENDOR_WEBGL), renderer: gl.getParameter(d.UNMASKED_RENDERER_WEBGL) } : 'no-ext'; })();
+  await fetch('/report', { method: 'POST', body: JSON.stringify(result) });
+  document.getElementById('status').textContent = 'done';
+}
+main().catch((e) => fetch('/report', { method: 'POST', body: JSON.stringify({ error: String(e && e.stack || e) }) }));
+</script>

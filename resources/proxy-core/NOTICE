@@ -1,0 +1,9 @@
+Cave bundles an unmodified build of the proxy core published by MetaCubeX
+(https://github.com/MetaCubeX/mihomo), release v1.19.34, licensed under the
+GNU General Public License v3.0 (see LICENSE in this directory).
+
+Corresponding source: https://github.com/MetaCubeX/mihomo/tree/v1.19.34
+Release binaries:     https://github.com/MetaCubeX/mihomo/releases/tag/v1.19.34
+
+The binary is shipped as "cave-core" and runs as a separate process; Cave talks
+to it only through command-line arguments and its local HTTP controller.

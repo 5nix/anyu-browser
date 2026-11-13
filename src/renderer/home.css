@@ -1,0 +1,26 @@
+html, body, main { width: 100%; height: 100%; background: var(--surface); }
+.home { width: min(600px, calc(100% - 48px)); margin: auto; padding-top: clamp(90px, 20vh, 190px); }
+.search { height: 52px; display: flex; align-items: center; gap: 14px; padding: 0 18px; border-radius: 999px; background: var(--frame-raised); border: 1px solid var(--sep); color: var(--text-2); }
+.search input { width: 100%; height: 100%; padding: 0; background: transparent; box-shadow: none; font-size: 15px; }
+.search:hover, .search:focus-within { box-shadow: var(--shadow-sheet); }
+.search input:hover:not(:disabled), .search input:focus { outline: none; box-shadow: none; background: transparent; }
+.shortcuts { display: grid; grid-template-columns: repeat(auto-fit, 100px); justify-content: center; gap: 8px; margin-top: 30px; }
+.tile { position: relative; }
+.tile-link { width: 100px; height: 112px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; border-radius: var(--r-card); }
+.tile-link:hover { background: var(--hover); }
+.avatar { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; background: var(--sunken); font-size: 20px; }
+.tile-name { max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.more { position: absolute; right: 2px; top: 2px; opacity: 0; }
+.tile:hover .more, .tile:focus-within .more { opacity: 1; }
+.menu { position: absolute; z-index: 2; right: 0; top: 30px; min-width: 110px; padding: 4px; background: var(--surface); border-radius: var(--r-tab); box-shadow: var(--shadow-pop); }
+.menu button { display: block; text-align: left; width: 100%; padding: 6px 10px; }
+.menu button:hover { background: var(--pop-hover); }
+dialog { width: min(380px, calc(100% - 40px)); border: 0; border-radius: var(--r-dlg); padding: 24px; color: var(--text); background: var(--surface); box-shadow: var(--shadow-pop); }
+dialog::backdrop { background: rgb(0 0 0 / .35); }
+dialog h2 { margin: 0 0 20px; font-size: var(--fs-title); }
+dialog label { display: block; margin: 12px 0; color: var(--text-2); }
+dialog input { display: block; width: 100%; margin-top: 6px; }
+.actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px; }
+.invalid { color: var(--danger); }
+
+.avatar img { width: 24px; height: 24px; }

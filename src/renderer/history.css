@@ -1,0 +1,21 @@
+body { background: var(--surface); }
+main { max-width: 800px; margin: 48px auto; padding: 0 24px 48px; }
+h1 { font-size: var(--fs-page); margin: 0 0 24px; }
+h2 { color: var(--text-2); font-size: var(--fs-sm); font-weight: 600; margin: 24px 0 8px; }
+.toolbar, .row { display: flex; align-items: center; gap: 8px; }
+.toolbar input { flex: 1; min-width: 0; }
+main > p { color: var(--text-2); margin: 24px 0; }
+.row { border-bottom: 1px solid var(--sep); }
+.row > input { flex: none; margin: 0 8px; }
+.row > input:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
+.visit:focus-visible { outline-offset: var(--focus-offset); }
+.row .visit { flex: 1; min-width: 0; }
+.visit { display: flex; align-items: center; gap: 24px; width: 100%; min-height: 64px; text-align: left; padding: 8px; border: 0; background: transparent; color: inherit; cursor: pointer; }
+.visit:hover { background: var(--hover); }
+.visit:active { background: var(--press); }
+.visit time { flex: none; width: 64px; font-variant-numeric: tabular-nums; color: var(--text-2); font-size: var(--fs-sm); }
+.visit span { display: grid; gap: 4px; min-width: 0; }
+.visit strong, .visit small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.visit small { color: var(--text-2); font-size: var(--fs-sm); }
+
+.row-favicon, .visit > .icon { width: 16px; height: 16px; flex: none; }

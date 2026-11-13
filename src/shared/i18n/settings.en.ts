@@ -54,7 +54,6 @@ export const settingsEn: Record<keyof typeof settingsZh, string> = {
   "set.nodes.count": "{count} nodes",
   "set.permissions.title": "Site permissions", "set.permissions.empty": "No saved decisions", "set.permissions.camera": "Camera", "set.permissions.microphone": "Microphone", "set.permissions.location": "Location", "set.permissions.notifications": "Notifications", "set.permissions.clipboard": "Read clipboard", "set.permissions.allow": "Allowed", "set.permissions.deny": "Denied", "set.permissions.remove": "Remove",
   "set.restoreSession": "Restore tabs on startup",
-  "set.search.default": "example.com",
   "set.search.title": "Search engine",
   "set.search.custom": "Custom",
   "set.search.template": "Search URL template",

@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import type { Permission, CheckItem, PanelData, SearchEngine, SettingsSection, ShellState } from '../../shared/ipc.ts';
 import { MAX_MONITOR_URLS, type Profile, type SubscriptionVia } from '../../shared/profile.ts';
 import { t, setLocale, type LocalePreference } from '../../shared/i18n/index.ts';
-import { isSearchEngine } from '../../shared/url.ts';
+import { SEARCH_PRESETS, isSearchEngine } from '../../shared/url.ts';
 import { switchText } from '../../shared/switch.ts';
 import { cave } from '../bridge.ts';
 import { ConditionList, GateSummary, gateStatus, regionName } from '../gate-status.tsx';
@@ -289,7 +289,7 @@ function AppearanceSection({ active, state, data, act, confirm, checks, runCheck
           const next = e.currentTarget.value as SearchEngine['kind']; setKind(next); setError(null);
           if (next === 'custom') dirty.current = true;
           else void save({ kind: next });
-        }}><option value="default">{t('set.search.default')}</option><option value="custom">{t('set.search.custom')}</option></select></label>
+        }}>{SEARCH_PRESETS.map(p => <option value={p.id}>{p.label}</option>)}<option value="custom">{t('set.search.custom')}</option></select></label>
         {kind === 'custom' && <form onSubmit={e => { e.preventDefault(); void save({ kind: 'custom', template }); }}>
           <label class="row"><span class="label"><b>{t('set.search.template')}</b></span><input value={template} onInput={e => { dirty.current = true; setTemplate(e.currentTarget.value); setError(null); }} /></label>
           <div class="row"><button class="btn" type="submit">{t('set.env.save')}</button></div>

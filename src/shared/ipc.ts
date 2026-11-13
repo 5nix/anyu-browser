@@ -39,8 +39,10 @@ export interface CheckItem { id: number; title: string; pass: boolean; detail: s
 export type DelayOutcome = { status: 'untested' } | { status: 'measured'; ms: number } | { status: 'timeout' };
 export interface NodeState { nodes: { source: string; name: string; type: string; delay: DelayOutcome; country: string }[]; selected: NodeSelection | null }
 
+export type SearchPresetId = 'duckduckgo' | 'google' | 'bing';
+
 export type SearchEngine =
-  | { kind: 'default' }
+  | { kind: SearchPresetId }
   | { kind: 'custom'; template: string };
 
 export type TabLayout = 'top' | 'side';

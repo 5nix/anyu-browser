@@ -50,7 +50,6 @@ export const settingsZh = {
   "set.nodes.count": "{count} 个节点",
   "set.permissions.title": "网站权限", "set.permissions.empty": "没有保存的决定", "set.permissions.camera": "相机", "set.permissions.microphone": "麦克风", "set.permissions.location": "位置", "set.permissions.notifications": "通知", "set.permissions.clipboard": "读取剪贴板", "set.permissions.allow": "允许", "set.permissions.deny": "拒绝", "set.permissions.remove": "移除",
   "set.restoreSession": "启动时恢复标签页",
-  "set.search.default": "example.com",
   "set.search.title": "搜索引擎",
   "set.search.custom": "自定义",
   "set.search.template": "搜索网址模板",

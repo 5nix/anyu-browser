@@ -11,6 +11,7 @@ import { coreZh } from '../shared/i18n/core.zh.ts';
 import type { PanelData, SearchEngine, ShellState, TabLayout } from '../shared/ipc.ts';
 import { COUNTRIES, identityPatch, proposeIdentity, type LanguageChoice, type LocationChoice } from '../shared/identity.ts';
 import { EXIT_CHECK_TIMEOUT_S, PHASES, phaseOf, phasesDone, stepIndex, verifyPhase, visibleStep, type SetupStep, type VerifyPhase } from '../shared/welcome.ts';
+import { SEARCH_PRESETS } from '../shared/url.ts';
 import { isLoopbackHost } from '../main/external-proxy.ts';
 import { cave } from './bridge.ts';
 import { ConditionList, regionName, type GateRow } from './gate-status.tsx';
@@ -386,7 +387,10 @@ function Setup({ state, data, refresh }: { state: ShellState; data: PanelData; r
         <div class="r"><div class="label"><b>{t('welcome.personalise.appearance')}</b></div><ThemePicker value={theme} onChange={setTheme} label={t('welcome.personalise.appearance')} /></div>
         <div class="r col"><div class="label"><b>{t('welcome.personalise.tabs')}</b></div><div class="layout-pick" role="radiogroup" aria-label={t('welcome.personalise.tabs')}>
           {(['top', 'side'] as TabLayout[]).map(v => <label class="choice"><input type="radio" name="tabs" value={v} checked={tabs === v} onChange={() => setTabs(v)} /><span class={`thumb ${v}`} /><span class="lb"><b>{t(v === 'top' ? 'welcome.personalise.top' : 'welcome.personalise.side')}</b></span></label>)}</div></div>
-        <div class="r"><div class="label"><b>{t('welcome.personalise.search')}</b></div><select value={search.kind} onChange={e => setSearch(e.currentTarget.value === 'custom' ? { kind: 'custom', template: search.kind === 'custom' ? search.template : '' } : { kind: 'default' })}><option value="default">{t('set.search.default')}</option><option value="custom">{t('set.search.custom')}…</option></select></div>
+        <div class="r"><div class="label"><b>{t('welcome.personalise.search')}</b></div><select value={search.kind} onChange={e => {
+          const next = e.currentTarget.value as SearchEngine['kind'];
+          setSearch(next === 'custom' ? { kind: 'custom', template: search.kind === 'custom' ? search.template : '' } : { kind: next });
+        }}>{SEARCH_PRESETS.map(p => <option value={p.id}>{p.label}</option>)}<option value="custom">{t('set.search.custom')}…</option></select></div>
         {search.kind === 'custom' && <div class="r"><label class="field grow"><span>{t('welcome.personalise.template')}</span><input value={search.template} placeholder="https://…{query}" spellcheck={false} onInput={e => setSearch({ kind: 'custom', template: e.currentTarget.value })} /></label></div>}
         <div class="r"><div class="label"><b>{t('welcome.personalise.bookmarks')}</b>{bookmarks !== null && <small>{t('welcome.personalise.imported', { count: bookmarks })}</small>}</div><button id="import-bookmarks" class="btn" disabled={busy !== null} onClick={importBookmarks}><Icon name="bookmark" />{bookmarks !== null ? t('welcome.personalise.importAgain') : t('welcome.personalise.import')}</button></div>
       </div>;

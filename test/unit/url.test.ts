@@ -7,12 +7,15 @@ test('address bar input', () => {
   assert.equal(toUrl('example.com'), 'https://example.com');
   assert.equal(toUrl('  https://example.com/a?b  '), 'https://example.com/a?b');
   assert.equal(toUrl('localhost:8080/x'), 'http://localhost:8080/x');
-  assert.equal(toUrl('what is a fox'), 'https://example.com/?q=what%20is%20a%20fox');
+  assert.equal(toUrl('what is a fox'), 'https://duckduckgo.com/?q=what%20is%20a%20fox');
   assert.equal(toUrl(''), 'about:blank');
-  assert.equal(toUrl('javascript:alert(1)'), 'https://example.com/?q=javascript%3Aalert(1)');
+  assert.equal(toUrl('javascript:alert(1)'), 'https://duckduckgo.com/?q=javascript%3Aalert(1)');
 });
 
  test('search templates encode input', () => {
+  assert.equal(toUrl('red fox', { kind: 'duckduckgo' }), 'https://duckduckgo.com/?q=red%20fox');
+  assert.equal(toUrl('red fox', { kind: 'google' }), 'https://www.google.com/search?q=red%20fox');
+  assert.equal(toUrl('red fox', { kind: 'bing' }), 'https://www.bing.com/search?q=red%20fox');
   assert.equal(toUrl('red fox', { kind: 'custom', template: 'https://example.net/search?q={query}' }), 'https://example.net/search?q=red%20fox');
   assert.equal(toUrl('red fox', { kind: 'custom', template: 'https://example.org/search?q={query}' }), 'https://example.org/search?q=red%20fox');
   assert.equal(toUrl('狐 & #% ', { kind: 'custom', template: 'https://example.com/?q={query}' }), 'https://example.com/?q=%E7%8B%90%20%26%20%23%25');

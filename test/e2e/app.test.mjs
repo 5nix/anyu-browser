@@ -583,7 +583,7 @@ test('search engine settings persist and synchronize', async (t) => {
   const port = await devtoolsPort(w.log);
   const shell = (expr) => evaluate(port, (u) => u.endsWith('/shell.html'), expr);
   const settings = (expr) => evaluate(port, (u) => u.endsWith('/settings.html'), expr);
-  assert.deepEqual((await shell('cave.getState()')).searchEngine, { kind: 'default' });
+  assert.deepEqual((await shell('cave.getState()')).searchEngine, { kind: 'duckduckgo' });
   await shell("cave.openSettings('appearance')");
   await waitFor(() => settings('!!document.querySelector(\'[data-section="appearance"] select\')'));
   assert.equal(await settings("cave.setSearchEngine({kind:'custom',template:'https://example.net/search?q={query}'})"), true);
@@ -625,7 +625,7 @@ test('closed gate queues search', async (t) => {
   await shell("cave.navigate('red fox')");
   assert.equal((await shell('cave.getState()')).gate.state, 'closed');
   assert.equal(w.fixture.requests.length, count);
-  assert.ok(!(await shell('cave.getState()')).tabs.some(t => t.url.includes('example.com')));
+  assert.ok(!(await shell('cave.getState()')).tabs.some(t => t.url.includes('duckduckgo.com')));
 });
 
 test('new tab shortcuts persist and web content cannot open shell pages', async (t) => {

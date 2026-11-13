@@ -1,12 +1,19 @@
-import type { SearchEngine } from './ipc.ts';
+import type { SearchEngine, SearchPresetId } from './ipc.ts';
 
-// Reserved example domain only; real searches use a user-supplied HTTPS template.
-export const DEFAULT_SEARCH_ENGINE: SearchEngine = { kind: 'default' };
+export const SEARCH_PRESETS: readonly { id: SearchPresetId; label: string; template: string }[] = [
+  { id: 'duckduckgo', label: 'DuckDuckGo', template: 'https://duckduckgo.com/?q={query}' },
+  { id: 'google', label: 'Google', template: 'https://www.google.com/search?q={query}' },
+  { id: 'bing', label: 'Bing', template: 'https://www.bing.com/search?q={query}' },
+];
+
+const PRESET_TEMPLATES = new Map<SearchPresetId, string>(SEARCH_PRESETS.map((preset) => [preset.id, preset.template]));
+
+export const DEFAULT_SEARCH_ENGINE: SearchEngine = { kind: 'duckduckgo' };
 
 export function isSearchEngine(value: unknown): value is SearchEngine {
   if (!value || typeof value !== 'object') return false;
   const engine = value as Record<string, unknown>;
-  if (engine.kind === 'default') return true;
+  if (typeof engine.kind === 'string' && PRESET_TEMPLATES.has(engine.kind as SearchPresetId)) return true;
   if (engine.kind !== 'custom' || typeof engine.template !== 'string' || engine.template.length > 2048) return false;
   if (engine.template.split('{query}').length !== 2) return false;
   try {
@@ -32,6 +39,8 @@ export function toUrl(input: string, search: SearchEngine = DEFAULT_SEARCH_ENGIN
   const url = inputUrl(s);
   if (url) return url;
   const engine = isSearchEngine(search) ? search : DEFAULT_SEARCH_ENGINE;
-  const template = engine.kind === 'custom' ? engine.template : 'https://example.com/?q={query}';
+  const template = engine.kind === 'custom'
+    ? engine.template
+    : (PRESET_TEMPLATES.get(engine.kind) ?? SEARCH_PRESETS[0].template);
   return template.replace('{query}', encodeURIComponent(s));
 }

@@ -118,7 +118,7 @@ test('fingerprint: profile values reach the main thread and every worker; nothin
     assert.equal(s.timezone, PROFILE.timezone, `${name} timezone`);
     assert.equal(s.intlLocale, PROFILE.locale, `${name} Intl locale`);
     assert.deepEqual(s.languages, PROFILE.acceptLanguages, `${name} languages`);
-    assert.doesNotMatch(s.userAgent, /Electron|Cave|HeadlessChrome/, `${name} UA`);
+    assert.doesNotMatch(s.userAgent, /Electron|Cave|Anyu|HeadlessChrome/, `${name} UA`);
     assert.match(s.userAgent, /Chrome\/\d+\.0\.0\.0 Safari\/537\.36$/, `${name} UA is reduced Chrome`);
     assert.deepEqual(s.uaData.brands.map((b) => b.brand).sort(), ['Chromium', 'Google Chrome', 'Not:A-Brand'], `${name} brands`);
     assert.equal(s.uaData.high.fullVersionList.find((b) => b.brand === 'Google Chrome').version.split('.').length, 4);

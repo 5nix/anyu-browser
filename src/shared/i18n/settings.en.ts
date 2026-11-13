@@ -122,7 +122,7 @@ export const settingsEn: Record<keyof typeof settingsZh, string> = {
   "set.privacy.local": "Allow access to local network addresses",
   "set.privacy.localHint": "Allow sites to request addresses such as 192.168.x.x and localhost",
   "set.privacy.notifications": "Allow sites to request notifications",
-  "set.privacy.restartHint": "Restart Cave for this change to take effect",
+  "set.privacy.restartHint": "Restart Anyu for this change to take effect",
   "set.privacy.data": "Site data",
   "set.privacy.dataHint": "Cleared only when you choose, never automatically",
   "set.privacy.current": "Current site: ",

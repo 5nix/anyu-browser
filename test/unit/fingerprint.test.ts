@@ -23,7 +23,7 @@ test('identity follows the host by default and never mentions Electron or Cave',
   assert.equal(id.userAgent, 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36');
   assert.equal(id.navigatorPlatform, 'MacIntel');
   assert.equal(id.metadata.platformVersion, '14.6.1');
-  assert.doesNotMatch(JSON.stringify(id), /Electron|Cave/i);
+  assert.doesNotMatch(JSON.stringify(id), /Electron|Cave|Anyu/i);
 });
 
 test('a pinned platform makes UA, UA-CH and navigator.platform agree', () => {

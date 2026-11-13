@@ -336,7 +336,7 @@ test('switch: changing from a chosen node asks first; cancel keeps it, confirm s
   await answer(settings, 'cancel');
   await new Promise((r) => setTimeout(r, 500));
   assert.equal(await selected(), 'Test Node');
-  assert.equal(await settings(`[...document.querySelectorAll('[data-section=nodes] input')].filter((r) => r.checked).length`), 1);
+  assert.equal(await settings(`[...document.querySelectorAll('[data-section=nodes] input[name=node]')].filter((r) => r.checked).length`), 1);
   assert.equal(await settings(`document.querySelector('[data-section=nodes] li.selected').textContent.includes('Test Node')`), true);
 
   await click();

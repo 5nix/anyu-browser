@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { startWorld } from './harness.mjs';
-import { click, devtoolsPort, evaluate, gateState, screenshot, waitFor, withTarget } from './cdp.mjs';
+import { click as cdpClick, devtoolsPort, evaluate, gateState, screenshot, waitFor, withTarget } from './cdp.mjs';
 
 const shots = `${tmpdir()}/anyu-e2e/proxy-sources`;
 const shellTarget = u => u.endsWith('/shell.html');
@@ -16,6 +16,10 @@ test('sources can be added, renamed and removed without losing selection or open
   const port = await devtoolsPort(w.log);
   const shell = expression => evaluate(port, shellTarget, expression);
   const settings = expression => evaluate(port, settingsTarget, expression);
+  const click = async (port, target, selector) => {
+    await evaluate(port, target, `document.querySelector(${JSON.stringify(selector)})?.scrollIntoView({ block: 'center' })`);
+    await cdpClick(port, target, selector);
+  };
   const snapshot = async file => writeFile(join(shots, file), await screenshot(port, settingsTarget));
   const input = async (selector, text) => {
     await click(port, settingsTarget, selector);

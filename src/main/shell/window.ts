@@ -120,10 +120,12 @@ export class ShellWindow implements TabHost {
       height: 860,
       minWidth: 720,
       minHeight: 480,
-      title: 'Cave',
+      title: 'Anyu',
       backgroundColor: t.frame,
       show: false,
-      ...(backgroundE2e ? { x: -32000, y: -32000 } : {}),
+      // Off-screen keeps a test window off the desktop on macOS, which still draws it; elsewhere
+      // an off-screen window is occluded and its pages turn hidden.
+      ...(backgroundE2e && mac ? { x: -32000, y: -32000 } : {}),
       autoHideMenuBar: false,
       ...titleBar(t.frame, t.symbol, host.tabLayout()),
     });

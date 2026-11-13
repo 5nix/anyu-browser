@@ -36,12 +36,14 @@ export function Surface({ name, anchor, prefer = 'bottom', minX = 0, open = true
       if (name === 'suggestions') { el.style.width = `${anchor.width}px`; el.style.left = '0px'; el.style.top = '0px'; if (session && measureKey !== undefined) apply(session, measureKey, { x: anchor.x, y: anchor.y + anchor.height + 4, width: anchor.width, height: el.offsetHeight }); return; }
       const viewport = surfaceViewport;
       el.style.maxHeight = prefer === 'top' ? `${Math.max(0, anchor.y - 44)}px` : '';
-      const p = place(anchor, { width: el.offsetWidth, height: el.offsetHeight }, viewport, prefer);
-      const x = Math.min(Math.max(p.x, minX), Math.max(0, viewport.width - el.offsetWidth));
+      // Fractional, not offsetWidth's rounding: a view rounded down would clip the card's edge.
+      const { width, height } = el.getBoundingClientRect();
+      const p = place(anchor, { width, height }, viewport, prefer);
+      const x = Math.min(Math.max(p.x, minX), Math.max(0, viewport.width - width));
       const y = p.y;
       // The overlay view is exactly the card: nothing outside the card can take a press.
       el.style.left = '0px'; el.style.top = '0px';
-      if (open) apply(name, -1, { x, y, width: el.offsetWidth, height: el.offsetHeight });
+      if (open) apply(name, -1, { x, y, width, height });
     };
     update();
     const observer = new ResizeObserver(update); observer.observe(el);

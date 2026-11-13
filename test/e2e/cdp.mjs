@@ -25,6 +25,8 @@ export async function withTarget(port, match, fn) {
     const msg = JSON.parse(m.data);
     waiting.get(msg.id)?.(msg);
   };
+  // A page that goes away (the app quits, the tab closes) answers nothing more.
+  ws.onclose = () => { for (const reply of waiting.values()) reply({ error: { message: 'target closed' } }); };
   let id = 0;
   const send = async (method, params = {}) => {
     const reply = new Promise((r) => waiting.set(++id, r));

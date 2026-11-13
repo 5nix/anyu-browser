@@ -42,6 +42,8 @@ async function main() {
     return new Promise((r) => { navigator.serviceWorker.onmessage = (e) => r(e.data.sw); (reg.active || reg.installing || reg.waiting).postMessage('go'); });
   })());
   result.webgl = (() => { const gl = document.createElement('canvas').getContext('webgl'); if (!gl) return null; const d = gl.getExtension('WEBGL_debug_renderer_info'); return d ? { vendor: gl.getParameter(d.UNMASKED_VENDOR_WEBGL), renderer: gl.getParameter(d.UNMASKED_RENDERER_WEBGL) } : 'no-ext'; })();
+  result.hasSpeechSynthesis = 'speechSynthesis' in window;
+  result.speechVoices = 'speechSynthesis' in window ? speechSynthesis.getVoices().length : null;
   await fetch('/report', { method: 'POST', body: JSON.stringify(result) });
   document.getElementById('status').textContent = 'done';
 }

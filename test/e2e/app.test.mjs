@@ -132,6 +132,39 @@ test('fingerprint: profile values reach the main thread and every worker; nothin
   for (const c of r.webrtc) assert.doesNotMatch(c, / (\d{1,3}\.){3}\d{1,3} | [0-9a-f]*:[0-9a-f:]+ /i, c);
   assert.equal(r.permissions.notifications, 'denied');
   assert.equal(r.permissions.camera, 'denied');
+  assert.equal(r.hasSpeechSynthesis, true);
+  assert.equal(r.speechVoices, 0);
+  const topSpeech = await evaluate(port, (u) => u === w.httpsUrl + 'fp.html', `new Promise((resolve) => {
+    let changed = false;
+    speechSynthesis.addEventListener('voiceschanged', () => { changed = true; });
+    speechSynthesis.onvoiceschanged = () => { changed = true; };
+    const blank = document.createElement('iframe');
+    document.body.appendChild(blank);
+    const blankVoices = blank.contentWindow.speechSynthesis.getVoices().length;
+    setTimeout(() => resolve({
+      has: 'speechSynthesis' in window,
+      count: speechSynthesis.getVoices().length,
+      changed,
+      toStr: SpeechSynthesis.prototype.getVoices.toString(),
+      blankVoices,
+    }), 900);
+  })`);
+  assert.deepEqual(topSpeech, {
+    has: true,
+    count: 0,
+    changed: false,
+    toStr: 'function getVoices() { [native code] }',
+    blankVoices: 0,
+  });
+  await evaluate(port, shell, "cave.navigate('http://fp.cave.test/')");
+  await waitFor(() => evaluate(port, (u) => u === 'http://fp.cave.test/', 'document.title'));
+  const frameSpeech = await evaluate(port, (u) => u === 'http://fp.cave.test/', `new Promise((resolve) => {
+    window.addEventListener('message', (e) => { if (e.data?.type === 'speech-frame') resolve(e.data); });
+    const f = document.createElement('iframe');
+    f.src = 'http://other.cave.test/speech-frame';
+    document.body.appendChild(f);
+  })`);
+  assert.deepEqual(frameSpeech, { type: 'speech-frame', has: true, initial: 0, afterWait: 0, changed: false });
   // The node only ever saw names (remote resolution), all of them fixtures.
   assert.ok(w.socks.targets.length > 0);
   for (const target of w.socks.targets) {
@@ -228,7 +261,7 @@ test('settings: all self-checks pass when open; pause stops the core and resume 
   const settings = (expr) => evaluate(port, (u) => u.endsWith('/settings.html'), expr);
 
   const checks = await settings('cave.runChecks()');
-  assert.equal(checks.length, 13);
+  assert.equal(checks.length, 14);
   assert.deepEqual(checks.filter((c) => !c.pass).map((c) => `${c.title}: ${c.detail}`), []);
 
   const corePids = () => execFileSync('pgrep', ['-f', `^[^ ]*cave-core -d ${w.dir}`], { encoding: 'utf8' }).trim();

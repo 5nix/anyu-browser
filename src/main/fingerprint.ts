@@ -1,6 +1,7 @@
 // What pages see: Google Chrome of exactly the engine's version, on the presented platform.
-// Everything goes through engine interfaces (CDP Emulation, session UA, command line); no page
-// script is injected, so there is no JavaScript shim to detect. Only this module uses the debugger.
+// Identity overrides go through engine interfaces (CDP Emulation, session UA, command line);
+// Chromium has no switch that keeps speechSynthesis present with an empty voice list, so frame
+// targets also receive a minimal document-start shim for speechSynthesis. Only this module uses the debugger.
 import type { WebContents } from 'electron';
 import type { Profile } from '../shared/profile.ts';
 
@@ -108,6 +109,79 @@ export function emulationCommands(profile: Profile, id: Identity): [string, obje
   ];
 }
 
+const SPEECH_SHIM = `(() => {
+  if (typeof SpeechSynthesis !== 'function') return;
+  const proto = SpeechSynthesis.prototype;
+  const getDesc = Object.getOwnPropertyDescriptor(proto, 'getVoices');
+  const pausedDesc = Object.getOwnPropertyDescriptor(proto, 'paused');
+  if (!getDesc || typeof getDesc.value !== 'function' || !pausedDesc || typeof pausedDesc.get !== 'function') return;
+  const apply = Reflect.apply;
+  const wmGet = WeakMap.prototype.get;
+  const wmSet = WeakMap.prototype.set;
+  const names = new WeakMap();
+  const toStrDesc = Object.getOwnPropertyDescriptor(Function.prototype, 'toString');
+  if (toStrDesc && typeof toStrDesc.value === 'function') {
+    const origToStr = toStrDesc.value;
+    const wrappedToStr = new Proxy(origToStr, {
+      apply(target, thisArg, args) {
+        const name = wmGet.call(names, thisArg);
+        if (name !== undefined) return 'function ' + name + '() { [native code] }';
+        return apply(target, thisArg, args);
+      },
+    });
+    wmSet.call(names, wrappedToStr, 'toString');
+    Object.defineProperty(Function.prototype, 'toString', { ...toStrDesc, value: wrappedToStr });
+  }
+  const wrap = (orig, name, fn) => {
+    const p = new Proxy(orig, { apply: fn });
+    wmSet.call(names, p, name);
+    return p;
+  };
+  const pausedGet = pausedDesc.get;
+  const origGetVoices = getDesc.value;
+  Object.defineProperty(proto, 'getVoices', {
+    ...getDesc,
+    value: wrap(origGetVoices, origGetVoices.name, (_target, thisArg) => {
+      apply(pausedGet, thisArg, []);
+      return [];
+    }),
+  });
+  const onDesc = Object.getOwnPropertyDescriptor(proto, 'onvoiceschanged');
+  if (onDesc && typeof onDesc.get === 'function' && typeof onDesc.set === 'function') {
+    const handlers = new WeakMap();
+    const origGet = onDesc.get;
+    const origSet = onDesc.set;
+    Object.defineProperty(proto, 'onvoiceschanged', {
+      ...onDesc,
+      get: wrap(origGet, origGet.name, (_target, thisArg) => {
+        apply(pausedGet, thisArg, []);
+        return wmGet.call(handlers, thisArg) ?? null;
+      }),
+      set: wrap(origSet, origSet.name, (_target, thisArg, args) => {
+        apply(pausedGet, thisArg, []);
+        wmSet.call(handlers, thisArg, typeof args[0] === 'function' ? args[0] : null);
+      }),
+    });
+  }
+  const etProto = typeof EventTarget === 'function' ? EventTarget.prototype : null;
+  const addDesc = etProto && Object.getOwnPropertyDescriptor(etProto, 'addEventListener');
+  if (addDesc && typeof addDesc.value === 'function') {
+    const origAdd = addDesc.value;
+    Object.defineProperty(etProto, 'addEventListener', {
+      ...addDesc,
+      value: wrap(origAdd, origAdd.name, (target, thisArg, args) => {
+        if (args.length > 0 && (args[0] === 'voiceschanged' || (thisArg instanceof SpeechSynthesis && typeof args[0] !== 'symbol' && String(args[0]) === 'voiceschanged'))) {
+          try {
+            apply(pausedGet, thisArg, []);
+            return;
+          } catch {}
+        }
+        return apply(target, thisArg, args);
+      }),
+    });
+  }
+})();`;
+
 /**
  * Attaches to a tab and keeps every target it spawns (frames, dedicated and service workers)
  * paused at start until it has received the same overrides. Shared workers are not auto-attached
@@ -119,15 +193,25 @@ export function applyFingerprint(wc: WebContents, commands: [string, object][]):
   // A command a target type does not implement may never answer; never let that keep a worker paused.
   const send = (m: string, p: object, sessionId?: string) =>
     Promise.race([dbg.sendCommand(m, p, sessionId).catch(() => undefined), new Promise((r) => setTimeout(r, 1000))]);
-  const configure = (sessionId?: string) =>
-    Promise.all([
+  const configure = (sessionId?: string, targetType?: string) => {
+    const isFrame = !targetType || targetType === 'page' || targetType === 'iframe';
+    return Promise.all([
       ...commands.map(([m, p]) => send(m, p, sessionId)),
+      ...(isFrame
+        ? [
+            send('Page.enable', {}, sessionId),
+            send('Page.addScriptToEvaluateOnNewDocument', { source: SPEECH_SHIM }, sessionId),
+          ]
+        : []),
       send('Target.setAutoAttach', { autoAttach: true, waitForDebuggerOnStart: true, flatten: true }, sessionId),
     ]);
+  };
   dbg.on('message', (_e, method, params: any) => {
     if (method === 'Target.attachedToTarget') {
       const id = params.sessionId as string;
-      void configure(id).finally(() => dbg.sendCommand('Runtime.runIfWaitingForDebugger', {}, id).catch(() => undefined));
+      void configure(id, params.targetInfo?.type).finally(() =>
+        dbg.sendCommand('Runtime.runIfWaitingForDebugger', {}, id).catch(() => undefined),
+      );
     } else if (method === 'Target.targetCreated' && params.targetInfo.type === 'shared_worker' && !params.targetInfo.attached) {
       void dbg.sendCommand('Target.attachToTarget', { targetId: params.targetInfo.targetId, flatten: true }).catch(() => undefined);
     }

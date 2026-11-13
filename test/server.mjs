@@ -18,6 +18,21 @@ export function startFixtureServer({ port = 0, host = '127.0.0.1', country = 'QM
     requests.push({ url: req.url, host: req.headers.host, headers: req.headers });
     const path = new URL(req.url, 'http://x').pathname;
     if (path === '/favicon-page') return send(res, 200, '<!doctype html><title>Favicon fixture</title><link rel="icon" href="http://icon.cave.test/icon.png">', TYPES['.html']);
+    if (path === '/speech-frame') {
+      return send(res, 200, `<!doctype html><script>
+const has = 'speechSynthesis' in window;
+const initial = has ? speechSynthesis.getVoices().length : null;
+let changed = false;
+if (has) {
+  speechSynthesis.addEventListener('voiceschanged', () => { changed = true; });
+  speechSynthesis.onvoiceschanged = () => { changed = true; };
+}
+setTimeout(() => {
+  const afterWait = has ? speechSynthesis.getVoices().length : null;
+  parent.postMessage({ type: 'speech-frame', has, initial, afterWait, changed }, '*');
+}, 800);
+</script>`, TYPES['.html']);
+    }
     if (path === '/icon.png') return send(res, 200, Buffer.from('iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAGUlEQVR4nGPQmt32nxLMMGrAqAGjBgwXAwBku0of30Lv1QAAAABJRU5ErkJggg==', 'base64'), 'image/png');
     if (path === '/slow-download') {
       const chunk = Buffer.alloc(16384, 97); let sent = 0;

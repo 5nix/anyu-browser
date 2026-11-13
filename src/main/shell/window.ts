@@ -70,6 +70,9 @@ export class ShellWindow implements TabHost {
   readonly win: BaseWindow;
   readonly chrome: WebContentsView;
   readonly settings: WebContentsView;
+  readonly welcome: WebContentsView;
+  private setup = false;
+  get inSetup(): boolean { return this.setup; }
   readonly history: WebContentsView;
   readonly bookmarks: WebContentsView;
   readonly overlay: WebContentsView;
@@ -133,6 +136,7 @@ export class ShellWindow implements TabHost {
     const ui = { preload: host.preload, sandbox: true, contextIsolation: true, nodeIntegration: false, spellcheck: false };
     this.chrome = new WebContentsView({ webPreferences: ui });
     this.settings = new WebContentsView({ webPreferences: ui });
+    this.welcome = new WebContentsView({ webPreferences: ui });
     this.history = new WebContentsView({ webPreferences: ui });
     this.bookmarks = new WebContentsView({ webPreferences: ui });
     this.overlay = new WebContentsView({ webPreferences: { ...ui, backgroundThrottling: false } });
@@ -145,7 +149,7 @@ export class ShellWindow implements TabHost {
     this.shadow.webContents.on('will-navigate', (e) => e.preventDefault());
     this.shadow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
     void this.shadow.loadFile(join(host.rendererDir, 'shadow.html'));
-    for (const [v, page] of [[this.chrome, 'shell.html'], [this.settings, 'settings.html'], [this.history, 'history.html'], [this.bookmarks, 'bookmarks.html'], [this.overlay, 'overlay.html'], [this.recovery, 'internal-error.html']] as const) {
+    for (const [v, page] of [[this.chrome, 'shell.html'], [this.settings, 'settings.html'], [this.welcome, 'welcome.html'], [this.history, 'history.html'], [this.bookmarks, 'bookmarks.html'], [this.overlay, 'overlay.html'], [this.recovery, 'internal-error.html']] as const) {
       // The shell's own pages never navigate anywhere and never open windows.
       v.webContents.on('will-navigate', (e) => e.preventDefault());
       v.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
@@ -298,7 +302,7 @@ export class ShellWindow implements TabHost {
 
   /** The shell's own pages in this window. */
   private get ui(): WebContentsView[] {
-    return [this.chrome, this.settings, this.history, this.bookmarks, this.overlay, this.recovery, ...this.homes.values()];
+    return [this.chrome, this.settings, this.welcome, this.history, this.bookmarks, this.overlay, this.recovery, ...this.homes.values()];
   }
 
   isUi(wc: WebContents): boolean {
@@ -1003,6 +1007,7 @@ export class ShellWindow implements TabHost {
 
   /** Hands the keyboard to the page in front (the active tab or the settings page). */
   focusPage(): void {
+    if (this.setup) { this.welcome.webContents.focus(); return; }
     const tab = this.tabs.find((t) => t.id === this.active);
     if (tab && !tab.wc.isDestroyed()) { if (this.recoveryState) { this.recovery.webContents.focus(); return; } const home = this.homes.get(tab.id); if (home && (!tab.wc.getURL() || tab.wc.getURL() === 'about:blank')) home.webContents.focus(); else tab.wc.focus(); }
   }
@@ -1039,12 +1044,38 @@ export class ShellWindow implements TabHost {
     void this.shadow.webContents.executeJavaScript("document.body.classList.add('in')").catch(() => undefined);
   }
 
+  /** Detach all browser views while setup owns the window; detached views cannot receive input. */
+  setSetup(enabled: boolean): void {
+    if (enabled === this.setup) return;
+    this.setup = enabled;
+    this.surfaces.close(false);
+    if (enabled) {
+      for (const view of [this.chrome, this.overlay, this.recovery, ...this.tabs.map(t => t.view), ...this.homes.values()]) this.win.contentView.removeChildView(view);
+      this.win.contentView.addChildView(this.welcome);
+      this.welcome.webContents.focus();
+    } else {
+      this.win.contentView.removeChildView(this.welcome);
+      this.win.contentView.addChildView(this.chrome);
+      const active = this.active;
+      if (active !== null) this.activate(active);
+      else this.win.contentView.addChildView(this.overlay);
+    }
+    this.layout();
+    this.broadcast();
+  }
+
   layout(): void {
     if (!this.alive) return;
     if (this.surfaces.state?.name === 'contextMenu') this.surfaces.close();
     const { width, height } = this.win.getContentBounds();
     const all = { x: 0, y: 0, width, height };
     const layout = this.host.tabLayout();
+    if (this.setup) {
+      if (mac) this.win.setWindowButtonPosition({ x: 14, y: 19 });
+      else if (this.caption !== 40) { this.caption = 40; this.win.setTitleBarOverlay({ height: 40 }); }
+      this.welcome.setBounds(all);
+      return;
+    }
     if (mac) this.win.setWindowButtonPosition(trafficLightPosition(layout));
     else if (captionHeight(layout) !== this.caption) { this.caption = captionHeight(layout); this.win.setTitleBarOverlay({ height: this.caption }); }
     this.chrome.setBounds(all);

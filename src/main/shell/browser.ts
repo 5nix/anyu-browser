@@ -227,6 +227,7 @@ export class Browser extends EventEmitter {
   /** Runs a command by name in a window; a surface that is open there closes first. */
   run(id: CommandId, win: ShellWindow | null = this.front): void {
     if (!isCommand(id) || !win) return;
+    if (win.inSetup && id !== 'app.quit' && id !== 'window.fullscreen') return;
     win.surfaces.close();
     this.commands[id](win);
   }

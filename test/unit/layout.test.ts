@@ -84,3 +84,8 @@ test('sidebar width defaults and clamps', () => {
   assert.equal(sidebarWidth(500), 420);
   assert.equal(pageBounds('side', 1000, 800, true, 300).x, 300);
 });
+
+test('setup reserves a 52px band and fills the remaining window', async () => {
+  const { setupPageBounds } = await import('../../src/shared/layout.ts');
+  assert.deepEqual(setupPageBounds(720, 480), { x: 0, y: 52, width: 720, height: 428 });
+});

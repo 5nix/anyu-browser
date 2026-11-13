@@ -7,6 +7,7 @@ import type { Rect, TabLayout } from './ipc.ts';
 export const METRICS = {
   /** Tab strip height (top layout); on Windows/Linux the caption buttons share this band. */
   strip: 40,
+  setupBand: 52,
   /** Tab height (top layout); tabs sit on the strip's bottom edge and join the toolbar below. */
   tab: 32,
   /** Toolbar height (top layout). */
@@ -62,4 +63,9 @@ export function pageBounds(layout: TabLayout, width: number, height: number, mac
   // below the caption-button band.
   const box = layout === 'side' ? { left: sidebarWidth(sidebar), top: mac ? gap : caption, inset: gap } : { left: gap, top: strip + toolbar, inset: gap };
   return { x: box.left, y: box.top, width: Math.max(0, width - box.left - box.inset), height: Math.max(0, height - box.top - box.inset) };
+}
+
+/** Setup reserves the title band for native window controls and dragging. */
+export function setupPageBounds(width: number, height: number): Rect {
+  return { x: 0, y: METRICS.setupBand, width: Math.max(0, width), height: Math.max(0, height - METRICS.setupBand) };
 }

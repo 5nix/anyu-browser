@@ -21,7 +21,7 @@ export const settingsEn: Record<keyof typeof settingsZh, string> = {
   'set.nodes.extPass': 'Password (optional)',
   'set.nodes.monitorUrl': 'Monitor URL list',
   'set.nodes.monitorAdd': 'Add URL',
-  'set.nodes.monitorUrlHint': 'The gate opens only when the exit measured through every URL in the list matches the settings. Too many entries slow each check down; empty uses the default address.',
+  'set.nodes.monitorUrlHint': 'The gate opens only when the exit measured through every URL in the list matches the settings. Too many entries slow each check down; the built-in address is always checked, and entries here are added to it.',
   'set.nodes.monitorUrlDetail': 'Each check visits every URL in the list and reads the exit IP and country it returns. Entries must be HTTPS addresses returning text with ip= and loc= lines. If any entry reports a direct exit or a country mismatch, the gate closes and cuts all connections.',
   'set.nodes.saveConnection': 'Save connection settings',
   'set.nodes.saveMonitor': 'Save monitor URL',

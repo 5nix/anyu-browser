@@ -470,7 +470,7 @@ async function start(): Promise<void> {
       if (['bookmarkAdd', 'bookmarkUpdate', 'bookmarkRemove'].includes(name) && e.sender !== win.chrome.webContents && e.sender !== win.overlay.webContents && e.sender !== win.bookmarks.webContents) return;
       if (e.sender === win.bookmarks.webContents && !['getState', 'bookmarkChildren', 'bookmarkMove', 'bookmarkAdd', 'bookmarkUpdate', 'bookmarkRemove', 'importBookmarks', 'newTab'].includes(name)) return;
       if (e.sender === win.bookmarks.webContents && name === 'newTab' && (typeof args[0] !== 'string' || args[0].length > 2048 || !/^https?:\/\//i.test(args[0]) || !URL.canParse(args[0]))) return;
-      if (['clearData', 'importSubscriptionFile', 'importSubscriptionText', 'addSubscription', 'updateSource', 'updateSourceFile', 'updateSourceText', 'renameSource', 'removeSource', 'selectNode', 'testDelays'].includes(name) && e.sender !== win.settings.webContents) throw new Error('forbidden');
+      if (['clearData', 'updateProfile', 'importSubscriptionFile', 'importSubscriptionText', 'addSubscription', 'updateSource', 'updateSourceFile', 'updateSourceText', 'renameSource', 'removeSource', 'selectNode', 'testDelays'].includes(name) && e.sender !== win.settings.webContents) throw new Error('forbidden');
       if (name === 'siteInfo' && e.sender !== win.overlay.webContents) return;
       if (name === 'removePermission' && e.sender !== win.settings.webContents) {
         const active = win.state.tabs.find(tab => tab.id === win.state.active && tab.kind === 'web');

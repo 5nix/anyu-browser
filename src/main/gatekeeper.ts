@@ -357,8 +357,9 @@ export class Gatekeeper extends EventEmitter {
     try {
       // The monitor URLs are the exit-check endpoints, fetched through the selected outbound
       // like everything else; a direct or wrong-country exit at any of them fails the check
-      // and the gate cuts all connections. An empty list uses the built-in default.
-      const urls = this.o.profile().monitorUrls.length ? this.o.profile().monitorUrls : [TRACE_URL];
+      // and the gate cuts all connections. The built-in endpoint is always measured first; the
+      // user's list can add checks, never replace that one.
+      const urls = [TRACE_URL, ...this.o.profile().monitorUrls.filter((url) => url !== TRACE_URL)];
       let egress: Egress | undefined;
       for (const url of urls) {
         const one = await measureExit({

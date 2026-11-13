@@ -38,7 +38,7 @@ export interface Profile {
   connectionMode: ConnectionMode;
   externalProxy: ExternalProxy;
   /** Exit-check endpoints (trace format: ip=/loc= lines). The gate opens only when the exit
-   *  measured through EVERY entry matches; an empty list uses the built-in default. Capped
+   *  measured through the built-in endpoint and EVERY entry matches; entries add checks only. Capped
    *  because each entry costs one request per check. */
   monitorUrls: string[];
   notifications: boolean;

@@ -17,7 +17,7 @@ export const settingsZh = {
   'set.nodes.extPass': '密码（可选）',
   'set.nodes.monitorUrl': '监控网址列表',
   'set.nodes.monitorAdd': '添加网址',
-  'set.nodes.monitorUrlHint': '所有网址测到的出口都符合设置时才放行。添加过多会拖慢每次核对的速度；留空时使用默认地址。',
+  'set.nodes.monitorUrlHint': '所有网址测到的出口都符合设置时才放行。添加过多会拖慢每次核对的速度；内置地址始终会核对，这里只能追加。',
   'set.nodes.monitorUrlDetail': '核对时逐个访问列表中的网址，读取其返回的出口 IP 与国家。须为 HTTPS 地址，返回包含 ip= 与 loc= 的文本。任一网址的结果为直连或国家不符，闸门都会关闭并断开全部连接。',
   'set.nodes.saveConnection': '保存连接设置',
   'set.nodes.saveMonitor': '保存监控网址',

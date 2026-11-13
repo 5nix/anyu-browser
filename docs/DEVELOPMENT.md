@@ -144,6 +144,6 @@ sudo apt install ./Anyu-<版本>-linux-amd64.deb
 
 ## 代理内核与许可说明
 
-- [`package.json`](../package.json) 中声明 `"license": "MIT"`，[docs/ARCHITECTURE.md §14](ARCHITECTURE.md#14-许可) 也说明 Anyu 自有代码按 MIT 许可（仓库根目录目前尚未添加独立 `LICENSE` 文件，待发布前由维护者确认补充）。
+- Anyu 自有代码按 [MPL-2.0](../LICENSE) 许可。
 - 安装包随附未经修改的 [MetaCubeX/mihomo](https://github.com/MetaCubeX/mihomo) v1.19.34（GPL-3.0 许可）。因上游要求非 MetaCubeX 下游项目名称不得包含 `mihomo`，分发二进制重命名为 `cave-core`（Windows 下为 `cave-core.exe`），由 Anyu 作为独立子进程运行并通过命令行参数和本机 HTTP 控制器通信。
 - 许可全文、版权声明与对应源码地址随包放在 `proxy-core/LICENSE` 与 `proxy-core/NOTICE`（仓库中位于 [`resources/proxy-core/`](../resources/proxy-core/)）；下载与构建时依据 [`resources/proxy-core/SHA256SUMS`](../resources/proxy-core/SHA256SUMS) 校验文件哈希。

@@ -91,3 +91,7 @@ npm start
 - [连接方式（出口）设计](docs/egress-modes.md)
 - [真机手工测试清单](docs/MANUAL_TESTS.md)
 - [Windows 真机验收记录（2026-11-13）](docs/windows-validation-2026-11-13.md)
+
+## 许可
+
+Anyu 自有代码按 [MPL-2.0](LICENSE) 许可。安装包内附带未经修改的 [mihomo](https://github.com/MetaCubeX/mihomo/tree/v1.19.34) v1.19.34（GPL-3.0），作为独立程序运行；其许可全文与源码地址在安装包的 `proxy-core/LICENSE` 和 `proxy-core/NOTICE` 中。

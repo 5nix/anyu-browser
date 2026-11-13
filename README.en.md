@@ -91,3 +91,7 @@ Engineering and internal documentation lives under `docs/`:
 - [Connection (egress) modes design](docs/egress-modes.md)
 - [Manual test checklist](docs/MANUAL_TESTS.md)
 - [Windows validation record (2026-11-13)](docs/windows-validation-2026-11-13.md)
+
+## License
+
+Anyu's own code is licensed under [MPL-2.0](LICENSE). The packages bundle an unmodified [mihomo](https://github.com/MetaCubeX/mihomo/tree/v1.19.34) v1.19.34 (GPL-3.0), run as a separate program; its licence text and source location ship in `proxy-core/LICENSE` and `proxy-core/NOTICE`.

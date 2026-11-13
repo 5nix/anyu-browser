@@ -270,7 +270,7 @@ function App() {
           }
         }} />
       <span aria-live="polite" style="position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)">{selected.current >= 0 ? results.current[selected.current]?.title : ''}</span>
-      <span id="address-view" aria-hidden="true"><b id="address-host">{settings ? t('caveSettings') : display.host}</b><span id="address-rest">{display.rest}</span></span>
+      <span id="address-view" aria-hidden="true">{!settings && display.sub && <span id="address-sub"><span class="address-sub-inner">{display.sub}</span></span>}<b id="address-domain">{settings ? t('caveSettings') : display.domain}</b><span id="address-rest">{display.rest}</span></span>
       {state && state.zoom !== 100 && <button id="zoom-reset" type="button" title={t('zoomReset', { percent: state.zoom })} aria-label={t('zoomReset', { percent: state.zoom })} onClick={() => cave.run('zoom.reset')}>{state.zoom}%</button>}
       {canBookmarkTab(active) && <button id="bookmark" type="button" class={`icon-btn${state?.bookmarked ? ' bookmarked' : ''}`} title={t('command_bookmark_toggle')} aria-label={t('command_bookmark_toggle')} data-anchor="bookmarkEdit" onClick={() => cave.run('bookmark.toggle')}><Icon name="star" /></button>}
       {state?.zoomError && <span id="zoom-error" role="status">{t('zoomSaveFailed')}</span>}

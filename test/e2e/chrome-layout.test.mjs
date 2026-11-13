@@ -91,3 +91,80 @@ test('Windows side chrome places navigation below the caption band', async (t) =
   assert.equal(web.site.x - web.field.x, web.star.right - web.field.right, 'site icon and star are mirrored');
   assert.equal(web.site.cy, web.star.cy);
 });
+
+test('narrow address field keeps registrable domain visible while cutting subdomains first', async (t) => {
+  const { withTarget } = await import('./cdp.mjs');
+  const w = await startWorld({ blank: true, extra: ['--remote-debugging-port=0'] });
+  t.after(() => w.stop());
+  const port = await devtoolsPort(w.log);
+  const chrome = (u) => u.endsWith('/shell.html');
+  const shell = (expr) => evaluate(port, chrome, expr);
+  await waitFor(async () => (await gateState(port)) === 'open', 60000);
+  const url = 'http://sso.login.oauth.accounts.google.com.portal.subdomain.evil.test/find.html';
+  await shell(`cave.navigate(${JSON.stringify(url)})`);
+  await waitFor(() => evaluate(port, (u) => u === url, 'document.title'));
+
+  const measure = () => shell(`(() => {
+    const view = document.querySelector('#address-view');
+    const sub = document.querySelector('#address-sub');
+    const domain = document.querySelector('#address-domain');
+    const rest = document.querySelector('#address-rest');
+    const vr = view.getBoundingClientRect(), dr = domain.getBoundingClientRect(), sr = sub.getBoundingClientRect(), rr = rest.getBoundingClientRect();
+    return {
+      viewWidth: vr.width,
+      subWidth: sr.width,
+      subScrollWidth: sub.scrollWidth,
+      domainText: domain.textContent,
+      domainWidth: dr.width,
+      domainScrollWidth: domain.scrollWidth,
+      domainVisibleInView: dr.left >= vr.left - 0.5 && dr.right <= vr.right + 0.5,
+      restText: rest.textContent,
+      restWidth: rr.width,
+      restScrollWidth: rest.scrollWidth,
+    };
+  })()`);
+
+  // Side layout (256px sidebar): subdomains shrink first while evil.test stays completely unclipped.
+  await shell("cave.setTabLayout('side')");
+  await waitFor(() => shell("document.body.classList.contains('side')"));
+  const side = await measure();
+  assert.equal(side.domainText, 'evil.test');
+  assert.ok(side.subWidth < side.subScrollWidth, 'subdomains truncate first in narrow side layout');
+  assert.ok(side.domainVisibleInView && side.domainWidth >= side.domainScrollWidth - 0.5, 'registrable domain remains fully visible in side layout');
+  assert.ok(side.restWidth >= side.restScrollWidth - 0.5, 'path is not truncated while subdomains still have room to shrink');
+
+  // Narrow top layout (720px minimum window width): same behaviour.
+  await shell("cave.setTabLayout('top')");
+  await waitFor(() => shell("document.body.classList.contains('top')"));
+  const narrowTop = await withTarget(port, chrome, async (send) => {
+    await send('Emulation.setDeviceMetricsOverride', { width: 720, height: 480, deviceScaleFactor: 1, mobile: false });
+    await new Promise((r) => setTimeout(r, 150));
+    const res = await send('Runtime.evaluate', {
+      expression: `(() => {
+        const view = document.querySelector('#address-view');
+        const sub = document.querySelector('#address-sub');
+        const domain = document.querySelector('#address-domain');
+        const vr = view.getBoundingClientRect(), dr = domain.getBoundingClientRect(), sr = sub.getBoundingClientRect();
+        return { subWidth: sr.width, subScrollWidth: sub.scrollWidth, domainText: domain.textContent, domainWidth: dr.width, domainScrollWidth: domain.scrollWidth, domainVisibleInView: dr.left >= vr.left - 0.5 && dr.right <= vr.right + 0.5 };
+      })()`,
+      returnByValue: true,
+    });
+    await send('Emulation.clearDeviceMetricsOverride');
+    return res.result.value;
+  });
+  assert.equal(narrowTop.domainText, 'evil.test');
+  assert.ok(narrowTop.subWidth < narrowTop.subScrollWidth, 'subdomains truncate first in narrow top layout');
+  assert.ok(narrowTop.domainVisibleInView && narrowTop.domainWidth >= narrowTop.domainScrollWidth - 0.5, 'registrable domain remains fully visible in narrow top layout');
+
+  // When both subdomain and path overflow in narrow side layout, subdomains collapse before domain, and path clips on the right.
+  const longPathUrl = 'http://accounts.google.com.evil.test/find.html?q=very_long_query_string_that_must_ellipsis_on_right';
+  await shell("cave.setTabLayout('side')");
+  await waitFor(() => shell("document.body.classList.contains('side')"));
+  await shell(`cave.navigate(${JSON.stringify(longPathUrl)})`);
+  await waitFor(() => evaluate(port, (u) => u === longPathUrl, 'document.title'));
+  const bothLong = await measure();
+  assert.equal(bothLong.domainText, 'evil.test');
+  assert.equal(Math.round(bothLong.subWidth), 0, 'subdomains collapse completely when path also overflows');
+  assert.ok(bothLong.domainVisibleInView && bothLong.domainWidth >= bothLong.domainScrollWidth - 0.5, 'registrable domain stays unclipped when path overflows');
+  assert.ok(bothLong.restWidth < bothLong.restScrollWidth, 'path truncates at the right edge');
+});

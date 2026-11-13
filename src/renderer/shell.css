@@ -155,8 +155,10 @@ body.side #address-form:has(#address:focus) { background: var(--field-focus); ou
 /* Not editing: the host in full color, the rest of the URL dimmed (the input underneath stays the real field). */
 #address.viewing { color: transparent; }
 #address-view { position: relative; display: flex; min-width: 0; padding: 0 var(--text-gap); overflow: hidden; white-space: nowrap; pointer-events: none; }
-#address-host { min-width: 0; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; direction: rtl; text-align: left; font-weight: 500; color: var(--text); }
-#address-rest { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--text-2); }
+#address-sub { min-width: 0; flex: 0 100000000 auto; overflow: hidden; display: flex; justify-content: flex-end; font-weight: 500; color: var(--text); }
+.address-sub-inner { flex: none; }
+#address-domain { min-width: 0; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; font-weight: 500; color: var(--text); }
+#address-rest { min-width: 0; flex: 0 10000 auto; overflow: hidden; text-overflow: ellipsis; color: var(--text-2); }
 #address:not(.viewing) ~ #address-view { display: none; }
 #address.viewing::placeholder { color: transparent; }
 

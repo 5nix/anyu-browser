@@ -1,16 +1,4 @@
-export function addressDisplay(value: string): { full: string; host: string; rest: string } {
-  if (!value || value === 'about:blank') return { full: '', host: '', rest: '' };
-  try {
-    const url = new URL(value);
-    url.username = ''; url.password = '';
-    const full = url.href;
-    if (url.protocol === 'http:' || url.protocol === 'https:') {
-      const rest = `${url.pathname}${url.search}${url.hash}`;
-      return { full, host: url.host, rest: rest === '/' ? '' : rest };
-    }
-    return { full, host: full, rest: '' };
-  } catch { return { full: value, host: value, rest: '' }; }
-}
+export { addressDisplay, registrableDomain, type AddressDisplay } from '../shared/address-display.ts';
 
 export function addressSecurity(tab: import('../shared/ipc.ts').TabState | undefined): 'https' | 'http' | 'exception' | 'internal' | 'unknown' {
   if (!tab) return 'unknown';

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { shortcutUrl } from '../../src/shared/shortcut.ts';
-import { canBookmarkTab, canBookmarkUrl, toUrl } from '../../src/shared/url.ts';
+import { canBookmarkTab, canBookmarkUrl, isSubscriptionUrl, MAX_SUBSCRIPTION_URL_LENGTH, subscriptionFetchBlock, subscriptionUrlError, toUrl } from '../../src/shared/url.ts';
 
 test('address bar input', () => {
   assert.equal(toUrl('example.com'), 'https://example.com');
@@ -50,3 +50,18 @@ test('bookmark eligibility only includes live http and https web tabs', () => {
   assert.equal(canBookmarkTab({ ...base, kind: 'history', url: '' }), false);
   assert.equal(canBookmarkTab(undefined), false);
 });
+
+test('subscription URL validation and fetch gating match backend rules', () => {
+  assert.equal(subscriptionUrlError(''), 'empty');
+  assert.equal(subscriptionUrlError('   '), 'empty');
+  assert.equal(subscriptionUrlError('example.com/sub.yaml'), 'invalidUrl');
+  assert.equal(subscriptionUrlError('ftp://example.com/sub.yaml'), 'invalidUrl');
+  assert.equal(subscriptionUrlError('https://'), 'invalidUrl');
+  assert.equal(subscriptionUrlError('https://' + 'a'.repeat(MAX_SUBSCRIPTION_URL_LENGTH)), 'tooLong');
+  assert.equal(isSubscriptionUrl('  https://example.com/sub.yaml  '), true);
+  assert.equal(isSubscriptionUrl('http://127.0.0.1:8080/sub.yaml'), true);
+  assert.equal(subscriptionFetchBlock('https://example.com/sub.yaml', 'direct', false), null);
+  assert.equal(subscriptionFetchBlock('https://example.com/sub.yaml', 'proxy', false), 'needsOpenGate');
+  assert.equal(subscriptionFetchBlock('https://example.com/sub.yaml', 'proxy', true), null);
+});
+

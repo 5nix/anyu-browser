@@ -11,7 +11,7 @@ import { coreZh } from '../shared/i18n/core.zh.ts';
 import type { PanelData, SearchEngine, ShellState, TabLayout } from '../shared/ipc.ts';
 import { COUNTRIES, identityPatch, proposeIdentity, type LanguageChoice, type LocationChoice } from '../shared/identity.ts';
 import { EXIT_CHECK_TIMEOUT_S, PHASES, phaseOf, phasesDone, stepIndex, verifyPhase, visibleStep, type SetupStep, type VerifyPhase } from '../shared/welcome.ts';
-import { SEARCH_PRESETS } from '../shared/url.ts';
+import { SEARCH_PRESETS, subscriptionUrlError } from '../shared/url.ts';
 import { isLoopbackHost } from '../main/external-proxy.ts';
 import { cave } from './bridge.ts';
 import { ConditionList, regionName, type GateRow } from './gate-status.tsx';
@@ -277,11 +277,15 @@ function Setup({ state, data, refresh }: { state: ShellState; data: PanelData; r
       break;
     case 'source': {
       const loading = fetching.status === 'loading';
-      const ready = tab === 'url' ? !!url.trim() && URL.canParse(url.trim()) && !loading : tab === 'file' ? true : !!paste.trim();
+      const urlErr = tab === 'url' ? subscriptionUrlError(url) : null;
+      const ready = tab === 'url' ? urlErr === null && !loading : tab === 'file' ? true : !!paste.trim();
+      const urlReason = tab === 'url' && !loading && url.trim()
+        ? (urlErr === 'tooLong' ? t('set.nodes.urlTooLong') : urlErr === 'invalidUrl' ? t('set.nodes.urlInvalid') : null)
+        : null;
       heading = t('welcome.source.title');
       body = <>
         <Seg name="tab" label={t('welcome.source.label')} value={tab} onChange={v => { setTab(v); setFetching({ status: 'idle' }); }} options={[['url', t('welcome.source.url'), 'link'], ['file', t('welcome.source.file'), 'file'], ['paste', t('welcome.source.paste'), 'clipboard-paste']]} />
-        {tab === 'url' && <><label class="field"><span>{t('welcome.source.urlLabel')}</span><input id="sub-url" value={url} placeholder="https://…" spellcheck={false} disabled={loading} onInput={e => { setUrl(e.currentTarget.value); setFetching({ status: 'idle' }); }} /></label>
+        {tab === 'url' && <><label class="field"><span>{t('welcome.source.urlLabel')}</span><input id="sub-url" value={url} placeholder="https://…" spellcheck={false} disabled={loading} onInput={e => { setUrl(e.currentTarget.value); setFetching({ status: 'idle' }); }} />{urlReason && <small id="sub-url-reason">{urlReason}</small>}</label>
           <p class="note"><Icon name="info" /><span>{t('welcome.source.direct')}</span></p></>}
         {tab === 'file' && <div class="drop"><Icon name="file-up" /><div class="label"><b>{t('welcome.source.fileLabel')}</b></div><button id="choose-file" class="btn" disabled={busy !== null} onClick={importSource}>{t('welcome.source.choose')}</button></div>}
         {tab === 'paste' && <label class="field"><span>{t('welcome.source.pasteLabel')}</span><textarea id="paste" rows={6} spellcheck={false} value={paste} onInput={e => { setPaste(e.currentTarget.value); setFetching({ status: 'idle' }); }} /></label>}

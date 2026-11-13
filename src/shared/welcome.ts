@@ -2,13 +2,8 @@ import type { GateView } from '../main/gate.ts';
 import { externalProxyNode } from '../main/external-proxy.ts';
 import type { Profile } from './profile.ts';
 
-/** Choices that cannot be inferred from the proxy profile or the gate. */
-export interface SetupChoices {
-  started: boolean;
-  identityHandled: boolean;
-  personaliseHandled: boolean;
-  dismissed: boolean;
-}
+export type { SetupChoices } from './profile.ts';
+import type { SetupChoices } from './profile.ts';
 
 export type SetupStep = 'welcome' | 'connect' | 'node' | 'verify' | 'identity' | 'personalise' | 'normal';
 

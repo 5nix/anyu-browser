@@ -19,8 +19,11 @@ export interface ExternalProxy {
 
 export interface Geolocation { latitude: number; longitude: number; accuracy: number }
 
+export interface SetupChoices { started: boolean; identityHandled: boolean; personaliseHandled: boolean; dismissed: boolean }
+
 export interface Profile {
   version: 1;
+  setup: SetupChoices;
   /** BCP 47, e.g. en */
   locale: string;
   acceptLanguages: string[];
@@ -124,6 +127,7 @@ export function defaultProfile(hostLocale: string, hostTimezone: string): Profil
   const locale = safeLocale(hostLocale) ?? 'en';
   return {
     version: 1,
+    setup: { started: false, identityHandled: false, personaliseHandled: false, dismissed: false },
     locale,
     acceptLanguages: languagesFor(locale),
     timezone: safeTimezone(hostTimezone) ?? 'UTC',
@@ -169,9 +173,12 @@ export function validateProfile(input: unknown, fallback: Profile): Profile {
   const monitorUrls = monitorUrlsValue(pick('monitorUrls'));
 
   const proxy = normalizeProxySources(raw.proxy ?? fallback.proxy);
+  const setup = pick('setup');
+  if (!setup || typeof setup !== 'object' || Array.isArray(setup) || !['started', 'identityHandled', 'personaliseHandled', 'dismissed'].every(k => typeof setup[k] === 'boolean')) fail('setup', 'profileInvalid');
 
   return {
     version: 1,
+    setup: { started: setup.started, identityHandled: setup.identityHandled, personaliseHandled: setup.personaliseHandled, dismissed: setup.dismissed },
     locale,
     acceptLanguages,
     timezone: safeTimezone(pick('timezone')) ?? fail('timezone', 'profileTimezone'),
@@ -223,7 +230,7 @@ export function normalizeProfile(input: unknown, fallback: Profile, legacyNodes:
     try { validateProfile({ ...defaults, [key]: value }, defaults); return true; } catch { return false; }
   };
   const sanitized: Record<string, unknown> = {};
-  for (const key of ['locale', 'acceptLanguages', 'timezone', 'geolocation', 'egressCountry', 'platform', 'allowPrivateNetwork', 'connectionMode', 'externalProxy', 'monitorUrls', 'notifications'] as const) {
+  for (const key of ['setup', 'locale', 'acceptLanguages', 'timezone', 'geolocation', 'egressCountry', 'platform', 'allowPrivateNetwork', 'connectionMode', 'externalProxy', 'monitorUrls', 'notifications'] as const) {
     if (raw[key] !== undefined && valid(key, raw[key])) sanitized[key] = raw[key];
   }
   // Legacy migration: the single monitorUrl string from the previous build becomes a list.
@@ -232,6 +239,10 @@ export function normalizeProfile(input: unknown, fallback: Profile, legacyNodes:
   if (sanitized.connectionMode === undefined && raw.bypassHostTun === true) sanitized.connectionMode = 'independent';
   const result = validateProfile(sanitized, defaults);
   result.proxy = normalizeProxySources(raw.proxy, legacyNodes);
+  // A profile from before setup existed belongs to an existing user.
+  if (raw.setup === undefined && (result.proxy.sources.length > 0 || result.externalProxy.port > 0 || !!result.egressCountry)) {
+    result.setup = { started: true, identityHandled: true, personaliseHandled: true, dismissed: true };
+  }
   return result;
 }
 

@@ -19,3 +19,14 @@ test('store migrates the legacy profile and definitions together and persists th
     await assert.rejects(readFile(join(dir, 'subscription.yaml')));
   } finally { await rm(dir, { recursive: true, force: true }); }
 });
+
+test('existing sources, external ports and exit countries complete setup only during migration', async () => {
+  const { defaultProfile, normalizeProfile } = await import('../../src/shared/profile.ts');
+  const base = defaultProfile('en', 'UTC');
+  const source = { proxy: { sources: [{ id: 's', name: 's', origin: { kind: 'text' }, nodes: [], updatedAt: null }], selected: null } };
+  for (const old of [source, { externalProxy: { ...base.externalProxy, port: 7890 } }, { egressCountry: 'JP' }]) {
+    assert.deepEqual(normalizeProfile(old, base).setup, { started: true, identityHandled: true, personaliseHandled: true, dismissed: true });
+  }
+  assert.deepEqual(normalizeProfile({}, base).setup, base.setup);
+  assert.deepEqual(normalizeProfile({ ...source, setup: base.setup }, base).setup, base.setup);
+});

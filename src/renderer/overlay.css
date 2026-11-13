@@ -1,0 +1,106 @@
+/* The transparent overlay contains the current surface. */
+html, body { height: 100%; background: transparent; overflow: hidden; }
+body { user-select: none; }
+.surface { position: absolute; background: var(--pop); border-radius: var(--r-pop); opacity: 0; transition: opacity 110ms ease-in; }
+.surface.in { opacity: 1; transition: opacity 140ms var(--ease-out); }
+@starting-style { .surface.in { opacity: 0; } }
+/* A card fills its view exactly and takes its size from its content, never from the view. Its
+   shadow is not here: the shadow window (shadow.html) draws it where no press can land. */
+.surface.card { width: max-content; transition: opacity 140ms ease-out; }
+/* Like a macOS menu: there at once, fading only when it leaves. The shadow window keeps the same timing. */
+.surface.card.in { transition: none; }
+.surface.modal { box-shadow: var(--shadow-pop); }
+
+.ui-menu { max-height: calc(var(--window-height) - 16px); }
+
+/* The compact form of the settings status page (gate-status.tsx, shared rules in ui.css): one line per condition. */
+#status { width: 340px; padding: 14px 16px 0; }
+#status .overview-summary { padding-bottom: 12px; }
+#status .overview-summary .label small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#status .condition-list { border-top: 1px solid var(--sep); padding: 4px 0; }
+#status .condition-row { min-height: 32px; padding: 0; gap: 10px; border-bottom: 0; }
+#status .condition-row .condition-icon { width: 15px; height: 15px; }
+#status .condition-row .label { flex-direction: row; align-items: center; gap: 10px; }
+#status .condition-row .label b { flex: none; width: 64px; font-size: var(--fs-sm); }
+#status .condition-row .label small { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#status .condition-mark svg.icon { width: 16px; height: 16px; }
+#status .condition-row.failed { padding: 6px 0; }
+#status .condition-row.failed .label small { white-space: normal; }
+#notice { margin: 0 0 8px; color: var(--text-2); font-size: var(--fs-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.status-actions { display: flex; align-items: center; gap: 8px; margin: 0 -16px; padding: 8px 16px; border-top: 1px solid var(--sep); }
+.status-actions button:not(.primary) { padding: 0 4px; height: 28px; color: var(--text-2); white-space: nowrap; }
+.status-actions button:not(.primary):hover:not(:disabled) { color: var(--text); background: var(--hover); }
+.status-actions #open-settings:not(.primary) { margin-left: auto; }
+
+#suggestions { max-height: 420px; overflow-y: auto; box-shadow: none; border: 1px solid var(--sep); }
+#suggestions .ui-list { min-width: 0; box-shadow: none; }
+#suggestions button { display: flex; align-items: center; gap: 10px; overflow: hidden; }
+#suggestions .suggestion-text { display: flex; flex-direction: column; min-width: 0; }
+#suggestions button[aria-selected="true"] { background: var(--hover); }
+#suggestions button span, #suggestions button small { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#suggestions small { color: var(--text-2); }
+
+#permission, #httpAuth { width: min(380px, calc(100vw - 32px)); padding: 24px; overflow-wrap: anywhere; }
+.prompt-heading { display: flex; align-items: flex-start; gap: 8px; margin: 0 0 16px; font-size: var(--fs-title); }
+.prompt-heading .icon { flex: none; height: 1lh; color: var(--text-2); }
+.prompt-heading span { min-width: 0; }
+#permission p, #httpAuth p { margin: 0 0 16px; color: var(--text-2); }
+#permission .actions, #httpAuth .actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+#permission .actions button:focus { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
+#httpAuth form { display: grid; gap: 16px; }
+#httpAuth label { display: grid; gap: 8px; color: var(--text-2); }
+#httpAuth input { width: 100%; color: var(--text); }
+#httpAuth .actions { margin-top: 0; }
+#httpAuth .auth-warning { display: flex; align-items: flex-start; gap: 8px; color: var(--warn); }
+#httpAuth .auth-warning .icon { flex: none; height: 1lh; }
+
+#restoreSession { width: min(380px, calc(100vw - 32px)); padding: 24px; }
+#restoreSession h2 { margin: 0 0 20px; font-size: 16px; }
+#restoreSession .actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+#downloads { width: 380px; max-width: calc(var(--window-width) - 16px); max-height: 420px; overflow: auto; padding: 16px; }
+.downloads-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.downloads-heading h2 { margin: 0; font-size: var(--fs-title); }
+.downloads-heading button { color: var(--text-2); font-size: var(--fs-sm); padding: 4px; }
+.downloads-heading button:hover { background: var(--hover); color: var(--text); }
+.downloads-empty { display: grid; justify-items: center; gap: 8px; padding: 32px 0 24px; color: var(--text-2); }
+.download-list { list-style: none; padding: 0; margin: 12px 0 0; }
+.download-item { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-top: 1px solid var(--sep); }
+.download-item > .icon { color: var(--text-2); }
+.download-detail { flex: 1; min-width: 0; }
+.download-name { display: flex; white-space: nowrap; }
+.download-name span:first-child { overflow: hidden; text-overflow: ellipsis; }
+.download-detail small { color: var(--text-2); font-size: var(--fs-sm); }
+.download-actions { display: flex; flex: none; }
+.download-progress { height: 2px; margin-top: 6px; background: var(--sep); border-radius: 999px; overflow: hidden; }
+.download-progress div { height: 100%; background: var(--accent); }
+
+#bookmarkEdit { width: min(280px, calc(var(--window-width) - 32px)); padding: 16px; }
+#bookmarkEdit label { display: grid; gap: 8px; color: var(--text-2); }
+#bookmarkEdit input { width: 100%; color: var(--text); }
+#bookmarkEdit p { color: var(--text-2); margin: 8px 0 0; }
+#bookmarkEdit .bookmark-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 16px; }
+#bookmarkEdit .bookmark-actions button:not(.primary) { min-height: 28px; padding: 0 8px; color: var(--text); }
+#bookmarkEdit .bookmark-actions button:not(.primary):hover:not(:disabled) { background: var(--hover); color: var(--text); }
+#bookmarkEdit .bookmark-actions button:not(.primary):active:not(:disabled) { background: var(--press); }
+
+#siteInfo { width: min(340px, calc(var(--window-width) - 32px)); padding: 16px 16px 0; }
+.site-info-heading { display: flex; align-items: center; gap: 8px; padding-bottom: 12px; font-size: var(--fs-title); }
+.site-info-heading b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.site-info-row { display: flex; align-items: center; gap: 8px; min-height: 44px; border-top: 1px solid var(--sep); }
+.site-info-value { margin-left: auto; color: var(--text-2); }
+.site-info-settings { margin-left: auto; }
+.site-info-confirm { border-top: 1px solid var(--sep); padding: 12px 0; }
+.site-info-confirm p { color: var(--text-2); }
+.site-info-confirm div { display: flex; justify-content: flex-end; gap: 8px; }
+
+#suggestions .suggestion-icon { display: grid; place-items: center; flex: none; }
+#suggestions .suggestion-icon img, #suggestions .suggestion-icon svg { width: 16px; height: 16px; }
+
+.site-info-certificate { border-top: 1px solid var(--sep); padding: 12px 0; }
+.site-info-certificate summary { display: flex; align-items: center; gap: 8px; cursor: pointer; list-style: none; }
+.site-info-certificate summary::-webkit-details-marker { display: none; }
+.site-info-certificate[open] summary svg { transform: rotate(90deg); }
+.site-info-certificate dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; margin: 12px 0 0; font-size: var(--fs-sm); }
+.site-info-certificate dt { color: var(--text-2); }
+.site-info-certificate dd { margin: 0; overflow-wrap: anywhere; }

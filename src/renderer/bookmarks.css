@@ -1,0 +1,21 @@
+.manager-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+nav, .crumb { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; min-width: 0; }
+nav { color: var(--text-2); }
+nav button { color: inherit; padding: 4px; }
+nav button:hover { color: var(--text); background: var(--hover); }
+nav .crumb > span, nav > span { color: var(--text); overflow-wrap: anywhere; }
+.toolbar { flex-wrap: wrap; justify-content: flex-end; margin-left: auto; }
+.toolbar button { display: inline-flex; align-items: center; gap: 8px; }
+main > form { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; padding: 16px; margin-bottom: 16px; background: var(--sunken); border-radius: var(--r-tab); }
+main > form label { display: grid; flex: 1 1 200px; min-width: 0; gap: 8px; color: var(--text-2); }
+main > form input { width: 100%; background: var(--surface); color: var(--text); }
+.row { flex-wrap: wrap; gap: 8px; }
+.row .visit { gap: 16px; }
+.row .visit > .icon { flex: none; color: var(--text-2); }
+.row-actions { display: flex; align-items: center; opacity: .65; }
+.row:hover .row-actions, .row:focus-within .row-actions { opacity: 1; }
+.icon-action { display: grid; place-items: center; width: 32px; height: 32px; color: var(--text-2); }
+.icon-action:hover:not(:disabled) { background: var(--hover); color: var(--text); }
+.move-control { width: 152px; max-width: 100%; color: var(--text-2); }
+.confirmation { display: flex; flex: 1 0 100%; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px; color: var(--text-2); background: var(--sunken); border-radius: var(--r-ctl); }
+@media (max-width: 700px) { .row .visit { flex-basis: 100%; } .row-actions { margin-left: auto; } }

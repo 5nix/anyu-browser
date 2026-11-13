@@ -1,0 +1,90 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { startWorld } from './harness.mjs';
+import { devtoolsPort, evaluate, gateState, waitFor, withTarget } from './cdp.mjs';
+
+test('pinning orders tabs and protects settings', async t => {
+  const w = await startWorld({ blank: true, extra: ['--remote-debugging-port=0'] });
+  t.after(() => w.stop());
+  const port = await devtoolsPort(w.log);
+  const shell = expr => evaluate(port, u => u.endsWith('/shell.html'), expr);
+  await waitFor(async () => (await shell('cave.getState()')).tabs.length > 0);
+  const a = (await shell('cave.getState()')).active;
+  await shell('cave.newTab()');
+  await waitFor(async () => (await shell('cave.getState()')).tabs.length === 2);
+  const b = (await shell('cave.getState()')).active;
+  await shell(`cave.pinTab(${b}, true)`);
+  await waitFor(async () => (await shell('cave.getState()')).tabs[0].id === b);
+  assert.equal((await shell('cave.getState()')).tabs[0].pinned, true);
+  await shell('cave.openSettings()');
+  const settings = await waitFor(async () => { const s = await shell('cave.getState()'); return s.tabs.find(x => x.kind === 'settings')?.id; });
+  await shell(`cave.pinTab(${settings}, true)`);
+  assert.equal((await shell('cave.getState()')).tabs.find(x => x.id === settings).pinned, false);
+  await shell(`cave.activate(${b})`);
+  await shell("cave.run('tab.close')");
+  await waitFor(async () => !(await shell('cave.getState()')).tabs.some(x => x.id === b));
+  assert.ok((await shell('cave.getState()')).tabs.some(x => x.id === a));
+});
+
+test('moving clamps to a tab zone and rejects invalid requests', async t => {
+  const w = await startWorld({ blank: true, extra: ['--remote-debugging-port=0'] });
+  t.after(() => w.stop());
+  const port = await devtoolsPort(w.log);
+  const shell = expr => evaluate(port, u => u.endsWith('/shell.html'), expr);
+  await waitFor(async () => (await shell('cave.getState()')).tabs.length === 1);
+  const a = (await shell('cave.getState()')).active;
+  await shell('cave.newTab()'); await shell('cave.newTab()');
+  await waitFor(async () => (await shell('cave.getState()')).tabs.length === 3);
+  const [,, c] = (await shell('cave.getState()')).tabs.map(x => x.id);
+  await shell(`cave.pinTab(${a}, true)`);
+  await shell(`cave.moveTab(${c}, 0)`);
+  await waitFor(async () => (await shell('cave.getState()')).tabs[1].id === c);
+  await shell(`cave.moveTab(${c}, -1)`);
+  await shell('cave.moveTab(999999, 0)');
+  assert.equal((await shell('cave.getState()')).tabs[1].id, c);
+});
+
+test('duplicate creates a neighboring tab through navigation', async t => {
+  const w = await startWorld({ blank: true, extra: ['--remote-debugging-port=0'] });
+  t.after(() => w.stop());
+  const port = await devtoolsPort(w.log);
+  const shell = expr => evaluate(port, u => u.endsWith('/shell.html'), expr);
+  await waitFor(async () => (await shell('cave.getState()')).tabs.length === 1);
+  await waitFor(async () => (await gateState(port)) === 'open', 60000);
+  await shell("cave.navigate('http://duplicate.cave.test/headers')");
+  await waitFor(async () => (await shell('cave.getState()')).tabs[0].url === 'http://duplicate.cave.test/headers');
+  const a = (await shell('cave.getState()')).active;
+  await shell('cave.newTab()');
+  await shell(`cave.duplicateTab(${a})`);
+  await waitFor(async () => { const tabs = (await shell('cave.getState()')).tabs; return tabs.length === 3 && tabs[1].url === 'http://duplicate.cave.test/headers'; });
+  const tabs = (await shell('cave.getState()')).tabs;
+  assert.equal(tabs[0].id, a); assert.notEqual(tabs[1].id, a); assert.equal(tabs[1].url, tabs[0].url);
+  await shell('cave.openSettings()');
+  await shell("cave.run('tab.duplicate')");
+  assert.equal((await shell('cave.getState()')).tabs.length, 4);
+});
+
+test('mute controls only the target audio tab', async t => {
+  const w = await startWorld({ blank: true, extra: ['--remote-debugging-port=0'] });
+  t.after(() => w.stop());
+  const port = await devtoolsPort(w.log);
+  const shell = expr => evaluate(port, u => u.endsWith('/shell.html'), expr);
+  await waitFor(async () => (await gateState(port)) === 'open', 60000);
+  await shell("cave.navigate('http://audio.cave.test/audio.html')");
+  await waitFor(() => evaluate(port, u => u === 'http://audio.cave.test/audio.html', 'document.title'));
+  await waitFor(() => evaluate(port, u => u === 'http://audio.cave.test/audio.html', 'window.audioReady'));
+  await withTarget(port, u => u === 'http://audio.cave.test/audio.html', send => send('Runtime.evaluate', { expression: "document.querySelector('#play').click()", userGesture: true }));
+  assert.equal(await evaluate(port, u => u === 'http://audio.cave.test/audio.html', 'ctx.state'), 'running');
+  const a = (await shell('cave.getState()')).active;
+  await shell('cave.newTab()');
+  const b = (await shell('cave.getState()')).active;
+  await shell(`cave.setTabMuted(${a}, true)`);
+  await waitFor(async () => (await shell('cave.getState()')).tabs.find(x => x.id === a).muted);
+  assert.equal((await shell('cave.getState()')).tabs.find(x => x.id === b).muted, false);
+  await shell(`cave.activate(${a})`);
+  await waitFor(() => shell("!!document.querySelector('.tab.active .audio')"));
+  await shell("document.querySelector('.tab.active .audio').click()");
+  await waitFor(async () => !(await shell('cave.getState()')).tabs.find(x => x.id === a).muted);
+  await shell("cave.run('tab.mute')");
+  await waitFor(async () => (await shell('cave.getState()')).tabs.find(x => x.id === a).muted);
+});

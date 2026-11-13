@@ -1,0 +1,18 @@
+export const coreZh = {
+  'core.paused': '已手动暂停外网',
+  'core.starting': '代理核心启动中',
+  'core.down': '代理核心没有运行',
+  'core.noNode': '还没有导入节点',
+  'core.noCountry': '还没有填写出口国家码',
+  'core.checking': '正在核对出口国家',
+  'core.open': '出口 {country} 与配置一致',
+  'core.mismatch': '出口国家是 {actual}，配置要求 {expected}',
+  'core.unknown': '未知',
+  'core.checkFailed': '出口核对请求失败：{error}',
+  'core.subscriptionUrl': '请先填写订阅链接',
+  'core.subscriptionNeedsNode': '还没有节点可以经代理拉取：第一次请把“订阅拉取”切到“直连”',
+  'core.subscriptionHttp': '订阅拉取失败：HTTP {status}',
+  'core.invalidYaml': '不是有效的 YAML：{error}',
+  'core.noProxies': '没有找到 proxies 列表（只支持 Clash YAML 订阅）',
+  'core.noUsableProxies': '订阅里没有可用的代理节点',
+} as const;

@@ -1,0 +1,72 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { startWorld } from './harness.mjs';
+import { click, devtoolsPort, evaluate, gateState, screenshot, waitFor, withTarget } from './cdp.mjs';
+
+const shots = '/private/tmp/claude-501/-Volumes-Ti-Projects-T3-cave/ec4490f8-814b-4682-a852-004923570123/scratchpad/proxy-sources';
+const shellTarget = u => u.endsWith('/shell.html');
+const settingsTarget = u => u.endsWith('/settings.html');
+
+test('sources can be added, renamed and removed without losing selection or opening the gate', { timeout: 120000 }, async t => {
+  const w = await startWorld({ blank: true, extra: ['--remote-debugging-port=0'] });
+  t.after(() => w.stop());
+  const port = await devtoolsPort(w.log);
+  const shell = expression => evaluate(port, shellTarget, expression);
+  const settings = expression => evaluate(port, settingsTarget, expression);
+  const snapshot = async file => writeFile(join(shots, file), await screenshot(port, settingsTarget));
+  const input = async (selector, text) => {
+    await click(port, settingsTarget, selector);
+    await withTarget(port, settingsTarget, send => send('Input.insertText', { text }));
+  };
+  const addText = async (text) => {
+    await click(port, settingsTarget, '#add-source');
+    await click(port, settingsTarget, '#toggle-paste');
+    await input('#paste-text', text);
+    await click(port, settingsTarget, '#paste-import');
+    await waitFor(() => settings("!document.querySelector('#source-editor')"));
+  };
+  await mkdir(shots, { recursive: true });
+  await waitFor(async () => (await gateState(port)) === 'open', 60000);
+  await shell("cave.openSettings('nodes')");
+  await waitFor(() => settings("document.querySelector('[data-section=nodes]:not([hidden]) .source-card')"));
+  await addText('proxies:\n  - { name: Offline, type: socks5, server: 127.0.0.1, port: 1 }\n');
+  await waitFor(() => settings("document.querySelectorAll('.source-card').length === 2"));
+  const sources = await settings('cave.panelData().then(d => d.profile.proxy.sources.map(s => s.id))');
+  const card = id => `[data-source="${id}"]`;
+  await click(port, settingsTarget, `${card(sources[1])} .source-rename`);
+  await click(port, settingsTarget, `${card(sources[1])} .source-name`);
+  await settings(`document.querySelector(${JSON.stringify(card(sources[1]) + ' .source-name')}).select()`);
+  await withTarget(port, settingsTarget, send => send('Input.insertText', { text: 'Fixture offline' }));
+  await click(port, settingsTarget, `${card(sources[1])} .source-save`);
+  await waitFor(() => settings(`document.querySelector(${JSON.stringify(card(sources[1]) + ' .label b')})?.textContent === 'Fixture offline'`));
+  await shell("cave.setTheme('light')");
+  await waitFor(() => settings("!matchMedia('(prefers-color-scheme: dark)').matches"));
+  await snapshot('two-sources-light.png');
+  await shell("cave.setTheme('dark')");
+  await waitFor(() => settings("matchMedia('(prefers-color-scheme: dark)').matches"));
+  await snapshot('two-sources-dark.png');
+  await click(port, settingsTarget, '#delays');
+  await waitFor(async () => {
+    const statuses = await settings('cave.panelData().then(d => d.nodes.nodes.map(n => n.delay.status))');
+    return statuses.includes('measured') && statuses.includes('timeout');
+  }, 30000);
+  await addText(`proxies:\n  - { name: Untested, type: socks5, server: 127.0.0.1, port: ${w.socks.port} }\n`);
+  const statuses = await settings('cave.panelData().then(d => d.nodes.nodes.map(n => n.delay.status))');
+  assert.ok(['untested', 'measured', 'timeout'].every(s => statuses.includes(s)));
+  await snapshot('delay-outcomes.png');
+  const third = await settings('cave.panelData().then(d => d.profile.proxy.sources.at(-1).id)');
+  await click(port, settingsTarget, `${card(third)} .source-remove`);
+  await waitFor(() => settings("document.querySelector('#confirm').open"));
+  await click(port, settingsTarget, '#confirm-ok');
+  await waitFor(() => settings("document.querySelectorAll('.source-card').length === 2"));
+  assert.deepEqual(await settings('cave.panelData().then(d => d.nodes.selected)'), { source: sources[0], node: 'Test Node' });
+  await waitFor(async () => (await gateState(port)) === 'open', 60000);
+  await click(port, settingsTarget, `${card(sources[0])} .source-remove`);
+  await waitFor(() => settings("document.querySelector('#confirm').open"));
+  await snapshot('remove-confirmation.png');
+  await click(port, settingsTarget, '#confirm-ok');
+  await waitFor(async () => (await gateState(port)) === 'closed');
+  assert.equal(await settings('cave.panelData().then(d => d.nodes.selected)'), null);
+});

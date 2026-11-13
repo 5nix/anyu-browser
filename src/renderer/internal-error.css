@@ -1,0 +1,9 @@
+html, body { height: 100%; background: var(--surface); }
+main { min-height: 100%; display: grid; place-items: center; padding: 32px; }
+.recovery { width: min(100%, 480px); }
+h1 { font-size: 22px; font-weight: 600; margin: 0 0 12px; }
+p { color: var(--text-2); margin: 0 0 12px; }
+.url { color: var(--text); overflow-wrap: anywhere; }
+.code { font: var(--fs-cap) var(--mono); color: var(--text-3); }
+.actions { display: flex; gap: 8px; margin-top: 24px; }
+.advanced { margin-top: 20px; }

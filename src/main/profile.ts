@@ -37,7 +37,7 @@ export class ProfileStore {
       let legacyNodes: unknown = [];
       if (legacy && existsSync(legacyFile)) legacyNodes = parse(await readFile(legacyFile, 'utf8'))?.proxies ?? [];
       const store = new ProfileStore(dir, normalizeProfile(raw, fallback, legacyNodes), true);
-      if (legacy || raw.setup === undefined) await store.write();
+      if (legacy || (raw && typeof raw === 'object' && raw.setup === undefined)) await store.write();
       if (legacy) await rm(legacyFile, { force: true });
       return store;
     } catch (err: any) {

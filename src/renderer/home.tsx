@@ -30,6 +30,7 @@ function Home() {
     <form class="search" onSubmit={(e) => { e.preventDefault(); const value = search.current?.value.trim(); if (value) void cave.navigate(value); }}>
       <Icon name="search" /><input ref={search} aria-label={t('homeSearch')} placeholder={t('homeSearch')} />
     </form>
+    {state?.setup.pending && state.gate.state !== 'open' && <p class="closed-line"><span class="dot closed" />{t('welcome.home.closed')}<button id="continue-setup" class="btn link" onClick={() => void cave.continueSetup()}>{t('welcome.home.continue')}</button></p>}
     <div class="shortcuts">{state?.shortcuts.map((item) => <div class="tile" key={item.id}>
       <button class="tile-link" onClick={(e) => { if (e.metaKey || e.ctrlKey) void cave.newTab(item.url); else void cave.navigate(item.url); }} onAuxClick={(e) => { if (e.button === 1) void cave.newTab(item.url); }}><span class="avatar">{item.favicon ? <img src={item.favicon} alt="" /> : Array.from(item.name)[0]?.toUpperCase()}</span><span class="tile-name">{item.name}</span></button>
       <button class="more icon-btn" aria-label={t('homeMore')} onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); void cave.openShortcutMenu(item.id, { x: r.x, y: r.y, width: r.width, height: r.height }); }}><Icon name="ellipsis" /></button>

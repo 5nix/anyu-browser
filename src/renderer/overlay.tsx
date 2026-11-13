@@ -23,12 +23,14 @@ function Status({ state, open }: { state: ShellState; open: boolean }) {
   const { st, e, conditions, rows, title } = gateStatus(state, facts);
   const toggle = () => { setBusy(true); void (st === 'paused' ? cave.resume() : cave.pause()).finally(() => setBusy(false)); };
   // When the gate is closed the first action is the fix; it replaces "open settings" when that is the fix.
-  const fix = st === 'closed' ? (e || conditions.node === 'failed' ? 'nodes' : 'overview') : null;
+  const setup = state.setup.pending && st !== 'open';
+  const fix = st === 'closed' && !setup ? (e || conditions.node === 'failed' ? 'nodes' : 'overview') : null;
   return <Surface name="status" anchor={state.surface!.anchor} open={open} prefer={state.tabLayout === 'side' ? 'top' : 'bottom'}>
     <GateSummary st={st} title={title} reason={state.gate.reason} titleId="title" reasonId="detail" busy={busy} onToggle={toggle} />
     <ConditionList st={st} rows={rows} />
     <p id="notice" hidden={!state.notice} title={state.notice ?? ''}>{state.notice ?? ''}</p>
     <div class="status-actions">
+      {setup && <button id="continue-setup" class="btn primary" onClick={() => cave.continueSetup()}>{t('welcome.home.continue')}</button>}
       {fix === 'nodes' && <button class="btn primary" onClick={() => cave.openSettings('nodes')}>{t('set.conditions.changeNode')}</button>}
       {fix === 'overview' && <button id="open-settings" class="btn primary" onClick={() => cave.openSettings('overview')}>{t('openSettings')}</button>}
       {st !== 'paused' && <button id="restart" onClick={() => cave.restartAndCheck()} disabled={st === 'checking'}>{t('set.overview.recheck')}</button>}

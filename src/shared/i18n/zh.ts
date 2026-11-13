@@ -2,6 +2,7 @@ import {
 coreZh } from './core.zh.ts';
 /** Source strings for the browser interface. The settings page's own strings are in settings.zh.ts. */
 import { settingsZh } from './settings.zh.ts';
+import { welcomeZh } from './welcome.zh.ts';
 
 export const zh = {
   siteInfo_details: '证书详情', siteInfo_subject: '使用者', siteInfo_issuer: '颁发者', siteInfo_validFrom: '生效日期', siteInfo_validTo: '到期日期', siteInfo_title: '网站信息', siteInfo_secure: '连接安全', siteInfo_insecure: '连接不安全', siteInfo_certificate: '证书存在问题', siteInfo_internal: '这是 Cave 页面', siteInfo_unknown: '连接状态未知', siteInfo_cookies: 'Cookie', siteInfo_cookieCount: '{count} 个', siteInfo_settings: '网站设置',
@@ -66,6 +67,7 @@ export const zh = {
   homeMore: '更多',
   homeInvalid: '请输入有效的 http 或 https 网址',
   ...settingsZh,
+  ...welcomeZh,
   ...coreZh,
   switchUnknown: "切换后会重新核对出口国家（「{name}」还没有核对过）。",
   switchChanged: "⚠ 出口国家会从 {from} 变成 {to}。",

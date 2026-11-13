@@ -24,3 +24,4 @@ dialog input { display: block; width: 100%; margin-top: 6px; }
 .invalid { color: var(--danger); }
 
 .avatar img { width: 24px; height: 24px; }
+.closed-line { margin: 18px 0 0; display: flex; justify-content: center; align-items: center; gap: 8px; color: var(--text-2); font-size: var(--fs-sm); }

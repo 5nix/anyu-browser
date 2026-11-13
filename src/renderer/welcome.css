@@ -1,1 +1,175 @@
-/* Setup styles live in this page, with shared tokens from style.css. */
+/* First-run setup (design/welcome/option-a2.html). Tokens and base controls come from style.css,
+   the condition rows, node rows and appearance picker from ui.css. */
+html, body { height: 100%; }
+body { overflow: hidden; background: var(--surface); }
+p { margin: 0; }
+button, label, select, h1, summary { cursor: default; user-select: none; }
+
+.setup { height: 100vh; display: flex; flex-direction: column; container: win / size; }
+body.mac .setup { --inset-l: 76px; --inset-r: 0px; }
+body.winos .setup { --inset-l: 0px; --inset-r: 138px; }
+
+/* The band: drags the window and leaves room for the window buttons; only its button takes a press, at exactly its own box. */
+.setup-bar { position: relative; height: 52px; flex: none; display: flex; align-items: center; gap: 12px; padding: 0 calc(12px + var(--inset-r)) 0 calc(16px + var(--inset-l)); -webkit-app-region: drag; }
+.setup-bar button { -webkit-app-region: no-drag; }
+.setup-bar .grow { flex: 1; min-width: 0; }
+.setup-bar .later { color: var(--text-2); font-weight: 400; }
+body.winos .setup-bar .later { margin-right: 4px; }
+.brand { display: flex; align-items: center; gap: 8px; font-weight: var(--fw-title); }
+.mark { color: var(--text); display: block; flex: none; }
+
+.steps { display: flex; justify-content: center; gap: 4px; list-style: none; margin: 0; padding: 0; }
+.steps li { display: flex; align-items: center; gap: 6px; height: 26px; padding: 0 8px; color: var(--text-3); font-size: var(--fs-sm); white-space: nowrap; }
+.steps li + li::before { content: ''; width: 16px; height: 1px; background: var(--line-strong); margin-right: 6px; }
+.steps li .n { width: 16px; height: 16px; border-radius: 50%; display: grid; place-items: center; font-size: 10px; box-shadow: inset 0 0 0 1px var(--line-strong); font-variant-numeric: tabular-nums; }
+.steps li.done { color: var(--text-2); }
+.steps li.done .n { background: var(--text-2); color: var(--surface); box-shadow: none; }
+.steps li.done .n svg.icon { width: 10px; height: 10px; stroke-width: 3; }
+.steps li.cur { color: var(--text); font-weight: var(--fw-label); }
+.steps li.cur .n { background: var(--accent-fill); color: var(--on-accent); box-shadow: none; }
+.steps-compact { display: none; justify-content: center; font-size: var(--fs-sm); color: var(--text-2); }
+.steps-compact b { color: var(--text); font-weight: var(--fw-label); margin-left: 6px; }
+@container win (max-width: 940px) { .steps { display: none; } .steps-compact { display: flex; } .brand > span { display: none; } }
+
+/* Welcome: one centred composition. */
+.welcome { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 0 32px 40px; }
+.welcome .name { margin: 22px 0 0; font-size: 30px; font-weight: var(--fw-page); letter-spacing: .01em; outline: none; }
+.welcome .line { margin-top: 12px; font-size: 15px; color: var(--text-2); }
+.welcome .ctl { margin-top: 36px; display: flex; flex-direction: column; align-items: center; gap: 16px; }
+@container win (max-height: 600px) { .welcome .name { margin-top: 14px; } .welcome .ctl { margin-top: 24px; } .welcome svg.mark { width: 44px; height: 44px; } }
+
+/* Every other step: one column, the content centred a little high, the actions in a bar at the bottom. */
+.a-main { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; }
+.a-col { width: min(540px, calc(100% - 64px)); margin: 0 auto; }
+.a-main .a-col { margin-block: auto; padding: 28px 0 clamp(28px, 8cqh, 72px); display: flex; flex-direction: column; gap: 16px; }
+.a-main h1 { font-size: var(--fs-page); font-weight: var(--fw-page); margin: 0 0 8px; letter-spacing: -.01em; outline: none; }
+.a-main.center .a-col { padding: 24px 0; align-items: center; text-align: center; gap: 0; }
+.a-foot { flex: none; border-top: 1px solid var(--sep); }
+.a-foot .a-col { height: 60px; display: flex; align-items: center; gap: 8px; }
+.a-foot .grow { flex: 1; }
+.btn.quiet { background: transparent; box-shadow: none; color: var(--text-2); }
+.btn.quiet:hover:not(:disabled) { background: var(--hover); color: var(--text); }
+.btn.lg { height: 32px; padding: 0 16px; }
+.btn svg.icon { width: 15px; height: 15px; }
+
+/* Segmented control (interface language, source kind): the theme picker's shape. */
+.seg { display: inline-flex; align-self: flex-start; height: 28px; padding: 2px; gap: 2px; border-radius: 8px; background: var(--frame); }
+.welcome .seg { align-self: center; }
+.seg label { position: relative; display: flex; }
+.seg input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; margin: 0; }
+.seg span { display: flex; align-items: center; gap: 6px; height: 24px; padding: 0 12px; border-radius: 6px; color: var(--text-2); white-space: nowrap; }
+.seg svg.icon { width: 15px; height: 15px; }
+.seg input:checked + span { background: var(--frame-raised); box-shadow: var(--shadow-raised); color: var(--text); font-weight: 500; }
+.seg input:focus-visible + span { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
+.seg label:has(input:not(:checked)):hover span { background: var(--frame-hover); color: var(--text); }
+.theme-picker { flex: none; }
+
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field > span { font-weight: var(--fw-label); }
+.field > input, .field > select { height: var(--h-field); width: 100%; }
+.field textarea { width: 100%; resize: vertical; }
+.field small, .hint { color: var(--text-2); font-size: var(--fs-sm); line-height: 1.5; }
+.field.grow { flex: 1; }
+.inline-fields { display: grid; grid-template-columns: 140px 1fr 110px; gap: 10px; }
+.inline-fields.two { grid-template-columns: 1fr 1fr; margin-top: 8px; }
+.note { display: flex; gap: 8px; align-items: flex-start; color: var(--text-2); font-size: var(--fs-sm); line-height: 1.5; }
+.note svg.icon { width: 14px; height: 14px; margin-top: 2px; }
+.live { display: flex; align-items: center; gap: 8px; color: var(--text-2); font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
+
+/* Choice cards: the card is the radio's label, so its border box is the whole hit area; no shadow, selection is stroke and fill. */
+.stack { display: flex; flex-direction: column; gap: 12px; }
+.choice { position: relative; display: flex; align-items: center; gap: 12px; padding: 16px; border-radius: var(--r-card); box-shadow: inset 0 0 0 1px var(--line-strong); }
+.choice:hover { background: var(--hover); }
+.choice:has(input:checked) { box-shadow: inset 0 0 0 1.5px var(--accent); background: var(--accent-soft); }
+.choice:has(input:focus-visible) { outline: var(--focus-ring); outline-offset: 2px; }
+.choice input { margin: 0; }
+.choice input:focus-visible { outline: none; }
+.choice .ci { width: 32px; height: 32px; flex: none; border-radius: 8px; display: grid; place-items: center; background: var(--sunken); color: var(--text-2); }
+.choice .ci svg.icon { width: 17px; height: 17px; }
+.choice .lb { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.choice .lb b { font-weight: var(--fw-title); }
+.choice .lb small { color: var(--text-2); font-size: var(--fs-sm); line-height: 1.5; }
+
+.drop { display: flex; align-items: center; gap: 12px; padding: 16px; border-radius: var(--r-card); box-shadow: inset 0 0 0 1px var(--line-strong); }
+.drop .label { flex: 1; display: flex; flex-direction: column; }
+
+/* What failed and the next step: the settings page's condition-fix panel. */
+.fix { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding: 12px 16px; border-radius: var(--r-card); background: var(--sunken); color: var(--text-2); font-size: var(--fs-sm); }
+.fix > .msg { flex: 1 1 260px; display: flex; gap: 10px; align-items: flex-start; line-height: 1.5; }
+.fix > .msg svg.icon { margin-top: 1px; }
+.fix > .msg b { color: var(--text); font-weight: var(--fw-title); display: block; font-size: var(--fs-body); overflow-wrap: anywhere; }
+.fix.bad > .msg svg.icon { color: var(--danger); } .fix.warn > .msg svg.icon { color: var(--warn); } .fix.good > .msg svg.icon { color: var(--ok); }
+.fix .acts { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Node list: the settings page's compact rows, scrolling inside the page when the window is short. */
+.nodes { list-style: none; margin: 0; padding: 0; }
+.nodes label { display: flex; align-items: center; }
+.nodes .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nodes .type, .nodes .delay, .nodes .country { color: var(--text-2); font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
+.nodes .delay { text-align: right; }
+.nodes.compact li.selected + li::after { opacity: 0; }
+.nodes.compact.bounded { max-height: max(108px, calc(100cqh - 372px)); overflow-y: auto; padding: 0 8px; margin: 0 -8px; }
+.listhead { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: -8px; }
+.listhead .src { display: flex; align-items: center; gap: 8px; min-width: 0; color: var(--text-2); font-size: var(--fs-sm); }
+.listhead .src svg.icon { width: 14px; height: 14px; }
+.listhead .src b { color: var(--text); font-weight: var(--fw-label); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.listhead .acts { display: flex; gap: 4px; flex: none; }
+.listhead .btn.link, .listhead .btn.quiet { height: 26px; font-size: var(--fs-sm); }
+.srcline { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--r-card); box-shadow: inset 0 0 0 1px var(--sep); }
+.srcline .label { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.srcline .label b { font-weight: var(--fw-title); }
+.srcline .label small { color: var(--text-2); font-size: var(--fs-sm); }
+.srcline svg.icon { color: var(--text-2); }
+
+/* Verification: the gate's own conditions, the rows grown for a full page. */
+.conds { margin-top: -4px; display: flex; flex-direction: column; }
+.conds .condition-row { min-height: 52px; border-bottom: 0; }
+.conds .condition-row + .condition-row { border-top: 1px solid var(--sep); }
+.conds .condition-row.pending .label b, .conds .condition-row.pending .condition-icon { color: var(--text-3); }
+.conds .condition-row.running .condition-mark { color: var(--warn); }
+.conds .condition-row .condition-mark { width: 20px; }
+.conds .condition-row .label b { font-weight: var(--fw-label); }
+.conds .condition-row.failed .condition-icon { color: var(--text-2); }
+
+/* Identity. */
+.kv { display: flex; flex-direction: column; }
+.kv .r { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 6px 0; }
+.kv .r + .r { border-top: 1px solid var(--sep); }
+.kv .r svg.icon { color: var(--text-2); }
+.kv .r .label { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.kv .r .val { text-align: right; display: flex; flex-direction: column; align-items: flex-end; min-width: 0; }
+.kv .r .val b { overflow-wrap: anywhere; }
+.kv .r .val small { color: var(--text-3); font-size: var(--fs-sm); }
+details.more > summary { list-style: none; display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 4px; border-radius: var(--r-ctl); color: var(--accent); font-weight: var(--fw-label); }
+details.more > summary::-webkit-details-marker { display: none; }
+details.more > summary:hover { background: var(--hover); }
+details.more > summary:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
+details.more > summary svg.icon { width: 14px; height: 14px; transition: transform var(--dur) var(--ease-out); }
+details.more[open] > summary svg.icon { transform: rotate(90deg); }
+.idd { display: flex; flex-direction: column; gap: 16px; padding: 10px 0 4px 4px; }
+.radio-row { display: flex; align-items: center; gap: 10px; min-height: 30px; }
+.radio-row input { margin: 0; }
+
+/* Personalise. */
+.pers { display: flex; flex-direction: column; }
+.pers .r { display: flex; align-items: center; gap: 16px; min-height: 56px; padding: 10px 0; }
+.pers .r + .r { border-top: 1px solid var(--sep); }
+.pers .r .label { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.pers .r .label small { color: var(--text-2); font-size: var(--fs-sm); }
+.pers .r.col { flex-direction: column; align-items: stretch; }
+.layout-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.layout-pick .choice { flex-direction: column; align-items: stretch; gap: 10px; }
+.layout-pick .choice input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.thumb { display: block; width: 100%; height: 56px; border-radius: 6px; background: var(--sunken); box-shadow: inset 0 0 0 1px var(--sep); position: relative; overflow: hidden; }
+.thumb.top::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 16px; background: var(--frame); }
+.thumb.side::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 26%; background: var(--frame); }
+@container win (max-height: 600px) { .thumb { height: 32px; } .layout-pick .choice { gap: 6px; padding: 10px 12px; } .pers .r { min-height: 48px; padding: 6px 0; } }
+
+/* Done. */
+.badge { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; flex: none; }
+.badge svg.icon { width: 26px; height: 26px; }
+.badge.open { background: color-mix(in srgb, var(--ok) 14%, transparent); color: var(--ok); }
+.done-screen { display: flex; flex-direction: column; align-items: center; }
+.done-screen h1 { margin: 20px 0 6px; }
+.done-screen .fact { color: var(--text-2); font-size: var(--fs-title); }
+.done-screen .note { margin-top: 28px; justify-content: center; }

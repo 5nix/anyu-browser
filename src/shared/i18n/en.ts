@@ -2,6 +2,7 @@ import {
 coreEn } from './core.en.ts';
 import type { zh } from './zh.ts';
 import { settingsEn } from './settings.en.ts';
+import { welcomeEn } from './welcome.en.ts';
 
 export const en: Record<keyof typeof zh, string> = {
   siteInfo_details: 'Certificate details', siteInfo_subject: 'Subject', siteInfo_issuer: 'Issuer', siteInfo_validFrom: 'Valid from', siteInfo_validTo: 'Valid until', siteInfo_title: 'Site information', siteInfo_secure: 'Connection is secure', siteInfo_insecure: 'Connection is not secure', siteInfo_certificate: 'Certificate problem', siteInfo_internal: 'This is a Cave page', siteInfo_unknown: 'Connection status unknown', siteInfo_cookies: 'Cookies', siteInfo_cookieCount: '{count}', siteInfo_settings: 'Site settings',
@@ -66,6 +67,7 @@ export const en: Record<keyof typeof zh, string> = {
   homeMore: 'More',
   homeInvalid: 'Enter a valid http or https URL',
   ...settingsEn,
+  ...welcomeEn,
   ...coreEn,
   switchUnknown: "The exit country will be checked again (「{name}」 has not been checked yet).",
   switchChanged: "⚠ The exit country will change from {from} to {to}.",

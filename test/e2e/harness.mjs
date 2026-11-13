@@ -67,9 +67,10 @@ export async function startWorld({ profile = PROFILE, wrap = [], extra = [], dir
   };
   // The host may itself run inside Electron; the child must start as an app.
   delete env.ELECTRON_RUN_AS_NODE;
-  // CAVE_APP runs a packaged build instead of the source tree.
+  // CAVE_APP runs a packaged build instead of the source tree, with the sandbox it ships with;
+  // the development Electron has no sandbox helper set up.
   const app = process.env.CAVE_APP;
-  const args = ['--no-sandbox', ...(app ? [] : [root]), '--unsafely-treat-insecure-origin-as-secure=http://fp.cave.test', ...(trusted ? [`--ignore-certificate-errors-spki-list=${trusted.spki}`] : []), ...extra, ...(blank ? [] : [url])];
+  const args = [...(app ? [] : ['--no-sandbox', root]), '--unsafely-treat-insecure-origin-as-secure=http://fp.cave.test', ...(trusted ? [`--ignore-certificate-errors-spki-list=${trusted.spki}`] : []), ...extra, ...(blank ? [] : [url])];
   const binary = app ?? electronBinary;
   const cmd = wrap.length ? wrap[0] : binary;
   const argv = wrap.length ? [...wrap.slice(1), binary, ...args] : args;

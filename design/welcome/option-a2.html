@@ -1,0 +1,775 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>方案 A2 · 逐步引导（修订）</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:">
+<style>/* Tokens copied verbatim from src/renderer/style.css (light + dark). Dark is switched by attribute here so screenshots are deterministic. */
+:root {
+  --font: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", "PingFang SC", "Microsoft YaHei UI", "Noto Sans CJK SC", "Noto Sans SC", sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --fs-cap: 11px; --fs-sm: 12px; --fs-body: 13px; --fs-title: 14px; --fs-page: 22px;
+  --fw-label: 500; --fw-title: 600; --fw-page: 650; --lh: 1.45;
+  --r-sm: 4px; --r-ctl: 8px; --r-tab: 10px; --r-card: 10px; --r-pop: 14px; --r-dlg: 14px; --r-pill: 999px;
+  --h-ctl: 28px; --h-field: 34px;
+  --dur-fast: 120ms; --dur: 160ms; --dur-page: 180ms;
+  --ease-out: cubic-bezier(.2, 0, 0, 1); --ease-in-out: cubic-bezier(.4, 0, .2, 1);
+  --frame: #e5e6e8; --frame-hover: #dadbdd; --frame-press: #cfd0d3; --frame-raised: #ffffff;
+  --field: #eeeff1; --surface: #ffffff; --sunken: #f4f5f6; --band: #f4f5f6; --band-field: #e6e7e9;
+  --pop: #f3f4f5; --pop-hover: rgb(27 28 30 / .065);
+  --text: #1b1c1e; --text-2: #5a5b5f; --text-3: #77797d;
+  --sep: rgb(27 28 30 / .11); --line-strong: rgb(27 28 30 / .2); --line-control: rgb(27 28 30 / .5);
+  --hover: rgb(27 28 30 / .045); --press: rgb(27 28 30 / .085);
+  --accent: #0b7479; --accent-fill: var(--accent); --on-accent: #fff;
+  --accent-fill-hover: color-mix(in oklab, var(--accent-fill) 90%, #000);
+  --accent-fill-press: color-mix(in oklab, var(--accent-fill) 80%, #000);
+  --accent-soft: color-mix(in srgb, var(--accent) 12%, transparent);
+  --ok: #17773f; --warn: #94590a; --danger: #c2352b; --danger-fill: #c2352b; --idle: #7e8084;
+  --focus-ring: 1.5px solid var(--accent); --focus-offset: -1.5px;
+  --shadow-sheet: 0 0 0 1px rgb(27 28 30 / .07), 0 1px 2px rgb(27 28 30 / .06), 0 10px 28px -10px rgb(27 28 30 / .18);
+  --shadow-raised: 0 0 0 1px rgb(27 28 30 / .06), 0 1px 2px rgb(27 28 30 / .1);
+  --shadow-ctl: 0 1px 1px rgb(27 28 30 / .05);
+  --shadow-pop: 0 0 0 1px rgb(27 28 30 / .09), 0 4px 10px -2px rgb(27 28 30 / .08), 0 22px 48px -12px rgb(27 28 30 / .3);
+  --mock-bg: #d4d5d8;
+  color-scheme: light;
+  font: var(--fs-body)/var(--lh) var(--font);
+  -webkit-font-smoothing: antialiased;
+}
+:root[data-theme=dark] {
+  --frame: #121213; --frame-hover: #1e1e20; --frame-press: #262628; --frame-raised: #2c2c2e;
+  --field: #1e1e20; --surface: #232325; --sunken: #1b1b1d; --band: #1c1c1e; --band-field: #121213;
+  --pop: #1e1e20; --pop-hover: #2c2c2e;
+  --text: #ececed; --text-2: #a6a7aa; --text-3: #76777a;
+  --sep: rgb(255 255 255 / .09); --line-strong: rgb(255 255 255 / .16); --line-control: rgb(255 255 255 / .38);
+  --hover: rgb(255 255 255 / .05); --press: rgb(255 255 255 / .09);
+  --accent: #4fc4c1; --accent-fill: oklch(from var(--accent) .52 calc(c * .9) h);
+  --accent-fill-hover: color-mix(in oklab, var(--accent-fill) 94%, #fff);
+  --accent-fill-press: color-mix(in oklab, var(--accent-fill) 85%, #000);
+  --accent-soft: color-mix(in srgb, var(--accent) 18%, transparent);
+  --ok: #52c985; --warn: #e0a030; --danger: #ff6a5e; --danger-fill: #c4382e; --idle: #8b8c8f;
+  --shadow-sheet: 0 0 0 1px rgb(255 255 255 / .06), 0 16px 40px -16px rgb(0 0 0 / .9);
+  --shadow-raised: inset 0 1px 0 rgb(255 255 255 / .05);
+  --shadow-ctl: 0 1px 1px rgb(0 0 0 / .2);
+  --shadow-pop: 0 0 0 1px rgb(255 255 255 / .09), 0 20px 50px -10px rgb(0 0 0 / .8);
+  --mock-bg: #0b0b0c;
+  color-scheme: dark;
+}
+@media (prefers-reduced-motion: reduce) { :root { --dur-fast: 0ms; --dur: 0ms; --dur-page: 0ms; } }
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; color: var(--text); }
+svg.icon { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+p { margin: 0; }
+
+/* Base controls, as in style.css */
+button { font: inherit; color: inherit; background: none; border: 0; border-radius: var(--r-ctl); padding: 0; cursor: default; transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), opacity var(--dur-fast) var(--ease-out); }
+button:disabled { opacity: .45; }
+button:focus-visible, a:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
+.icon-btn { width: 30px; height: 30px; display: inline-grid; place-items: center; color: var(--text-2); }
+.icon-btn:hover:not(:disabled) { background: var(--hover); color: var(--text); }
+.btn { height: 28px; padding: 0 12px; display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; font-weight: var(--fw-label); background: var(--surface); box-shadow: inset 0 0 0 1px var(--line-strong), var(--shadow-ctl); }
+.btn:hover:not(:disabled) { background: color-mix(in srgb, var(--surface) 94%, var(--text)); }
+.btn:active:not(:disabled) { background: color-mix(in srgb, var(--surface) 88%, var(--text)); }
+.btn.primary { background: var(--accent-fill); color: var(--on-accent); box-shadow: none; }
+.btn.primary:hover:not(:disabled) { background: var(--accent-fill-hover); }
+.btn.primary:active:not(:disabled) { background: var(--accent-fill-press); }
+.btn.link { padding: 0 4px; background: transparent; box-shadow: none; color: var(--accent); }
+.btn.link:hover:not(:disabled) { background: var(--hover); }
+.btn.quiet { background: transparent; box-shadow: none; color: var(--text-2); }
+.btn.quiet:hover:not(:disabled) { background: var(--hover); color: var(--text); }
+.btn.lg { height: 32px; padding: 0 16px; }
+.btn svg.icon { width: 15px; height: 15px; }
+input, select, textarea { font: inherit; color: inherit; background: var(--surface); border: 0; box-shadow: inset 0 0 0 1px var(--line-strong), var(--shadow-ctl); border-radius: var(--r-ctl); padding: 0 10px; height: 28px; accent-color: var(--accent-fill); transition: box-shadow var(--dur-fast) var(--ease-out); }
+input::placeholder, textarea::placeholder { color: var(--text-3); }
+input:hover:not(:disabled), select:hover:not(:disabled), textarea:hover:not(:disabled) { box-shadow: inset 0 0 0 1px var(--line-control), var(--shadow-ctl); }
+textarea { height: auto; padding: 8px 10px; font: var(--fs-sm)/1.5 var(--mono); resize: vertical; }
+select { appearance: none; min-width: 148px; padding: 0 36px 0 12px; background: linear-gradient(45deg, transparent calc(50% - .75px), var(--text-2) calc(50% - .75px) calc(50% + .75px), transparent calc(50% + .75px)) right 17px center / 5px 5px no-repeat, linear-gradient(-45deg, transparent calc(50% - .75px), var(--text-2) calc(50% - .75px) calc(50% + .75px), transparent calc(50% + .75px)) right 12px center / 5px 5px no-repeat, var(--surface); }
+input:focus, textarea:focus, select:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
+input[type=radio] { appearance: none; position: relative; width: 16px; height: 16px; padding: 0; flex: none; margin: 0; border-radius: 50%; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line-control), var(--shadow-ctl); }
+input[type=radio]:checked { background: var(--on-accent); box-shadow: inset 0 0 0 5px var(--accent-fill); }
+input[type=radio]:focus { outline: none; }
+input[type=radio]:focus-visible, .btn.primary:focus-visible { outline: var(--focus-ring); outline-offset: 1px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex: none; background: var(--idle); }
+.dot.open { background: var(--ok); } .dot.closed { background: var(--danger); }
+.dot.checking { background: var(--warn); animation: breathe 1.4s var(--ease-in-out) infinite; }
+@keyframes breathe { 50% { opacity: .35; } }
+body.shot .dot.checking { animation: none; }
+.mono { font-family: var(--mono); font-size: var(--fs-sm); }
+.t2 { color: var(--text-2); } .t3 { color: var(--text-3); } .sm { font-size: var(--fs-sm); }
+
+/* ---------- Mockup harness (not product UI) ---------- */
+body.mock { background: var(--mock-bg); padding: 60px 24px 32px; min-height: 100vh; }
+.mockbar { position: fixed; z-index: 50; inset: 0 0 auto 0; height: 44px; display: flex; align-items: center; gap: 14px; padding: 0 16px; background: #fbfbfb; color: #1b1c1e; border-bottom: 1px solid #d0d0d3; font: 12px/1.3 var(--font); color-scheme: light; overflow-x: auto; white-space: nowrap; }
+.mockbar b { font-weight: 600; } .mockbar a { color: #0b7479; }
+.mockbar label { display: inline-flex; align-items: center; gap: 6px; color: #5a5b5f; }
+.mockbar select { height: 24px; min-width: 0; font-size: 12px; background-color: #fff; color: #1b1c1e; }
+body.shot { padding: 0; background: var(--surface); }
+body.shot .mockbar { display: none; }
+
+/* ---------- Window frame ---------- */
+.win { position: relative; width: var(--w, 1280px); height: var(--h, 800px); margin: 0 auto; background: var(--surface); border-radius: 10px; overflow: hidden; box-shadow: 0 0 0 1px rgb(0 0 0 / .18), 0 30px 70px -20px rgb(0 0 0 / .45); display: flex; flex-direction: column; }
+body.shot .win { width: 100vw; height: 100vh; border-radius: 0; box-shadow: none; }
+.win.mac { --inset-l: 76px; --inset-r: 0px; }
+.win.winos { --inset-l: 0px; --inset-r: 138px; border-radius: 0; }
+.lights { position: absolute; z-index: 20; left: 19px; top: 19px; display: flex; gap: 9px; pointer-events: none; }
+.lights i { width: 14px; height: 14px; border-radius: 50%; background: #ff5f57; box-shadow: inset 0 0 0 .5px rgb(0 0 0 / .15); }
+.lights i:nth-child(2) { background: #febc2e; } .lights i:nth-child(3) { background: #28c840; }
+.win.unfocused .lights i { background: color-mix(in srgb, var(--text) 18%, transparent); }
+.caps { position: absolute; z-index: 20; right: 0; top: 0; height: 40px; display: flex; color: var(--text); pointer-events: none; }
+.caps i { width: 46px; display: grid; place-items: center; }
+.caps svg { width: 10px; height: 10px; stroke: currentColor; stroke-width: 1; fill: none; }
+.win.mac .caps, .win.winos .lights { display: none; }
+
+/* Setup band: drag region in the product (-webkit-app-region: drag); its buttons are no-drag with exact hit boxes. */
+.setup-bar { position: relative; height: 52px; flex: none; display: flex; align-items: center; gap: 12px; padding: 0 calc(12px + var(--inset-r)) 0 calc(16px + var(--inset-l)); }
+.setup-bar .grow { flex: 1; min-width: 0; }
+.setup-bar .later { color: var(--text-2); font-weight: 400; }
+.win.winos .setup-bar .later { margin-right: 4px; }
+
+/* Shared building blocks */
+.mark { color: var(--text); display: block; }
+.seg { display: inline-flex; height: 28px; padding: 2px; gap: 2px; border-radius: 8px; background: var(--frame); }
+.seg label { position: relative; display: flex; }
+.seg input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; margin: 0; }
+.seg span { display: flex; align-items: center; gap: 6px; height: 24px; padding: 0 12px; border-radius: 6px; color: var(--text-2); white-space: nowrap; }
+.seg svg.icon { width: 15px; height: 15px; }
+.seg input:checked + span { background: var(--frame-raised); box-shadow: var(--shadow-raised); color: var(--text); font-weight: 500; }
+.seg input:focus-visible + span { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
+.seg label:has(input:not(:checked)):hover span { background: var(--frame-hover); color: var(--text); }
+
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field > span { font-weight: var(--fw-label); }
+.field input, .field select { height: var(--h-field); width: 100%; }
+.field small, .hint { color: var(--text-2); font-size: var(--fs-sm); line-height: 1.5; }
+.inline-fields { display: grid; grid-template-columns: 140px 1fr 110px; gap: 10px; }
+
+.choice { position: relative; display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; border-radius: var(--r-card); box-shadow: inset 0 0 0 1px var(--line-strong); }
+.choice:hover { background: var(--hover); }
+.choice:has(input:checked) { box-shadow: inset 0 0 0 1.5px var(--accent); background: var(--accent-soft); }
+.choice:has(input:focus-visible) { outline: var(--focus-ring); outline-offset: 2px; }
+.choice input { margin-top: 2px; }
+.choice .ci { width: 32px; height: 32px; flex: none; border-radius: 8px; display: grid; place-items: center; background: var(--sunken); color: var(--text-2); }
+.choice .ci svg.icon { width: 17px; height: 17px; }
+.choice .lb { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.choice .lb b { font-weight: var(--fw-title); }
+.choice .lb small { color: var(--text-2); font-size: var(--fs-sm); line-height: 1.5; }
+
+.stack { display: flex; flex-direction: column; gap: 10px; }
+.idd { display: flex; flex-direction: column; gap: 16px; padding: 10px 0 4px 4px; }
+.win { container-type: size; container-name: win; }
+.note { display: flex; gap: 8px; align-items: flex-start; color: var(--text-2); font-size: var(--fs-sm); line-height: 1.5; }
+.note svg.icon { width: 14px; height: 14px; margin-top: 2px; }
+
+/* The fix panel: same look as .condition-fix in settings.css */
+.fix { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding: 12px 16px; border-radius: var(--r-card); background: var(--sunken); color: var(--text-2); font-size: var(--fs-sm); }
+.fix > .msg { flex: 1 1 260px; display: flex; gap: 10px; align-items: flex-start; line-height: 1.5; }
+.fix > .msg svg.icon { margin-top: 1px; }
+.fix > .msg b { color: var(--text); font-weight: var(--fw-title); display: block; font-size: var(--fs-body); }
+.fix.bad > .msg > svg { color: var(--danger); } .fix.warn > .msg > svg { color: var(--warn); } .fix.good > .msg > svg { color: var(--ok); }
+.fix .acts { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.nowline { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: var(--r-card); box-shadow: inset 0 0 0 1px var(--sep); }
+.nowline .label { flex: 1; display: flex; flex-direction: column; }
+.nowline .label small { color: var(--text-2); font-size: var(--fs-sm); }
+.nowline .sec { font-variant-numeric: tabular-nums; }
+.live { display: flex; align-items: center; gap: 8px; color: var(--text-2); font-size: var(--fs-sm); }
+.live .sec { font-variant-numeric: tabular-nums; }
+
+/* Condition rows, the ConditionList shape grown for a full page */
+.conds { display: flex; flex-direction: column; }
+.cond { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 8px 0; }
+.cond + .cond { border-top: 1px solid var(--sep); }
+.cond .cicon { width: 17px; height: 17px; color: var(--text-2); }
+.cond .label { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.cond .label b { font-weight: var(--fw-label); }
+.cond .label small { color: var(--text-2); font-size: var(--fs-sm); overflow-wrap: anywhere; }
+.cond .cmark { width: 20px; display: grid; place-items: center; color: var(--text-3); }
+.cond .cmark svg.icon { width: 18px; height: 18px; }
+.cond.ok .cmark { color: var(--ok); } .cond.failed .cmark { color: var(--danger); } .cond.running .cmark { color: var(--warn); }
+.cond.pending .label b, .cond.pending .cicon { color: var(--text-3); }
+.cond.failed .label small { color: var(--danger); }
+
+/* Node list, as .nodes.compact in settings.css */
+.nodes { list-style: none; margin: 0; padding: 0; }
+.nodes li { position: relative; }
+.nodes.bounded { max-height: max(146px, calc(100cqh - var(--nodes-reserve, 430px))); overflow-y: auto; padding: 0 8px; margin: 0 -8px; }
+.nodes li + li::after { content: ''; position: absolute; top: 0; left: 24px; right: 0; border-top: 1px solid var(--sep); }
+.nodes li.sel::after, .nodes li.sel + li::after { opacity: 0; }
+.nodes label { position: relative; z-index: 0; display: flex; align-items: center; gap: 10px; height: 36px; }
+.nodes label::before { content: ''; position: absolute; inset: 2px -8px; z-index: -1; border-radius: var(--r-ctl); }
+.nodes label:hover::before { background: var(--hover); }
+.nodes li.sel label::before { background: var(--accent-soft); }
+.nodes label:has(input:focus-visible)::before { outline: var(--focus-ring); }
+.nodes input { position: absolute; opacity: 0; pointer-events: none; }
+.nodes .mk { width: 14px; flex: none; display: grid; color: var(--accent); }
+.nodes .mk svg.icon { width: 14px; height: 14px; stroke-width: 2.5; }
+.nodes .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nodes li.sel .nm { font-weight: var(--fw-label); }
+.nodes .ty, .nodes .dl { color: var(--text-2); font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
+.nodes .dl { width: 52px; text-align: right; }
+
+.srcline { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--r-card); box-shadow: inset 0 0 0 1px var(--sep); }
+.srcline .label { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.srcline .label b { font-weight: var(--fw-title); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.srcline .label small { color: var(--text-2); font-size: var(--fs-sm); }
+.srcline > svg.icon { color: var(--text-2); }
+
+.kv { display: flex; flex-direction: column; }
+.kv .r { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 6px 0; }
+.kv .r + .r { border-top: 1px solid var(--sep); }
+.kv .r > svg.icon { color: var(--text-2); }
+.kv .r .label { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.kv .r .label small { color: var(--text-2); font-size: var(--fs-sm); }
+.kv .r .val { text-align: right; display: flex; flex-direction: column; align-items: flex-end; }
+.kv .r .val small { color: var(--text-3); font-size: var(--fs-sm); }
+
+details.more > summary { list-style: none; display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 4px; border-radius: var(--r-ctl); color: var(--accent); font-weight: var(--fw-label); }
+details.more > summary::-webkit-details-marker { display: none; }
+details.more > summary:hover { background: var(--hover); }
+details.more > summary:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
+details.more > summary svg.icon { width: 14px; height: 14px; transition: transform var(--dur) var(--ease-out); }
+details.more[open] > summary svg.icon { transform: rotate(90deg); }
+
+.radio-row { display: flex; align-items: center; gap: 10px; min-height: 30px; }
+.drop { display: flex; align-items: center; gap: 12px; padding: 16px; border-radius: var(--r-card); box-shadow: inset 0 0 0 1px var(--line-strong); }
+.drop .label { flex: 1; display: flex; flex-direction: column; }
+.drop .label small { color: var(--text-2); font-size: var(--fs-sm); }
+
+.badge { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; flex: none; background: color-mix(in srgb, var(--idle) 14%, transparent); color: var(--idle); }
+.badge svg.icon { width: 20px; height: 20px; }
+.badge.open { background: color-mix(in srgb, var(--ok) 14%, transparent); color: var(--ok); }
+.badge.closed { background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); }
+.badge.checking { background: color-mix(in srgb, var(--warn) 14%, transparent); color: var(--warn); }
+
+.resume { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: var(--r-ctl); background: var(--sunken); color: var(--text-2); font-size: var(--fs-sm); }
+.resume svg.icon { width: 14px; height: 14px; }
+
+.layout-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.layout-pick .choice { flex-direction: column; gap: 10px; }
+.layout-pick .choice input { position: absolute; opacity: 0; }
+.thumb { display: block; width: 100%; height: 56px; border-radius: 6px; background: var(--sunken); box-shadow: inset 0 0 0 1px var(--sep); position: relative; overflow: hidden; }
+.thumb.top::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 16px; background: var(--frame); }
+.thumb.side::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 26%; background: var(--frame); }
+.pers { display: flex; flex-direction: column; gap: 0; }
+.pers .r { display: flex; align-items: center; gap: 16px; min-height: 56px; padding: 10px 0; }
+.pers .r + .r { border-top: 1px solid var(--sep); }
+.pers .r .label { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.pers .r .label small { color: var(--text-2); font-size: var(--fs-sm); }
+.pers .r.col { flex-direction: column; align-items: stretch; }
+
+/* ---------- Normal browser window (for "set up later" and "done") ---------- */
+.strip { height: 40px; flex: none; background: var(--frame); display: flex; align-items: flex-end; padding: 0 calc(8px + var(--inset-r)) 0 calc(8px + var(--inset-l)); }
+.strip .tab { height: 32px; width: 220px; display: flex; align-items: center; gap: 8px; padding: 0 10px; border-radius: 10px 10px 0 0; background: var(--band); font-size: var(--fs-sm); }
+.strip .tab svg.icon { width: 14px; height: 14px; color: var(--text-2); }
+.toolbar { height: 45px; flex: none; background: var(--band); display: flex; align-items: center; gap: 4px; padding: 0 8px; border-bottom: 1px solid var(--sep); }
+.toolbar .addr { flex: 1; height: 32px; border-radius: 999px; background: var(--band-field); display: flex; align-items: center; gap: 8px; padding: 0 14px; color: var(--text-3); margin: 0 6px; }
+.toolbar .status { position: relative; display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; color: var(--text-2); }
+.toolbar .status.on { background: var(--press); }
+.toolbar .status .dot { position: absolute; right: 5px; bottom: 6px; width: 7px; height: 7px; box-shadow: 0 0 0 2px var(--band); }
+.page { position: relative; flex: 1; min-height: 0; background: var(--surface); }
+.home { width: min(600px, calc(100% - 48px)); margin: 0 auto; padding-top: clamp(70px, 18vh, 170px); }
+.home .search { height: 52px; display: flex; align-items: center; gap: 14px; padding: 0 18px; border-radius: 999px; background: var(--frame-raised); border: 1px solid var(--sep); color: var(--text-3); font-size: 15px; }
+.home .closed-line { margin-top: 18px; display: flex; justify-content: center; align-items: center; gap: 8px; color: var(--text-2); font-size: var(--fs-sm); }
+.statuscard { position: absolute; z-index: 30; top: 6px; right: 46px; width: 340px; padding: 14px 16px 12px; border-radius: var(--r-pop); background: var(--surface); box-shadow: var(--shadow-pop); }
+.statuscard .sum { display: flex; align-items: center; gap: 12px; padding-bottom: 12px; }
+.statuscard .sum .label { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.statuscard .sum .label b { font-size: var(--fs-title); font-weight: 600; }
+.statuscard .sum .label small { color: var(--text-2); font-size: var(--fs-sm); }
+.statuscard .rows { border-top: 1px solid var(--sep); padding: 4px 0; }
+.statuscard .row { display: flex; align-items: center; gap: 10px; min-height: 32px; font-size: var(--fs-sm); }
+.statuscard .row > svg.icon { width: 15px; height: 15px; color: var(--text-2); }
+.statuscard .row b { width: 64px; font-weight: 400; flex: none; }
+.statuscard .row span { flex: 1; color: var(--text-2); min-width: 0; }
+.statuscard .row i { font-style: normal; color: var(--text-3); width: 16px; display: grid; place-items: center; }
+.statuscard .row.ok i { color: var(--ok); } .statuscard .row.failed i { color: var(--danger); }
+.statuscard .fix { margin-top: 6px; }
+.toast { position: absolute; left: 50%; bottom: 20px; transform: translateX(-50%); padding: 8px 14px; border-radius: 999px; background: var(--frame-raised); box-shadow: var(--shadow-sheet); font-size: var(--fs-sm); color: var(--text-2); display: flex; gap: 8px; align-items: center; white-space: nowrap; }
+
+.brand { display: flex; align-items: center; gap: 8px; font-weight: var(--fw-title); }
+.steps { display: flex; justify-content: center; gap: 4px; list-style: none; margin: 0; padding: 0; }
+.steps li { display: flex; align-items: center; gap: 6px; height: 26px; padding: 0 8px; color: var(--text-3); font-size: var(--fs-sm); white-space: nowrap; }
+.steps li + li::before { content: ''; width: 16px; height: 1px; background: var(--line-strong); margin-right: 6px; }
+.steps li .n { width: 16px; height: 16px; border-radius: 50%; display: grid; place-items: center; font-size: 10px; box-shadow: inset 0 0 0 1px var(--line-strong); font-variant-numeric: tabular-nums; }
+.steps li.done { color: var(--text-2); } .steps li.done .n { background: var(--text-2); color: var(--surface); box-shadow: none; }
+.steps li.done .n svg.icon { width: 10px; height: 10px; stroke-width: 3; }
+.steps li.cur { color: var(--text); font-weight: var(--fw-label); } .steps li.cur .n { background: var(--accent-fill); color: var(--on-accent); box-shadow: none; }
+.steps-compact { display: none; justify-content: center; font-size: var(--fs-sm); color: var(--text-2); }
+.steps-compact b { color: var(--text); font-weight: var(--fw-label); margin-left: 6px; }
+@container win (max-width: 940px) { .steps { display: none; } .steps-compact { display: flex; } .brand span { display: none; } }
+
+.a-main { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; }
+.a-col { width: min(540px, calc(100% - 64px)); margin: 0 auto; }
+.a-main .a-col { margin-block: auto; padding: 28px 0 clamp(28px, 8cqh, 72px); display: flex; flex-direction: column; gap: 16px; }
+.a-main h1 { font-size: var(--fs-page); font-weight: var(--fw-page); margin: 0 0 8px; letter-spacing: -.01em; }
+.a-main.center .a-col { padding: 24px 0; align-items: center; text-align: center; gap: 0; }
+.a-foot { flex: none; border-top: 1px solid var(--sep); }
+.a-foot .a-col { height: 60px; display: flex; align-items: center; gap: 8px; }
+.a-foot .grow { flex: 1; }
+.listhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: -8px; }
+.listhead h3 { margin: 0; font-size: var(--fs-sm); font-weight: 600; color: var(--text-2); }
+.choice { align-items: center; padding: 16px; }
+.choice input { margin-top: 0; }
+.stack { gap: 12px; }
+.conds { margin-top: -4px; }
+@container win (max-height: 600px) { .thumb { height: 32px; } .layout-pick .choice { gap: 6px; padding: 10px 12px; } .pers .r { min-height: 48px; padding: 6px 0; } }
+.a-col > .seg { align-self: flex-start; }
+.nodes.bounded { max-height: max(108px, calc(100cqh - 372px)); }
+.listhead .src { display: flex; align-items: center; gap: 8px; min-width: 0; color: var(--text-2); font-size: var(--fs-sm); }
+.listhead .src svg.icon { width: 14px; height: 14px; }
+.listhead .src b { color: var(--text); font-weight: var(--fw-label); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.listhead .acts { display: flex; gap: 4px; flex: none; }
+.listhead .btn.link, .listhead .btn.quiet { height: 26px; font-size: var(--fs-sm); }
+
+.welcome { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 0 32px 40px; }
+.welcome .name { margin: 22px 0 0; font-size: 30px; font-weight: var(--fw-page); letter-spacing: .01em; }
+.welcome .line { margin-top: 12px; font-size: 15px; color: var(--text-2); white-space: nowrap; }
+.welcome .ctl { margin-top: 36px; display: flex; flex-direction: column; align-items: center; gap: 16px; }
+@container win (max-height: 600px) { .welcome .name { margin-top: 14px; } .welcome .ctl { margin-top: 24px; } .welcome svg.mark { width: 44px; height: 44px; } }
+.done-screen { display: flex; flex-direction: column; align-items: center; }
+.done-screen .badge { width: 56px; height: 56px; } .done-screen .badge svg.icon { width: 26px; height: 26px; }
+.done-screen h1 { margin: 20px 0 6px; }
+.done-screen .fact { color: var(--text-2); font-size: var(--fs-title); }
+.done-screen .note { margin-top: 28px; justify-content: center; }
+</style></head>
+<body><div id="win" class="win"></div>
+<script>// Shared mockup engine: state, sample data, strings, the step bodies every option reuses, the
+// normal-window scenes, and the harness bar. Each option supplies OPTION.render(S) for its layout.
+'use strict';
+
+const ICONS = {
+  'circle-check': '<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>',
+  'circle-x': '<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/>',
+  'circle-dashed': '<path d="M10.1 2.182a10 10 0 0 1 3.8 0"/><path d="M13.9 21.818a10 10 0 0 1-3.8 0"/><path d="M17.609 3.721a10 10 0 0 1 2.69 2.7"/><path d="M2.182 13.9a10 10 0 0 1 0-3.8"/><path d="M20.279 17.609a10 10 0 0 1-2.7 2.69"/><path d="M21.818 10.1a10 10 0 0 1 0 3.8"/><path d="M3.721 6.391a10 10 0 0 1 2.7-2.69"/><path d="M6.391 20.279a10 10 0 0 1-2.69-2.7"/>',
+  'circle': '<circle cx="12" cy="12" r="10"/>',
+  'cpu': '<rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M9 2v2m6-2v2M9 20v2m6-2v2M2 9h2m-2 6h2m16-6h2m-2 6h2"/>',
+  'map-pin': '<path d="M20 10c0 5-5.5 10.2-7.4 11.8a1 1 0 0 1-1.2 0C9.5 20.2 4 15 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/>',
+  'network': '<rect x="16" y="16" width="6" height="6" rx="1"/><rect x="2" y="16" width="6" height="6" rx="1"/><rect x="9" y="2" width="6" height="6" rx="1"/><path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3"/><path d="M12 12V8"/>',
+  'rss': '<path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/>',
+  'file': '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/>',
+  'file-up': '<path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M12 12v6"/><path d="m15 15-3-3-3 3"/>',
+  'clipboard-paste': '<path d="M11 14h10"/><path d="M16 4h2a2 2 0 0 1 2 2v1.344"/><path d="m17 18 4-4-4-4"/><path d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 1.793-1.113"/><rect x="8" y="2" width="8" height="4" rx="1"/>',
+  'plug': '<path d="M12 22v-5"/><path d="M15 8V2"/><path d="M17 8a1 1 0 0 1 1 1v4a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1z"/><path d="M9 8V2"/>',
+  'link': '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
+  'monitor': '<rect width="20" height="14" x="2" y="3" rx="2"/><path d="M12 17v4M8 21h8"/>',
+  'sun': '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42"/>',
+  'moon': '<path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"/>',
+  'panel-top': '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/>',
+  'panel-left': '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/>',
+  'search': '<path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/>',
+  'bookmark': '<path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/>',
+  'globe': '<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>',
+  'clock': '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+  'languages': '<path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/>',
+  'fingerprint': '<path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4"/><path d="M14 13.12c0 2.38 0 6.38-1 8.88"/><path d="M17.29 21.02c.12-.6.43-2.3.5-3.02"/><path d="M2 12a10 10 0 0 1 18-6"/><path d="M2 16h.01"/><path d="M21.8 16c.2-2 .131-5.354 0-6"/><path d="M5 19.5C5.5 18 6 15 6 12a6 6 0 0 1 .34-2"/><path d="M8.65 22c.21-.66.45-1.32.57-2"/><path d="M9 6.8a6 6 0 0 1 9 5.2v2"/>',
+  'arrow-left': '<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>',
+  'arrow-right': '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
+  'rotate-cw': '<path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/>',
+  'chevron-right': '<path d="m9 18 6-6-6-6"/>',
+  'chevron-down': '<path d="m6 9 6 6 6-6"/>',
+  'check': '<path d="M20 6 9 17l-5-5"/>',
+  'x': '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  'shield': '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>',
+  'shield-check': '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/>',
+  'shield-off': '<path d="m2 2 20 20"/><path d="M5 5a1 1 0 0 0-1 1v7c0 5 3.5 7.5 7.67 8.94a1 1 0 0 0 .67.01c2.35-.82 4.48-1.97 5.9-3.71"/><path d="M9.309 3.652A12.252 12.252 0 0 0 11.24 2.28a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1v7a9.784 9.784 0 0 1-.08 1.264"/>',
+  'triangle-alert': '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+  'info': '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+  'zap': '<path d="M15.914 4a1.5 1.5 0 00-2.474-1.561l-9 9A1.5 1.5 0 005.5 14h4.002a.5.5 0 01.471.666L8.086 20a1.5 1.5 0 002.475 1.56l9-9A1.5 1.5 0 0018.5 10h-3.997a.5.5 0 01-.472-.667z"/>',
+  'power': '<path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/>',
+  'settings': '<path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/>',
+  'ellipsis': '<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>',
+  'history': '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/>',
+  'minus': '<path d="M5 12h14"/>',
+  'palette': '<path d="M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z"/><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/>',
+};
+const ic = (n, cls = '') => `<svg class="icon ${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[n] || ''}</svg>`;
+const MARK = (size) => `<svg class="mark" width="${size}" height="${size}" viewBox="179.36 173.36 665.28 665.28" aria-hidden="true"><path d="M228 540C332 560 430 430 512 296C594 430 692 560 796 540Q822 560 796 590C692 614 590 530 512 470C434 530 332 614 228 590Q202 560 228 540Z" fill="currentColor"/><path d="M438 642a74 74 0 1 0 148 0a74 74 0 1 0 -148 0Z" fill="currentColor"/></svg>`;
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+// ---------- Sample data (all local; nothing here is fetched) ----------
+const NODES = [
+  { name: '日本 东京 01', type: 'vless', delay: 86 }, { name: '日本 大阪 02', type: 'vless', delay: 94 },
+  { name: '新加坡 01', type: 'trojan', delay: 71 }, { name: '香港 01', type: 'ss', delay: 38 },
+  { name: '美国 洛杉矶 01', type: 'vmess', delay: 162 }, { name: '英国 伦敦 01', type: 'trojan', delay: 211 },
+  { name: '德国 法兰克福 01', type: 'vless', delay: 198 }, { name: 'Relay-A7', type: 'hysteria2', delay: null },
+];
+const GUESS = [[/日本|东京|大阪|Japan|Tokyo/i, 'JP'], [/新加坡|Singapore/i, 'SG'], [/香港|Hong ?Kong/i, 'HK'], [/美国|洛杉矶|United States|US\b/i, 'US'], [/英国|伦敦|London/i, 'GB'], [/德国|法兰克福|Germany/i, 'DE']];
+const guessCountry = name => (GUESS.find(([re]) => re.test(name)) || [, ''])[1];
+// In the product these come from Intl (Locale#getTimeZones, Locale#maximize) plus a small bundled table of city coordinates: offline.
+const REGION = {
+  JP: { tz: ['Asia/Tokyo'], lang: ['ja-JP', 'ja'], city: '东京', cityEn: 'Tokyo', off: 'UTC+9' },
+  SG: { tz: ['Asia/Singapore'], lang: ['en-SG', 'en'], city: '新加坡', cityEn: 'Singapore', off: 'UTC+8' },
+  HK: { tz: ['Asia/Hong_Kong'], lang: ['zh-HK', 'zh'], city: '香港', cityEn: 'Hong Kong', off: 'UTC+8' },
+  US: { tz: ['America/Los_Angeles', 'America/Denver', 'America/Chicago', 'America/New_York'], lang: ['en-US', 'en'], city: '洛杉矶', cityEn: 'Los Angeles', off: 'UTC−8' },
+  GB: { tz: ['Europe/London'], lang: ['en-GB', 'en'], city: '伦敦', cityEn: 'London', off: 'UTC+0' },
+  DE: { tz: ['Europe/Berlin'], lang: ['de-DE', 'de'], city: '法兰克福', cityEn: 'Frankfurt', off: 'UTC+1' },
+};
+const COUNTRY_CODES = ['JP', 'SG', 'HK', 'TW', 'KR', 'US', 'GB', 'DE', 'FR', 'NL', 'CA', 'AU'];
+
+// ---------- State ----------
+const STEPS = ['welcome', 'path', 'source', 'port', 'node', 'verify', 'identity', 'personal', 'done'];
+const PHASE = { welcome: 0, path: 1, source: 1, port: 1, node: 2, country: 2, verify: 2, identity: 3, personal: 4, done: 5 };
+const fresh = () => ({
+  step: 'welcome', lang: 'zh', path: 'source', tab: 'url', url: '', paste: '', file: '',
+  fetch: 'idle', fetchSec: 0, source: null, node: '', country: '', delays: false,
+  ext: { protocol: 'socks5', host: '127.0.0.1', port: '7890' },
+  v: { phase: 'idle', core: 'pending', link: 'pending', exit: 'pending', sec: 0, ip: '', got: '' },
+  idOpen: false, tz: '', langPick: 'exit', geo: 'deny', identity: null,
+  theme: 'system', tabs: 'top', search: 'default', bookmarks: '',
+  sim: { fetch: 'ok', verify: 'ok' }, resumed: false, card: false, scene: 'welcome',
+});
+let S = fresh();
+const params = new URLSearchParams(location.search + '&' + location.hash.slice(1));
+const ENV = { theme: params.get('theme') || 'light', os: params.get('os') || 'mac', size: params.get('size') || '1280', shot: params.has('shot') };
+
+const L = (zh, en) => (S.lang === 'en' && en !== undefined ? en : zh);
+const cname = code => { try { return new Intl.DisplayNames([S.lang === 'en' ? 'en' : 'zh-CN'], { type: 'region' }).of(code); } catch { return code; } };
+const extAddr = () => `${S.ext.host}:${S.ext.port || '—'}`;
+const exitCountry = () => S.v.exit === 'ok' ? S.country : '';
+const srcInfo = () => S.path === 'external'
+  ? { icon: 'plug', title: L('本机代理软件', 'Local proxy software'), detail: `${S.ext.protocol === 'socks5' ? 'SOCKS5' : 'HTTP'} · ${extAddr()}` }
+  : S.source ? { icon: S.source.kind === 'url' ? 'rss' : S.source.kind === 'file' ? 'file' : 'clipboard-paste', title: S.source.name, detail: L(`${S.source.count} 个节点`, `${S.source.count} nodes`) + (S.source.kind === 'url' ? '' : L(' · 未发网络请求', ' · no network request')) } : null;
+
+// ---------- Simulation (accelerated: 1 shown second = 250 ms) ----------
+let timers = [];
+const clearTimers = () => { timers.forEach(clearTimeout); timers.forEach(clearInterval); timers = []; };
+const later = (ms, fn) => timers.push(setTimeout(() => { fn(); draw(); }, ms));
+function startFetch() {
+  clearTimers();
+  if (S.tab !== 'url') { finishImport(); return; }
+  S.fetch = 'loading'; S.fetchSec = 0;
+  timers.push(setInterval(() => { S.fetchSec++; draw(); }, 250));
+  later(1100, () => { clearTimers(); if (S.sim.fetch === 'ok') finishImport(); else S.fetch = S.sim.fetch; });
+}
+function finishImport() {
+  const name = S.tab === 'url' ? (() => { try { return new URL(S.url || 'https://sub.example.net').host; } catch { return 'sub.example.net'; } })() : S.tab === 'file' ? (S.file || 'clash.yaml') : L('粘贴的内容', 'Pasted text');
+  if (S.tab !== 'url' && S.sim.fetch === 'empty') { S.fetch = 'empty'; return; }
+  S.source = { kind: S.tab, name, count: NODES.length }; S.fetch = 'idle';
+  if (!S.node) { S.node = NODES[0].name; S.country = guessCountry(S.node); }
+  go('node');
+}
+function startVerify() {
+  clearTimers();
+  S.v = { phase: 'running', core: 'running', link: 'pending', exit: 'pending', sec: 0, ip: '', got: '' };
+  go('verify');
+  const sim = S.sim.verify;
+  later(500, () => {
+    if (sim === 'core') { S.v.core = 'failed'; S.v.phase = 'core'; return; }
+    S.v.core = 'ok'; S.v.link = 'running';
+    later(500, () => {
+      if (sim === 'port' && S.path === 'external') { S.v.link = 'failed'; S.v.phase = 'port'; return; }
+      S.v.link = 'ok'; S.v.exit = 'running';
+      timers.push(setInterval(() => { S.v.sec++; if (sim === 'timeout' && S.v.sec >= 15) { clearTimers(); S.v.exit = 'failed'; S.v.phase = 'timeout'; } draw(); }, 250));
+      if (sim !== 'timeout') later(1250, () => { clearTimers(); if (sim === 'mismatch') { S.v.exit = 'failed'; S.v.phase = 'mismatch'; S.v.got = S.country === 'US' ? 'SG' : 'US'; S.v.ip = '198.51.100.7'; } else { S.v.exit = 'ok'; S.v.phase = 'ok'; S.v.ip = '203.0.113.24'; } });
+    });
+  });
+}
+// Where the flow stands is derived from the profile and the gate, never from a stored step number.
+function deriveStep(S) {
+  const ext = S.path === 'external';
+  if (!S.started) return 'welcome';
+  if (ext ? !S.ext.port : !S.source) return ext ? 'port' : S.pathChosen ? 'source' : 'path';
+  if ((!ext && !S.node) || !S.country) return 'node';
+  if (S.v.phase !== 'ok') return 'verify';
+  if (!S.identity) return 'identity';
+  if (!S.personalDone) return 'personal';
+  return 'browser';
+}
+function go(step) { if (step !== 'welcome') S.started = true; if (['source', 'port'].includes(step)) S.pathChosen = true; if (step === 'done') S.personalDone = true; S.step = step; S.resumed = false; S.scene = ''; if (step === 'identity' && !S.tz) S.tz = (REGION[S.country] || REGION.JP).tz[0]; }
+const back = {
+  path: 'welcome', source: 'path', port: 'path', node: () => S.path === 'external' ? 'port' : 'source',
+  verify: 'node', identity: 'node', personal: 'identity', done: 'personal',
+};
+function goBack() { clearTimers(); const b = back[S.step]; if (S.step === 'verify') S.v.phase = 'idle'; go(typeof b === 'function' ? b() : b); }
+function nextFromPath() { go(S.path === 'external' ? 'port' : 'source'); }
+
+// ---------- Step bodies (A2: only labels, consequences, failures, measured facts) ----------
+const B = {};
+B.langSeg = () => `<div class="seg" role="radiogroup" aria-label="界面语言 / Language">
+  <label><input type="radio" name="lang" data-set="lang" value="zh" ${S.lang === 'zh' ? 'checked' : ''}><span>中文</span></label>
+  <label><input type="radio" name="lang" data-set="lang" value="en" ${S.lang === 'en' ? 'checked' : ''}><span>English</span></label></div>`;
+B.welcomeLine = () => L('所有流量都经过你的代理；出口核对一致之前，不打开任何网页。', 'All traffic goes through your proxy; nothing loads until its exit is verified.');
+
+B.path = () => `<div class="stack" role="radiogroup" aria-label="连接方式">
+  <label class="choice"><input type="radio" name="path" data-set="path" value="source" ${S.path === 'source' ? 'checked' : ''}><span class="ci">${ic('rss')}</span>
+    <span class="lb"><b>订阅链接或节点配置</b></span></label>
+  <label class="choice"><input type="radio" name="path" data-set="path" value="external" ${S.path === 'external' ? 'checked' : ''}><span class="ci">${ic('plug')}</span>
+    <span class="lb"><b>这台电脑上已在运行的代理软件</b><small>节点和分流由那个软件决定，Anyu 只核对出口国家。</small></span></label>
+  </div>`;
+
+B.sourceTabs = () => `<div class="seg" role="radiogroup" aria-label="节点来源">
+  ${[['url', 'link', '订阅链接'], ['file', 'file', '文件'], ['paste', 'clipboard-paste', '粘贴']].map(([v, i, t]) => `<label><input type="radio" name="tab" data-set="tab" value="${v}" ${S.tab === v ? 'checked' : ''}><span>${ic(i)}${t}</span></label>`).join('')}</div>`;
+B.sourceInput = () => {
+  if (S.tab === 'url') return `<label class="field"><span>Clash 订阅链接</span><input id="sub-url" data-bind="url" value="${esc(S.url)}" placeholder="https://…" spellcheck="false" ${S.fetch === 'loading' ? 'disabled' : ''}></label>
+    <p class="note">${ic('info')}<span>获取时会从这台电脑直接访问这个链接一次，不经过代理。</span></p>`;
+  if (S.tab === 'file') return `<div class="drop">${ic('file-up')}<div class="label"><b>${S.file ? esc(S.file) : 'Clash 配置文件'}</b></div><button class="btn" data-act="pickFile">${S.file ? '换一个…' : '选择文件…'}</button></div>`;
+  return `<label class="field"><span>Clash 配置内容</span><textarea id="paste" data-bind="paste" rows="6" spellcheck="false">${esc(S.paste)}</textarea></label>`;
+};
+B.sourceState = () => {
+  if (S.fetch === 'loading') return `<div class="live" role="status"><span class="dot checking"></span><span>正在从 ${esc(hostOf(S.url))} 获取 · <span class="sec">${S.fetchSec}</span> 秒</span><button class="btn link" data-act="cancelFetch">取消</button></div>`;
+  if (S.fetch === 'failed') return `<div class="fix bad" role="alert"><div class="msg">${ic('circle-x')}<span><b>${esc(hostOf(S.url))} 返回 403，没能获取</b>到订阅服务商那里重新复制链接。</span></div><div class="acts"><button class="btn primary" data-act="fetch">再试一次</button></div></div>`;
+  if (S.fetch === 'empty') return `<div class="fix warn" role="alert"><div class="msg">${ic('triangle-alert')}<span><b>${S.tab === 'url' ? '这个链接里没有 Clash 格式的节点' : '这份内容里没有 Clash 格式的节点'}</b>${S.tab === 'url' ? '在订阅服务商那里改用 Clash 格式的链接。' : '换成 Clash YAML 格式的内容。'}</span></div></div>`;
+  return '';
+};
+B.sourceReady = () => S.tab === 'url' ? !!S.url.trim() && S.fetch !== 'loading' : S.tab === 'file' ? !!S.file : !!S.paste.trim();
+B.sourcePrimary = () => S.tab === 'url' ? '获取节点' : '导入';
+const hostOf = u => { try { return new URL(u).host; } catch { return 'sub.example.net'; } };
+
+B.port = () => `<div class="inline-fields">
+    <label class="field"><span>协议</span><select data-bind="ext.protocol"><option value="socks5" ${S.ext.protocol === 'socks5' ? 'selected' : ''}>SOCKS5</option><option value="http" ${S.ext.protocol === 'http' ? 'selected' : ''}>HTTP</option></select></label>
+    <label class="field"><span>地址（仅限本机）</span><input data-bind="ext.host" value="${esc(S.ext.host)}" spellcheck="false"></label>
+    <label class="field"><span>端口</span><input id="ext-port" data-bind="ext.port" value="${esc(S.ext.port)}" inputmode="numeric" spellcheck="false"></label>
+  </div>
+  <p class="hint">端口在代理软件的设置里，常见 7890、10808。</p>
+  <details class="more"><summary>${ic('chevron-right')}需要用户名和密码</summary><div class="inline-fields" style="grid-template-columns:1fr 1fr;margin-top:8px"><label class="field"><span>用户名</span><input></label><label class="field"><span>密码</span><input type="password"></label></div></details>`;
+
+B.nodeList = (cls = 'bounded') => `<ul class="nodes ${cls}" role="radiogroup" aria-label="${L('节点', 'Nodes')}">${NODES.map(n => `<li class="${S.node === n.name ? 'sel' : ''}"><label><input type="radio" name="node" data-set="node" value="${esc(n.name)}" ${S.node === n.name ? 'checked' : ''}><span class="mk">${S.node === n.name ? ic('check') : ''}</span><span class="nm">${esc(n.name)}</span><span class="ty">${n.type}</span><span class="dl">${S.delays ? (n.delay ? n.delay + ' ms' : L('超时', 'timeout')) : '—'}</span></label></li>`).join('')}</ul>`;
+B.countryField = () => {
+  const guessed = S.country && S.country === guessCountry(S.node) && S.path !== 'external';
+  return `<label class="field"><span>${L('出口国家或地区', 'Exit country or region')}</span>
+    <select id="country" data-bind="country"><option value="" ${!S.country ? 'selected' : ''}>${L('选择国家或地区', 'Choose a country or region')}</option>${COUNTRY_CODES.map(c => `<option value="${c}" ${S.country === c ? 'selected' : ''}>${esc(cname(c))}</option>`).join('')}</select>
+    ${guessed ? `<small>${L('按节点名称推测', 'Guessed from the node name')}</small>` : ''}</label>`;
+};
+B.delayBtn = () => `<button class="btn quiet" data-act="delays" ${S.delays ? 'disabled' : ''}>${ic('zap')}${L('测速', 'Test speed')}</button>`;
+
+// Verification rows: the gate's own conditions with what was measured, nothing else.
+B.condRows = () => {
+  const v = S.v, ext = S.path === 'external';
+  const mark = st => st === 'ok' ? ic('circle-check') : st === 'failed' ? ic('circle-x') : st === 'running' ? '<span class="dot checking"></span>' : ic('circle-dashed');
+  const coreVal = { pending: L('等待', 'Waiting'), running: L('正在启动', 'Starting'), ok: L('在运行', 'Running'), failed: L('没有运行', 'Not running') }[v.core];
+  const linkVal = ext ? `${extAddr()}${v.link === 'failed' ? L(' · 没有回应', ' · no answer') : v.link === 'running' ? L(' · 正在连接', ' · connecting') : ''}` : S.node;
+  const exitVal = v.exit === 'pending' ? L(`设置为${cname(S.country)}`, `Set to ${cname(S.country)}`)
+    : v.exit === 'running' ? L('正在核对 · ', 'Checking · ') + `<span class="sec">${v.sec}</span>` + L(' 秒', ' s')
+    : v.exit === 'ok' ? `${esc(cname(S.country))} · ${v.ip}`
+    : v.phase === 'timeout' ? L('超时', 'Timed out')
+    : L(`实际${cname(v.got)} · ${v.ip}，设置为${cname(S.country)}`, `Actually ${cname(v.got)} · ${v.ip}; set to ${cname(S.country)}`);
+  const row = (st, icon, label, val) => `<div class="cond ${st}"><span>${ic(icon, 'cicon')}</span><div class="label"><b>${label}</b><small>${val}</small></div><span class="cmark">${mark(st)}</span></div>`;
+  return `<div class="conds" role="status" aria-live="polite">
+    ${row(v.core, 'cpu', L('代理核心', 'Proxy core'), coreVal)}
+    ${row(v.link === 'running' && !ext ? 'ok' : v.link, ext ? 'plug' : 'network', ext ? L('本机代理端口', 'Local proxy port') : L('节点', 'Node'), esc(linkVal))}
+    ${row(v.exit, 'map-pin', L('出口国家', 'Exit country'), exitVal)}</div>`;
+};
+B.verifyResult = () => {
+  const v = S.v;
+  const panel = (kind, icon, text, acts = '') => `<div class="fix ${kind}" role="${kind === 'good' ? 'status' : 'alert'}"><div class="msg">${ic(icon)}<span><b>${text}</b></span></div>${acts ? `<div class="acts">${acts}</div>` : ''}</div>`;
+  if (v.phase === 'ok') return panel('good', 'shield-check', L(`外网已放行 · ${cname(S.country)}`, `Internet allowed · ${cname(S.country)}`));
+  if (v.phase === 'mismatch') return panel('bad', 'circle-x', L('出口国家不一致，外网保持关闭。', 'The exit country doesn’t match, so the internet stays closed.'), `<button class="btn primary" data-act="back">${L('换一个节点', 'Choose another node')}</button><button class="btn" data-act="useObserved">${L(`改为${cname(v.got)}`, `Use ${cname(v.got)} instead`)}</button>`);
+  if (v.phase === 'timeout') return panel('bad', 'circle-x', L('这个节点 15 秒内没有返回结果。', 'This node returned nothing within 15 seconds.'), `<button class="btn primary" data-act="back">${L('换一个节点', 'Choose another node')}</button><button class="btn" data-act="verify">${L('再试一次', 'Try again')}</button>`);
+  if (v.phase === 'core') return panel('bad', 'circle-x', L('代理核心没有启动。', 'The proxy core didn’t start.'), `<button class="btn primary" data-act="verify">${L('重新启动核心', 'Restart core')}</button>`);
+  if (v.phase === 'port') return panel('bad', 'circle-x', L(`${extAddr()} 没有回应。确认代理软件正在运行。`, `Nothing answers at ${extAddr()}. Make sure your proxy software is running.`), `<button class="btn primary" data-act="verify">${L('再试一次', 'Try again')}</button><button class="btn" data-act="go" data-arg="port">${L('修改端口', 'Change port')}</button>`);
+  return '';
+};
+
+B.identityRows = () => {
+  const r = REGION[S.country] || REGION.JP;
+  return `<div class="kv">
+    <div class="r">${ic('clock')}<div class="label"><b>时区</b></div><div class="val"><b>${S.tz || r.tz[0]}</b><small>原来：Asia/Shanghai</small></div></div>
+    <div class="r">${ic('languages')}<div class="label"><b>网站首选语言</b></div><div class="val"><b>${S.langPick === 'keep' ? 'zh-CN, zh' : S.langPick === 'both' ? r.lang[0] + ', zh-CN' : r.lang.join(', ')}</b><small>原来：zh-CN, zh</small></div></div>
+    <div class="r">${ic('map-pin')}<div class="label"><b>位置</b></div><div class="val"><b>${S.geo === 'deny' ? '拒绝定位请求' : r.city + '附近'}</b></div></div>
+  </div>`;
+};
+B.identityDetails = () => {
+  const r = REGION[S.country] || REGION.JP;
+  return `<details class="more" ${S.idOpen ? 'open' : ''} data-toggle="idOpen"><summary>${ic('chevron-right')}调整</summary>
+    <div class="idd">
+      <label class="field"><span>时区</span><select data-bind="tz">${r.tz.map(z => `<option ${S.tz === z ? 'selected' : ''}>${z}</option>`).join('')}</select></label>
+      <div class="field"><span>网站首选语言</span>
+        <label class="radio-row"><input type="radio" name="lp" data-set="langPick" value="exit" ${S.langPick === 'exit' ? 'checked' : ''}>${r.lang.join(', ')}</label>
+        <label class="radio-row"><input type="radio" name="lp" data-set="langPick" value="both" ${S.langPick === 'both' ? 'checked' : ''}>${r.lang[0]}, zh-CN</label>
+        <label class="radio-row"><input type="radio" name="lp" data-set="langPick" value="keep" ${S.langPick === 'keep' ? 'checked' : ''}>zh-CN, zh</label>
+        <small>不影响 Anyu 的界面语言。</small></div>
+      <div class="field"><span>位置</span>
+        <label class="radio-row"><input type="radio" name="geo" data-set="geo" value="deny" ${S.geo === 'deny' ? 'checked' : ''}>拒绝定位请求</label>
+        <label class="radio-row"><input type="radio" name="geo" data-set="geo" value="city" ${S.geo === 'city' ? 'checked' : ''}>${r.city}市中心附近（约 5 公里）</label></div>
+    </div></details>`;
+};
+
+B.personal = () => `<div class="pers">
+  <div class="r"><div class="label"><b>外观</b></div><div class="seg" role="radiogroup" aria-label="外观">${[['system', 'monitor', '跟随系统'], ['light', 'sun', '浅色'], ['dark', 'moon', '深色']].map(([v, i, t]) => `<label><input type="radio" name="theme" data-set="theme" value="${v}" ${S.theme === v ? 'checked' : ''}><span>${ic(i)}${t}</span></label>`).join('')}</div></div>
+  <div class="r col"><div class="label"><b>标签页位置</b></div><div class="layout-pick" role="radiogroup" aria-label="标签页位置">
+    <label class="choice"><input type="radio" name="tabs" data-set="tabs" value="top" ${S.tabs === 'top' ? 'checked' : ''}><span class="thumb top"></span><span class="lb"><b>顶部</b></span></label>
+    <label class="choice"><input type="radio" name="tabs" data-set="tabs" value="side" ${S.tabs === 'side' ? 'checked' : ''}><span class="thumb side"></span><span class="lb"><b>侧边</b></span></label></div></div>
+  <div class="r"><div class="label"><b>搜索引擎</b></div><select data-bind="search"><option value="default">example.com</option><option value="custom">自定义…</option></select></div>
+  <div class="r"><div class="label"><b>书签</b>${S.bookmarks ? `<small>${esc(S.bookmarks)}</small>` : ''}</div><button class="btn" data-act="bookmarks">${ic('bookmark')}${S.bookmarks ? '再导入…' : '导入书签文件（HTML）…'}</button></div>
+  </div>`;
+// ---------- Normal window scenes ----------
+function normalWindow(kind) {
+  const open = kind === 'home';
+  const card = kind === 'later';
+  return `<div class="strip"><div class="tab">${ic('globe')}<span>${open ? '新标签页' : '新标签页'}</span></div></div>
+  <div class="toolbar"><button class="icon-btn" disabled>${ic('arrow-left')}</button><button class="icon-btn" disabled>${ic('arrow-right')}</button><button class="icon-btn" disabled>${ic('rotate-cw')}</button>
+    <div class="addr">${ic('search')}<span>搜索或输入网址</span></div>
+    <button class="status ${card ? 'on' : ''}" data-act="card" aria-label="外网状态">${ic(open ? 'shield-check' : 'shield-off')}<span class="dot ${open ? 'open' : 'closed'}"></span></button><button class="icon-btn">${ic('ellipsis')}</button></div>
+  <div class="page"><div class="home"><div class="search">${ic('search')}<span>搜索或输入网址</span></div>
+    ${open ? '' : `<p class="closed-line"><span class="dot closed"></span>外网已关闭：设置还没有完成<button class="btn link" data-act="resume">继续设置</button></p>`}</div>
+    ${card ? statusCard() : ''}
+    ${open ? `<div class="toast">${ic('shield-check')}外网已放行 · ${esc(cname(S.country || 'JP'))}</div>` : ''}</div>`;
+}
+function statusCard() {
+  const hasNode = !!S.source || S.path === 'external' && S.ext.port;
+  const rows = [
+    ['ok', 'power', '外网开关', '开启'], ['ok', 'cpu', '代理核心', '在运行'],
+    [hasNode ? 'ok' : 'failed', 'network', '节点', hasNode ? (S.path === 'external' ? extAddr() : S.node) : '没有选择节点'],
+    [hasNode && S.country ? 'failed' : 'unknown', 'map-pin', '出口国家', hasNode && S.country ? `设置为${cname(S.country)}，尚未核对` : '尚未核对'],
+  ];
+  const reason = !hasNode ? '还没有导入节点' : !S.country ? '还没有填写出口国家' : '出口还没有核对';
+  return `<div class="statuscard" role="dialog" aria-label="外网状态"><div class="sum"><span class="badge closed">${ic('shield-off')}</span><div class="label"><b>外网已关闭</b><small>${reason}</small></div></div>
+    <div class="rows">${rows.map(([st, i, b, s]) => `<div class="row ${st}">${ic(i)}<b>${b}</b><span>${esc(s)}</span><i>${st === 'ok' ? ic('circle-check') : st === 'failed' ? ic('circle-x') : '—'}</i></div>`).join('')}</div>
+    <div class="fix"><div class="acts"><button class="btn primary" data-act="resume">继续设置</button><button class="btn">打开设置</button></div></div></div>`;
+}
+
+// ---------- Scenes (named states; used by the harness menu and for screenshots) ----------
+const base = { source: { kind: 'url', name: 'sub.example.net', count: NODES.length }, url: 'https://sub.example.net/clash?token=3f9a…', node: '日本 东京 01', country: 'JP', delays: true };
+const vOk = { phase: 'ok', core: 'ok', link: 'ok', exit: 'ok', sec: 2, ip: '203.0.113.24', got: '' };
+const SCENES = [
+  ['welcome', '1 欢迎', {}],
+  ['welcome-en', '1 欢迎（English）', { lang: 'en' }],
+  ['path', '2 连接方式', { step: 'path' }],
+  ['source-empty', '2 来源 · 空', { step: 'source' }],
+  ['source-url', '2 来源 · 已填链接', { step: 'source', url: base.url }],
+  ['source-loading', '2 来源 · 获取中', { step: 'source', url: base.url, fetch: 'loading', fetchSec: 3 }],
+  ['source-failed', '2 来源 · 获取失败', { step: 'source', url: base.url, fetch: 'failed' }],
+  ['source-nonodes', '2 来源 · 没有节点', { step: 'source', url: base.url, fetch: 'empty' }],
+  ['source-paste', '2 来源 · 粘贴', { step: 'source', tab: 'paste', paste: 'proxies:\n  - name: 日本 东京 01\n    type: vless\n    server: 192.0.2.10\n    port: 443\n    …' }],
+  ['port', '2 本机代理端口', { step: 'port', path: 'external' }],
+  ['node', '3 节点与出口', { step: 'node', ...base }],
+  ['node-en', '3 节点与出口（English）', { step: 'node', ...base, lang: 'en' }],
+  ['node-unknown', '3 节点名看不出国家', { step: 'node', ...base, node: 'Relay-A7', country: '' }],
+  ['node-external', '3 出口（本机代理）', { step: 'node', path: 'external', country: 'JP' }],
+  ['verify-running', '3 核对中', { step: 'verify', ...base, v: { phase: 'running', core: 'ok', link: 'ok', exit: 'running', sec: 4, ip: '', got: '' } }],
+  ['verify-running-en', '3 核对中（English）', { step: 'verify', ...base, lang: 'en', v: { phase: 'running', core: 'ok', link: 'ok', exit: 'running', sec: 4, ip: '', got: '' } }],
+  ['verify-ok', '3 核对通过', { step: 'verify', ...base, v: vOk }],
+  ['verify-ok-en', '3 核对通过（English）', { step: 'verify', ...base, lang: 'en', v: vOk }],
+  ['verify-mismatch', '3 出口不一致', { step: 'verify', ...base, v: { phase: 'mismatch', core: 'ok', link: 'ok', exit: 'failed', sec: 2, ip: '198.51.100.7', got: 'US' } }],
+  ['verify-mismatch-en', '3 出口不一致（English）', { step: 'verify', ...base, lang: 'en', v: { phase: 'mismatch', core: 'ok', link: 'ok', exit: 'failed', sec: 2, ip: '198.51.100.7', got: 'US' } }],
+  ['verify-timeout', '3 核对超时', { step: 'verify', ...base, v: { phase: 'timeout', core: 'ok', link: 'ok', exit: 'failed', sec: 15, ip: '', got: '' } }],
+  ['verify-core', '3 核心没有运行', { step: 'verify', ...base, v: { phase: 'core', core: 'failed', link: 'pending', exit: 'pending', sec: 0, ip: '', got: '' } }],
+  ['verify-port', '3 本机端口无回应', { step: 'verify', path: 'external', country: 'JP', v: { phase: 'port', core: 'ok', link: 'failed', exit: 'pending', sec: 0, ip: '', got: '' } }],
+  ['identity', '4 身份', { step: 'identity', ...base, v: vOk, tz: 'Asia/Tokyo' }],
+  ['identity-details', '4 身份 · 细节展开', { step: 'identity', ...base, v: vOk, tz: 'Asia/Tokyo', idOpen: true }],
+  ['personal', '5 个性化', { step: 'personal', ...base, v: vOk, tz: 'Asia/Tokyo', identity: 'applied' }],
+  ['done', '6 完成', { step: 'done', ...base, v: vOk, tz: 'Asia/Tokyo', identity: 'applied' }],
+  ['reopen-verify', '重新打开 · 按真实状态回到核对', { step: 'verify', started: true, ...base, v: { phase: 'running', core: 'ok', link: 'ok', exit: 'running', sec: 1, ip: '', got: '' } }],
+  ['later', '稍后设置 · 普通窗口', { step: 'later', card: true }],
+  ['later-partial', '稍后设置 · 已导入节点', { step: 'later', card: true, ...base }],
+  ['home', '完成后 · 主页，外网已放行', { step: 'home', ...base, v: vOk }],
+];
+function applyScene(id) {
+  const sc = SCENES.find(s => s[0] === id); if (!sc) return;
+  clearTimers();
+  const sim = S.sim; S = Object.assign(fresh(), JSON.parse(JSON.stringify(sc[2]))); S.sim = sim; S.scene = id;
+}
+
+// ---------- Actions ----------
+const ACTS = {
+  start: () => go('path'), later: () => { clearTimers(); S.prev = S.step; S.step = 'later'; S.card = true; },
+  resume: () => { S.card = false; const d = deriveStep(S); if (d === 'verify') startVerify(); else if (d === 'browser') S.step = 'home'; else S.step = d; },
+  card: () => { S.card = !S.card; },
+  back: goBack, next: () => ({ path: nextFromPath, port: () => go('node'), identity: () => { S.identity = 'applied'; go('personal'); }, personal: () => go('done'), done: () => { S.step = 'home'; }, verify: () => go('identity') }[S.step] || (() => {}))(),
+  fetch: startFetch, cancelFetch: () => { clearTimers(); S.fetch = 'idle'; },
+  tab: a => { S.tab = a; S.fetch = 'idle'; }, pickFile: () => { S.file = 'my-subscription.yaml'; },
+  verify: startVerify, delays: () => { S.delays = true; },
+  useObserved: () => { S.country = S.v.got; startVerify(); },
+  keepIdentity: () => { S.identity = 'kept'; go('personal'); },
+  skip: () => go('done'), go: a => { clearTimers(); go(a); },
+  bookmarks: () => { S.bookmarks = '已导入 128 个书签'; },
+  restart: () => { const sim = S.sim; S = fresh(); S.sim = sim; },
+};
+
+// ---------- Render loop ----------
+const root = () => document.getElementById('win');
+function draw() {
+  const el = root(), a = document.activeElement, id = a && a.id, sel = a && 'selectionStart' in a ? [a.selectionStart, a.selectionEnd] : null;
+  el.className = `win ${ENV.os === 'win' ? 'winos' : 'mac'}`;
+  const chrome = `<div class="lights"><i></i><i></i><i></i></div><div class="caps"><i><svg viewBox="0 0 10 10"><path d="M0 5h10"/></svg></i><i><svg viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9"/></svg></i><i><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0 0 10"/></svg></i></div>`;
+  el.innerHTML = chrome + (S.step === 'later' ? normalWindow('later') : S.step === 'home' ? normalWindow('home') : OPTION.render(S));
+  OPTION.after?.();
+  if (id) { const n = document.getElementById(id); if (n) { n.focus(); if (sel && 'setSelectionRange' in n) try { n.setSelectionRange(...sel); } catch {} } }
+  const sc = document.getElementById('m-scene'); if (sc) sc.value = S.scene || '';
+}
+function setPath(obj, path, val) { const k = path.split('.'); let o = obj; while (k.length > 1) o = o[k.shift()]; o[k[0]] = val; }
+function wire() {
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-act]'); if (!b || b.disabled) return;
+    e.preventDefault(); ACTS[b.dataset.act]?.(b.dataset.arg); draw();
+  });
+  document.addEventListener('change', e => {
+    const t = e.target;
+    if (t.dataset.set) { const k = t.dataset.set; S[k] = t.value; if (k === 'node' && S.path !== 'external') { const g = guessCountry(t.value); S.country = g; } if (k === 'tab') S.fetch = 'idle'; draw(); }
+    else if (t.dataset.bind && t.tagName === 'SELECT') { setPath(S, t.dataset.bind, t.value); draw(); }
+  });
+  document.addEventListener('input', e => { const t = e.target; if (t.dataset.bind && t.tagName !== 'SELECT') { setPath(S, t.dataset.bind, t.value); if (t.dataset.bind === 'url') S.fetch = 'idle'; draw(); } });
+  document.addEventListener('toggle', e => { const t = e.target; if (t.dataset && t.dataset.toggle) S[t.dataset.toggle] = t.open; }, true);
+}
+function harness() {
+  document.documentElement.dataset.theme = ENV.theme;
+  document.body.className = ENV.shot ? 'shot' : 'mock';
+  const [w, h] = ENV.size === '800' ? [800, 560] : ENV.size === '720' ? [720, 480] : [1280, 800];
+  document.documentElement.style.setProperty('--w', w + 'px'); document.documentElement.style.setProperty('--h', h + 'px');
+  const bar = document.createElement('div'); bar.className = 'mockbar';
+  bar.innerHTML = `<a href="index.html">← 总览</a><b>${OPTION.title}</b>
+    <label>场景 <select id="m-scene"><option value="">（自由点击中）</option>${SCENES.map(s => `<option value="${s[0]}">${s[1]}</option>`).join('')}</select></label>
+    <label>主题 <select id="m-theme"><option value="light">浅色</option><option value="dark">深色</option></select></label>
+    <label>系统 <select id="m-os"><option value="mac">macOS</option><option value="win">Windows</option></select></label>
+    <label>窗口 <select id="m-size"><option value="1280">1280×800</option><option value="800">800×560</option><option value="720">720×480（实际最小）</option></select></label>
+    <label>演示：获取订阅 <select id="m-fetch"><option value="ok">成功</option><option value="failed">失败</option><option value="empty">没有节点</option></select></label>
+    <label>核对 <select id="m-verify"><option value="ok">一致</option><option value="mismatch">不一致</option><option value="timeout">超时</option><option value="core">核心未运行</option><option value="port">本机端口无回应</option></select></label>
+    <button class="btn" data-act="restart" style="height:24px">从头开始</button>`;
+  document.body.prepend(bar);
+  const m = id => document.getElementById(id);
+  m('m-theme').value = ENV.theme; m('m-os').value = ENV.os; m('m-size').value = ENV.size;
+  m('m-theme').onchange = e => { ENV.theme = e.target.value; document.documentElement.dataset.theme = ENV.theme; };
+  m('m-os').onchange = e => { ENV.os = e.target.value; draw(); };
+  m('m-size').onchange = e => { ENV.size = e.target.value; const [w, h] = ENV.size === '800' ? [800, 560] : ENV.size === '720' ? [720, 480] : [1280, 800]; document.documentElement.style.setProperty('--w', w + 'px'); document.documentElement.style.setProperty('--h', h + 'px'); };
+  m('m-scene').onchange = e => { if (e.target.value) { applyScene(e.target.value); draw(); } };
+  m('m-fetch').onchange = e => { S.sim.fetch = e.target.value; };
+  m('m-verify').onchange = e => { S.sim.verify = e.target.value; };
+}
+window.addEventListener('DOMContentLoaded', () => { harness(); wire(); if (params.get('scene')) applyScene(params.get('scene')); draw(); });
+
+const LABELS = ['欢迎', '连接', '核对出口', '身份', '个性化'];
+const LABELS_EN = ['Welcome', 'Connect', 'Check exit', 'Identity', 'Personalise'];
+// A step is marked done by the state it stands for, not by having been passed: "核对出口" is ticked only while the gate is open.
+const doneMarks = S => [S.step !== 'welcome', S.path === 'external' ? !!S.ext.port && PHASE[S.step] >= 2 : !!S.source, S.v.phase === 'ok' && PHASE[S.step] >= 2, !!S.identity, S.step === 'done'];
+function stepper(S) {
+  const p = Math.min(PHASE[S.step], 4), labels = S.lang === 'en' && ['welcome', 'node', 'verify'].includes(S.step) ? LABELS_EN : LABELS, d = doneMarks(S);
+  return `<ol class="steps" aria-label="${L('设置步骤', 'Setup steps')}">${labels.map((t, i) => { const cur = i === p && S.step !== 'done'; return `<li class="${cur ? 'cur' : d[i] ? 'done' : ''}" ${cur ? 'aria-current="step"' : ''}><span class="n">${!cur && d[i] ? ic('check') : i + 1}</span>${t}</li>`; }).join('')}</ol>
+    <div class="steps-compact">${S.step === 'done' ? '' : L(`第 ${p + 1} 步，共 5 步`, `Step ${p + 1} of 5`)}<b>${S.step === 'done' ? L('完成', 'Done') : labels[p]}</b></div>`;
+}
+const OPTION = {
+  title: '方案 A2 · 逐步引导（修订）',
+  render(S) {
+    const bar = `<div class="setup-bar"><span class="brand">${MARK(18)}<span>Anyu</span></span><div class="grow">${stepper(S)}</div>${S.step === 'done' ? '' : `<button class="btn quiet later" data-act="later">${L('稍后设置', 'Set up later')}</button>`}</div>`;
+    if (S.step === 'welcome') return bar + `<div class="welcome">${MARK(56)}<h1 class="name">Anyu</h1>
+      <p class="line">${B.welcomeLine()}</p>
+      <div class="ctl">${B.langSeg()}<button class="btn primary lg" data-act="start" autofocus>${L('开始', 'Get started')}${ic('arrow-right')}</button></div></div>`;
+    let title = '', body = '', primary = '', secondary = '', backLabel = L('上一步', 'Back'), center = false;
+    const v = S.v;
+    switch (S.step) {
+      case 'path': title = '你怎么连接代理？'; body = B.path(); primary = `<button class="btn primary" data-act="next">下一步</button>`; break;
+      case 'source': title = '添加节点'; body = B.sourceTabs() + B.sourceInput() + B.sourceState();
+        primary = `<button class="btn primary" data-act="fetch" ${B.sourceReady() ? '' : 'disabled'}>${B.sourcePrimary()}</button>`; break;
+      case 'port': title = '本机代理软件的端口'; body = B.port(); primary = `<button class="btn primary" data-act="next" ${S.ext.port ? '' : 'disabled'}>下一步</button>`; break;
+      case 'node': {
+        const s = srcInfo();
+        title = S.path === 'external' ? L('出口国家', 'Exit country') : L('选择节点和出口国家', 'Choose a node and exit country');
+        const detail = esc(s.detail.replace(/ · 未发网络请求| · no network request/, ''));
+        body = (S.path === 'external'
+          ? `<div class="srcline">${ic(s.icon)}<div class="label"><b>${esc(s.title)}</b><small>${detail}</small></div><button class="btn link" data-act="back">${L('修改', 'Edit')}</button></div>`
+          : `<div class="listhead"><span class="src">${ic(s.icon)}<b>${esc(s.title)}</b><span>${detail}</span></span><span class="acts"><button class="btn link" data-act="back">${L('更换来源', 'Change source')}</button>${B.delayBtn()}</span></div>${B.nodeList()}`) + B.countryField();
+        primary = `<button class="btn primary" data-act="verify" ${S.country && (S.node || S.path === 'external') ? '' : 'disabled'}>${L('核对出口', 'Check exit')}</button>`; break; }
+      case 'verify':
+        title = v.phase === 'running' ? L('正在核对出口', 'Checking the exit') : v.phase === 'ok' ? L('出口已核对', 'Exit checked') : L('没有通过核对', 'The check did not pass');
+        body = B.condRows() + B.verifyResult();
+        primary = v.phase === 'ok' ? `<button class="btn primary" data-act="next">${L('下一步', 'Next')}</button>` : '';
+        backLabel = v.phase === 'running' ? L('停止并返回', 'Stop and go back') : L('上一步', 'Back'); break;
+      case 'identity': title = `让时区和语言与${esc(cname(S.country))}一致`; body = B.identityRows() + B.identityDetails();
+        secondary = `<button class="btn quiet" data-act="keepIdentity">保留现在的设置</button>`; primary = `<button class="btn primary" data-act="next">使用这些设置</button>`; break;
+      case 'personal': title = '个性化'; body = B.personal();
+        secondary = `<button class="btn quiet" data-act="skip">跳过</button>`; primary = `<button class="btn primary" data-act="next">完成</button>`; break;
+      case 'done': center = true;
+        body = `<div class="done-screen"><span class="badge open">${ic('shield-check')}</span><h1>设置完成</h1><p class="fact">外网已放行 · ${esc(cname(S.country))}</p><p class="note">${ic('shield')}<span>出口一旦不一致，外网立即关闭，工具栏的盾牌会变红。</span></p></div>`;
+        primary = `<button class="btn primary" data-act="next" autofocus ${v.phase === 'ok' ? '' : 'disabled'}>开始浏览</button>`; break;
+    }
+    return bar + `<main class="a-main${center ? ' center' : ''}"><div class="a-col">${title ? `<h1>${title}</h1>` : ''}${body}</div></main>
+      <footer class="a-foot"><div class="a-col"><button class="btn" data-act="back">${ic('arrow-left')}${backLabel}</button><span class="grow"></span>${secondary}${primary}</div></footer>`;
+  },
+};
+</script></body></html>

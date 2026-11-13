@@ -47,6 +47,14 @@ test('normalize: unknown keys are dropped, booleans must be true to enable', () 
   assert.equal(p.allowPrivateNetwork, true);
 });
 
+test('independent core egress is opt-in and survives profile normalization', () => {
+  assert.equal(defaultProfile('en', 'UTC').bypassHostTun, false);
+  assert.equal(normalizeProfile({}, base).bypassHostTun, false);
+  assert.equal(normalizeProfile({ bypassHostTun: 'true' }, base).bypassHostTun, false);
+  assert.equal(normalizeProfile({ bypassHostTun: true }, base).bypassHostTun, true);
+  assert.equal(validateProfile({ bypassHostTun: false }, { ...base, bypassHostTun: true }).bypassHostTun, false);
+});
+
 test('languagesFor adds the base language', () => {
   assert.deepEqual(languagesFor('de-DE'), ['de-DE', 'de']);
   assert.deepEqual(languagesFor('en'), ['en']);

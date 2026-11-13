@@ -1,7 +1,8 @@
 // Launches a real Cave against local stand-ins only: a fixture HTTP server, a SOCKS5 "node"
-// that maps *.cave.test to it, and a throwaway profile. Nothing here reaches the internet.
+// that maps *.cave.test to it, and a throwaway profile. By default nothing reaches the internet.
+// realNetwork is opt-in for explicitly authorised manual testing of a supplied subscription.
 // Windows run inactive at a requested off-screen position by default (macOS may clamp it
-// onto a display). Pass foreground: true only for tests that require a foreground window.
+// onto a display). foreground:true / CAVE_E2E_FOREGROUND=1 requires the owner's agreement.
 // Input should use CDP or sendInputEvent.
 import { spawn, execFile as execFileCallback } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -31,7 +32,7 @@ export const PROFILE = {
   proxy: { subscriptionUrl: '', selectedNode: 'Test Node' },
 };
 
-export async function startWorld({ profile = PROFILE, wrap = [], extra = [], dir: existingDir, blank = false, keepDir = false, tls = false, downloadLog = false, bookmarkFile, foreground = false } = {}) {
+export async function startWorld({ profile = PROFILE, fresh = false, realNetwork = false, wrap = [], extra = [], dir: existingDir, blank = false, keepDir = false, tls = false, downloadLog = false, bookmarkFile, foreground = process.env.CAVE_E2E_FOREGROUND === '1' } = {}) {
   const dir = existingDir ?? await mkdtemp(join(tmpdir(), 'cave-e2e-'));
   await mkdir(dir, { recursive: true });
   const trusted = tls ? await certificate(dir, 'secure', 'secure.cave.test') : null;
@@ -48,21 +49,23 @@ export async function startWorld({ profile = PROFILE, wrap = [], extra = [], dir
       return { host: '127.0.0.1', port: fixture.port };
     },
   });
-  await writeFile(join(dir, 'profile.json'), JSON.stringify(profile, null, 2));
-  await writeFile(
-    join(dir, 'subscription.yaml'),
-    `proxies:\n  - { name: Test Node, type: socks5, server: 127.0.0.1, port: ${socks.port}, udp: false }\n`,
-  );
+  if (!fresh) {
+    await writeFile(join(dir, 'profile.json'), JSON.stringify(profile, null, 2));
+    await writeFile(
+      join(dir, 'subscription.yaml'),
+      `proxies:\n  - { name: Test Node, type: socks5, server: 127.0.0.1, port: ${socks.port}, udp: false }\n`,
+    );
+  }
   const url = 'http://fp.cave.test/fp.html';
   const env = {
     CAVE_LANG: "zh-CN", // the tests read the Chinese interface, whatever language the machine is in
     ...process.env,
     CAVE_PROFILE: dir,
-    CAVE_TEST_HARNESS: '1',
+    CAVE_TEST_HARNESS: realNetwork ? '0' : '1',
     CAVE_E2E_BACKGROUND: foreground ? '0' : '1',
     ...(bookmarkFile ? { CAVE_TEST_BOOKMARK_FILE: bookmarkFile } : {}),
     ...(downloadLog ? { CAVE_TEST_DOWNLOAD_LOG: join(dir, 'download-actions.log') } : {}),
-    CAVE_TRACE_URL: 'http://trace.cave.test/cdn-cgi/trace',
+    CAVE_TRACE_URL: realNetwork ? 'https://www.cloudflare.com/cdn-cgi/trace' : 'http://trace.cave.test/cdn-cgi/trace',
     ELECTRON_ENABLE_LOGGING: '1',
   };
   // The host may itself run inside Electron; the child must start as an app.
@@ -97,10 +100,24 @@ export async function startWorld({ profile = PROFILE, wrap = [], extra = [], dir
     stop: () => (stopping ??= stopAll()),
   };
   async function stopAll() {
+    if (process.platform === 'win32' && child.exitCode === null && child.signalCode === null) {
+      // Windows has no POSIX process groups: a negative pid does not terminate the app.
+      // Kill only this run's tree, including Electron utility processes and cave-core.
+      await execFile('taskkill', ['/PID', String(child.pid), '/T', '/F'], { windowsHide: true }).catch(async (error) => {
+        // Some descendants can exit during taskkill's enumeration. Wait for Node's
+        // exit event before deciding whether taskkill actually failed to stop our app.
+        let timeout;
+        try { await Promise.race([exited, new Promise((_, reject) => { timeout = setTimeout(() => reject(error), 5000); })]); }
+        finally { clearTimeout(timeout); }
+      });
+      await exited;
+    }
     const group = (sig) => { try { process.kill(-child.pid, sig); } catch {} };
-    group('SIGTERM');
-    await Promise.race([exited, new Promise((r) => setTimeout(r, 5000))]);
-    group('SIGKILL');
+    if (process.platform !== 'win32') {
+      group('SIGTERM');
+      await Promise.race([exited, new Promise((r) => setTimeout(r, 5000))]);
+      group('SIGKILL');
+    }
     await fixture.close();
     if (httpsFixture) await httpsFixture.close();
     if (untrustedFixture) await untrustedFixture.close();

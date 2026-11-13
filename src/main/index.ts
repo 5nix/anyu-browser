@@ -18,6 +18,7 @@ import { browserSession, pinNetwork, pinSessions, reservePorts } from './network
 import { applyFingerprint, buildIdentity, emulationCommands, type Identity, type PlatformHints } from './fingerprint.ts';
 import { applyPermissions } from './permissions.ts';
 import { Gatekeeper } from './gatekeeper.ts';
+import { resolveWindowsEgress } from './windows-egress.ts';
 import { FaviconFetcher } from './shell/favicons.ts';
 import { Browser } from './shell/browser.ts';
 import type { ShellWindow } from './shell/window.ts';
@@ -86,6 +87,7 @@ async function start(): Promise<void> {
   await mkdir(downloadsDir, { recursive: true });
 
   const gate = new Gatekeeper({
+    ...(process.platform === 'win32' ? { resolveOutboundInterface: async () => profile().bypassHostTun ? resolveWindowsEgress() : undefined } : {}),
     binary: coreBinary,
     dir: profileDir,
     ports,
@@ -354,10 +356,15 @@ async function start(): Promise<void> {
     updateProfile: async (patch) => {
       browser.cancelPermissions();
       const before = profile();
+      const routeChanged = process.platform === 'win32' && patch.bypassHostTun !== undefined && (patch.bypassHostTun === true) !== before.bypassHostTun;
+      const wasPaused = gate.view.paused;
+      // Shut down the old route before saving or applying a new routing choice.
+      if (routeChanged) await gate.pause();
       const next = await store.update(patch);
       if (RESTART_FIELDS.some((k) => JSON.stringify(before[k]) !== JSON.stringify(next[k]))) restartNeeded = true;
       if (before.egressCountry !== next.egressCountry) await gate.setCountry(next.egressCountry);
       if (before.allowPrivateNetwork !== next.allowPrivateNetwork) await gate.refreshConfig();
+      if (routeChanged && !wasPaused) await gate.resume();
       return panelData();
     },
     importSubscriptionFile: async () => {
@@ -469,6 +476,8 @@ async function start(): Promise<void> {
   if (startup.action === 'restore') browser.restore(startup.snapshot);
   else {
     const win = browser.newWindow(process.argv.find((a) => /^https?:\/\//.test(a)));
+    // A new environment has no route to enable yet: start at the node import screen.
+    if (!profile().proxy.sources.some(source => source.nodes.length > 0)) win.openSettings('nodes');
     if (startup.action === 'offer') browser.offerSession(startup.snapshot, win);
   }
   await gate.start();

@@ -237,6 +237,7 @@ function App() {
   const running = state?.downloads.filter((d) => d.state === 'progressing').length ?? 0;
   return <>
     <div id="drag-bar" class="drag" /><div id="drag-side" class="drag" /><div id="sheet" />
+    {cave.platform === 'win32' && state?.tabLayout === 'side' && <div id="app-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3.5C9.3 8 7.5 10.8 3.6 10.6C2.5 10.5 2.4 11.9 3.5 12C7 12.4 9.8 10.5 12 8.8C14.2 10.5 17 12.4 20.5 12C21.6 11.9 21.5 10.5 20.4 10.6C16.5 10.8 14.7 8 12 3.5Z" /><circle cx="12" cy="16" r="2.2" /></svg></div>}
     {state?.tabLayout === 'side' && <div id="side-resize" onPointerDown={e => { e.currentTarget.setPointerCapture(e.pointerId); }} onPointerMove={e => { if (e.currentTarget.hasPointerCapture(e.pointerId)) void cave.setSidebarWidth(e.clientX); }} onDblClick={() => cave.setSidebarWidth(METRICS.side)} />}
     <nav id="nav">
       <button id="back" class="icon-btn" title={t('command_page_back')} disabled={!active?.canBack} onClick={() => cave.run('page.back')}><Icon name="arrow-left" /></button>

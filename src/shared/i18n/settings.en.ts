@@ -3,6 +3,8 @@ import type { settingsZh } from './settings.zh.ts';
 
 
 export const settingsEn: Record<keyof typeof settingsZh, string> = {
+  'set.nodes.bypassTun': 'Connect to nodes independently (bypass host TUN)',
+  'set.nodes.bypassTunHint': 'Off by default: the core follows system routing. When enabled, the core connects through an uplink; pages still use the node and the exit country must still match. Changing this disconnects and rechecks.',
   "set.nodes.pasted": "Pasted",
   "set.nodes.rename": "Rename source",
   "set.nodes.saveName": "Save",

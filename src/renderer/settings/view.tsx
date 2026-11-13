@@ -1,5 +1,5 @@
 import { ACCENTS, type Theme } from '../../shared/appearance.ts';
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import type { Permission, CheckItem, PanelData, SearchEngine, SettingsSection, ShellState } from '../../shared/ipc.ts';
 import type { Profile, SubscriptionVia } from '../../shared/profile.ts';
 import { t, setLocale, type LocalePreference } from '../../shared/i18n/index.ts';
@@ -85,6 +85,7 @@ function NodesSection({ active, state, data, act, confirm, busy }: Props) {
   useEffect(() => { if (!active) { setEditor(false); setRenaming(null); setEditingSource(null); } }, [active]);
   return <section data-section="nodes" class="entering" hidden={!active}>
     <h2>{t('set.nodes.title')}</h2>
+    {cave.platform === 'win32' && <div class="card"><label class="row"><div class="label"><b>{t('set.nodes.bypassTun')}</b><small>{t('set.nodes.bypassTunHint')}</small></div><input type="checkbox" class="switch" id="bypassHostTun" checked={data.profile.bypassHostTun} disabled={busy.has('egress-route')} onChange={e => act(() => cave.updateProfile({bypassHostTun: e.currentTarget.checked}), 'egress-route')} /></label></div>}
     <div class="nodes-toolbar"><span></span><button id="delays" disabled={busy.has('delays') || !nodes.length} onClick={() => act(() => cave.testDelays(), 'delays')} class="btn"><Icon name="zap" />{t('set.nodes.delays')}</button><button id="add-source" onClick={() => setEditor(true)} class="btn"><Icon name="plus" />{t('set.nodes.add')}</button></div>
     {editor && <div id="source-editor" class="source-editor">
       <div class="editor-head"><div class="label"><b>{t('set.nodes.addTitle')}</b></div><button class="icon-btn sm" aria-label={t('set.nodes.close')} onClick={() => setEditor(false)}><Icon name="x" /></button></div>
@@ -285,6 +286,8 @@ export function SettingsView() {
   const act = async (fn: () => Promise<unknown>, key?: string) => { if (key) setBusy(prev => new Set(prev).add(key)); try { await fn(); setNotice(null); } catch (err: any) { setNotice(String(err.message ?? err).replace(/^Error invoking remote method '[^']+': (Error: )?/, '')); } finally { if (key) setBusy(prev => { const next = new Set(prev); next.delete(key); return next; }); await refresh(); } };
   const confirm = (title: string, body: string, ok: string, danger = false) => new Promise<boolean>(resolve => setDialog({title, body, ok, danger, resolve}));
   useEffect(() => { cave.on('section', setSection); void refresh(); void runChecks(); }, []);
+  // Startup section intent survives even if its IPC event preceded renderer listeners.
+  useLayoutEffect(() => { if (state) setSection(state.settingsSection); }, [state?.settingsSection]);
   useEffect(() => { if (state) void refresh(); }, [state]);
   useEffect(() => { if (state) void runChecks(); }, [state?.gate.state, state?.locale]);
   useEffect(() => { setNotice(state?.notice ?? null); }, [state?.notice]);

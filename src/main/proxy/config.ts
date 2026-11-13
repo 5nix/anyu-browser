@@ -20,6 +20,8 @@ export interface RuntimeInput {
   /** the user's node; it leads the group, so every (re)load starts on it */
   selected: string;
   allowPrivateNetwork: boolean;
+  /** OS-resolved uplink for the core's encrypted upstream sockets, not browser traffic. */
+  outboundInterface?: string;
 }
 
 const LOOPBACK_AND_LINK_LOCAL = ['IP-CIDR,0.0.0.0/8', 'IP-CIDR,127.0.0.0/8', 'IP-CIDR,169.254.0.0/16', 'IP-CIDR6,::1/128', 'IP-CIDR6,fe80::/10'];
@@ -37,6 +39,7 @@ export function buildRuntimeConfig(i: RuntimeInput): Record<string, unknown> {
   const socks = (name: string, port: number) => ({ name, type: 'socks', listen: '127.0.0.1', port, udp: false });
   return {
     'bind-address': '127.0.0.1',
+    ...(i.outboundInterface ? { 'interface-name': i.outboundInterface } : {}),
     'allow-lan': false,
     ipv6: false,
     mode: 'rule',

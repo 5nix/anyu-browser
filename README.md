@@ -81,6 +81,7 @@ npm start
   "egressCountry": "",                  // 出口国家码；为空时闸门保持关闭
   "platform": "host",                   // host | macos | windows，见下方说明
   "allowPrivateNetwork": false,         // true 时允许经节点访问 10/8、172.16/12、192.168/16 等私网段（回环地址始终拒绝）
+  "bypassHostTun": false,               // Windows 可选：让内核独立连接节点；默认仍跟随系统路由/TUN
   "notifications": false,               // 是否允许网站请求通知权限
   "proxy": { "subscriptionUrl": "", "selectedNode": "" }
 }
@@ -89,6 +90,7 @@ npm start
 - `geolocation` 只是你配置的一个值。Anyu 从不探测真实位置；没有配置时，定位请求直接被拒绝。
 - 摄像头、麦克风、USB/HID/串口/蓝牙、后台读剪贴板、本地字体访问等权限一律拒绝。
 - 修改时区、语言、地理坐标、平台或通知以后，要重启 Anyu 才会生效，设置页顶部会给出提示。
+- Windows 的“代理”页有 **独立连接节点（绕过宿主机 TUN）** 开关，默认关闭。关闭时内核按系统路由连接节点，宿主 TUN 可以接管；开启时从 Windows 的有效默认路由自动选择出站接口，避免把节点连接再次送进宿主 TUN。切换会先关闭闸门并停止内核，再重新核对出口；手动暂停状态会保留。开启后找不到可用接口时保持关闭，不退回系统 TUN。订阅和节点参数不会被改写。
 - 目录里另外几项：`browser/` 是 Chromium 的用户数据（Cookie、历史等）；`subscription.yaml` 是导入的节点；`runtime.yaml` 是每次生成的内核配置；`logs/core.log` 是内核日志；`downloads/` 是下载目录。
 
 ### platform

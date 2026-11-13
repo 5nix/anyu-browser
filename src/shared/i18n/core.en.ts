@@ -4,6 +4,7 @@ export const coreEn: Record<keyof typeof coreZh, string> = {
   'core.paused': 'Internet access paused',
   'core.starting': 'Starting proxy core',
   'core.down': 'Proxy core is not running',
+  'core.noWindowsUplink': 'No usable Windows IPv4 uplink was found. Internet access remains closed; check Ethernet or Wi-Fi and retry.',
   'core.noNode': 'No nodes imported',
   'core.noCountry': 'No exit country configured',
   'core.checking': 'Checking exit country',

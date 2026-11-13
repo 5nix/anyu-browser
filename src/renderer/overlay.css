@@ -1,15 +1,16 @@
 /* The transparent overlay contains the current surface. */
 html, body { height: 100%; background: transparent; overflow: hidden; }
 body { user-select: none; }
-.surface { position: absolute; background: var(--pop); border-radius: var(--r-pop); opacity: 0; transition: opacity 110ms ease-in; }
-.surface.in { opacity: 1; transition: opacity 140ms var(--ease-out); }
-@starting-style { .surface.in { opacity: 0; } }
+.surface { position: absolute; background: var(--pop); border-radius: var(--r-pop); opacity: 0; }
+.surface.in { opacity: 1; }
+@starting-style { .surface.modal.in { opacity: 0; } }
 /* A card fills its view exactly and takes its size from its content, never from the view. Its
    shadow is not here: the shadow window (shadow.html) draws it where no press can land. */
 .surface.card { width: max-content; transition: opacity 140ms ease-out; }
 /* Like a macOS menu: there at once, fading only when it leaves. The shadow window keeps the same timing. */
 .surface.card.in { transition: none; }
-.surface.modal { box-shadow: var(--shadow-pop); }
+.surface.modal { box-shadow: var(--shadow-pop); transition: opacity 110ms ease-in; }
+.surface.modal.in { transition: opacity 140ms var(--ease-out); }
 
 .ui-menu { max-height: calc(var(--window-height) - 16px); }
 

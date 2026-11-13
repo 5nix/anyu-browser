@@ -11,6 +11,8 @@
 html, body { height: 100%; overflow: hidden; }
 body { background: var(--frame); user-select: none; display: grid; }
 .drag { -webkit-app-region: drag; }
+#app-mark { position: absolute; left: 14px; top: calc((var(--caption) - 20px) / 2); width: 20px; height: 20px; color: var(--text-2); pointer-events: none; }
+#app-mark svg { display: block; width: 100%; height: 100%; }
 #drag-bar { grid-area: 1 / 1 / 2 / -1; }
 #drag-side { grid-area: 1 / 1 / -1 / 4; }
 button, input, form, .tab, #find { -webkit-app-region: no-drag; }

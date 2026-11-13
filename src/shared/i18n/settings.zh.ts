@@ -1,4 +1,6 @@
 export const settingsZh = {
+  'set.nodes.bypassTun': '独立连接节点（绕过宿主机 TUN）',
+  'set.nodes.bypassTunHint': '默认关闭，内核跟随系统路由。开启后，内核经出站网卡连接节点；网页仍只走节点，出口国家仍须核对。切换会断开连接并重新核对。',
   "set.nodes.pasted": "粘贴",
   "set.nodes.rename": "重命名来源",
   "set.nodes.saveName": "保存",

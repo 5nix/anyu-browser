@@ -19,6 +19,8 @@ export interface Profile {
   /** Which desktop OS pages are told this is. "host" follows the machine. */
   platform: PresentedPlatform;
   allowPrivateNetwork: boolean;
+  /** Windows opt-in: core upstream sockets use an uplink instead of the host TUN. */
+  bypassHostTun: boolean;
   notifications: boolean;
   /** subscriptionVia: "direct" fetches the subscription URL once over the system network; "proxy" through the selected node */
   proxy: ProxySources;
@@ -109,6 +111,7 @@ export function defaultProfile(hostLocale: string, hostTimezone: string): Profil
     egressCountry: '',
     platform: 'host',
     allowPrivateNetwork: false,
+    bypassHostTun: false,
     notifications: false,
     proxy: { sources: [], selected: null },
   };
@@ -144,6 +147,7 @@ export function validateProfile(input: unknown, fallback: Profile): Profile {
     egressCountry: country,
     platform,
     allowPrivateNetwork: pick('allowPrivateNetwork') === true,
+    bypassHostTun: pick('bypassHostTun') === true,
     notifications: pick('notifications') === true,
     proxy,
   };
@@ -157,7 +161,7 @@ export function normalizeProfile(input: unknown, fallback: Profile, legacyNodes:
     try { validateProfile({ ...defaults, [key]: value }, defaults); return true; } catch { return false; }
   };
   const sanitized: Record<string, unknown> = {};
-  for (const key of ['locale', 'acceptLanguages', 'timezone', 'geolocation', 'egressCountry', 'platform', 'allowPrivateNetwork', 'notifications'] as const) {
+  for (const key of ['locale', 'acceptLanguages', 'timezone', 'geolocation', 'egressCountry', 'platform', 'allowPrivateNetwork', 'bypassHostTun', 'notifications'] as const) {
     if (raw[key] !== undefined && valid(key, raw[key])) sanitized[key] = raw[key];
   }
   const result = validateProfile(sanitized, defaults);

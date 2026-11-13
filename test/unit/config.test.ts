@@ -62,6 +62,19 @@ test('closed: the browser listener can reach nothing; only the egress probe goes
   assert.deepEqual(parse(yamlOf(false)).rules, [`IN-NAME,probe,${GROUP}`, 'MATCH,REJECT']);
 });
 
+test('pinning core upstream sockets does not change either gate policy or browser listeners', () => {
+  for (const open of [false, true]) {
+    const before = parse(yamlOf(open));
+    const after = parse(yamlOf(open, { outboundInterface: 'Ethernet' }));
+    assert.equal(after['interface-name'], 'Ethernet');
+    assert.equal(before['interface-name'], undefined);
+    assert.deepEqual(after.rules, before.rules);
+    assert.deepEqual(after.listeners, before.listeners);
+    assert.deepEqual(after['proxy-groups'], before['proxy-groups']);
+    assert.doesNotMatch(yamlOf(open, { outboundInterface: 'Ethernet' }), /\bDIRECT\b/);
+  }
+});
+
 test('with no subscription the group exists and can only reject', () => {
   const c = buildRuntimeConfig({ ...input(true), proxies: [] });
   const group = (c['proxy-groups'] as any[])[0];

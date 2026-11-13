@@ -26,6 +26,7 @@ export interface GatekeeperOptions {
   secret: string;
   profile: () => Profile;
   saveProxy: (patch: Partial<Profile['proxy']>) => Promise<void>;
+  resolveOutboundInterface?: () => Promise<string | undefined>;
 }
 
 export class Gatekeeper extends EventEmitter {
@@ -38,6 +39,7 @@ export class Gatekeeper extends EventEmitter {
   private countries = new Map<string, string>();
   private delayOutcomes = new Map<string, DelayOutcome>();
   private quitting = false;
+  private outboundInterface: string | undefined;
   private files: { runtime: string; log: string };
 
   constructor(private o: GatekeeperOptions) {
@@ -223,6 +225,7 @@ export class Gatekeeper extends EventEmitter {
         proxies: await this.proxies(),
         selected: selectedCoreName(this.o.profile().proxy),
         allowPrivateNetwork: this.o.profile().allowPrivateNetwork,
+        outboundInterface: this.outboundInterface,
       }),
     );
   }
@@ -259,8 +262,10 @@ export class Gatekeeper extends EventEmitter {
   }
 
   private async boot(): Promise<void> {
-    await this.writeConfig();
     try {
+      // Resolve again after a core restart; a stale interface must not select a host TUN.
+      this.outboundInterface = await this.o.resolveOutboundInterface?.();
+      await this.writeConfig();
       await this.core.start(this.controller);
     } catch (err: any) {
       this.emit('error', err.message);

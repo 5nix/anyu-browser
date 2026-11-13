@@ -179,6 +179,7 @@ export interface CaveCalls {
   removeSource(id: string): void;
   selectNode(source: string, name: string): void;
   testDelays(): void;
+  measureExit(): { country: string; colo: string };
   pause(): void;
   resume(): void;
   restartAndCheck(): void;
@@ -212,7 +213,7 @@ export const CALLS: Record<keyof CaveCalls, true> = {
   setSurfaceBounds: true, openAddressMenu: true, openTabMenu: true, openShortcutMenu: true, contextAction: true, openSettings: true, toggleSurface: true, closeSurface: true, setAnchors: true, setTabLayout: true, setSidebarWidth: true, setAccent: true, setTheme: true, setLocale: true, restoreSession: true, discardSession: true, setRestoreSession: true, setSearchEngine: true, listDownloads: true, downloadAction: true,
 
   siteInfo: true, removePermission: true, panelData: true, updateProfile: true, importSubscriptionFile: true, importSubscriptionText: true, addSubscription: true, updateSource: true, updateSourceFile: true, updateSourceText: true, renameSource: true, removeSource: true,
-  selectNode: true, testDelays: true, pause: true, resume: true, restartAndCheck: true, runChecks: true, copyReport: true,
+  selectNode: true, testDelays: true, measureExit: true, pause: true, resume: true, restartAndCheck: true, runChecks: true, copyReport: true,
   clearSite: true, resetEnvironment: true, revealProfile: true, restart: true,
 };
 export const EVENTS: Record<keyof CaveEvents, true> = { state: true, addressResults: true, found: true, resetFind: true, focusAddress: true, cancelAddressEdit: true, openFind: true, section: true, shortcutAction: true };

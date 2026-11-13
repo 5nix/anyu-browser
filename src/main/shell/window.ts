@@ -2,7 +2,7 @@ import { trustworthyPermissionOrigin } from './permission-origin.ts';
 // One browser window. Its chrome page fills it and draws the tab strip and toolbar (on top) or
 // the sidebar (on the left); the active tab, or the settings page as a tab of its own, sits
 // over the rest; the overlay page comes on top while a surface is open (surfaces.ts).
-import { BaseWindow, BrowserWindow, WebContentsView, nativeTheme, clipboard, type WebContents } from 'electron';
+import { BaseWindow, BrowserWindow, View, WebContentsView, nativeTheme, clipboard, type WebContents } from 'electron';
 import { randomUUID } from 'node:crypto';
 import type { SavedTab, SavedWindow } from './session-snapshot.ts';
 import { ClosedTabs } from './closed-tabs.ts';
@@ -11,7 +11,7 @@ import { join } from 'node:path';
 import { zoomOrigin, zoomStep } from '../../shared/zoom.ts';
 import { t } from '../../shared/i18n/index.ts';
 import { toUrl } from '../../shared/url.ts';
-import { FRAME, METRICS, captionHeight, pageBounds } from '../../shared/layout.ts';
+import { FRAME, METRICS, SETUP_CAPTION, captionHeight, pageBounds, setupTrafficLights } from '../../shared/layout.ts';
 import { channel, type CaveEvents, type SettingsSection, type ShellState, type TabLayout, type MenuEntry, type Rect, type SurfaceName, type Permission } from '../../shared/ipc.ts';
 import { mac, titleBar, trafficLightPosition } from '../platform.ts';
 import { addressMenu, pageMenu, tabMenu, toolbarMenu, validWeb } from './context-menu.ts';
@@ -41,7 +41,7 @@ export interface WindowHost {
   tabLayout(): TabLayout;
   sidebarWidth(): number;
   /** The part of the state that is the same in every window. */
-  shared(): Pick<ShellState, 'shortcuts' | 'gate' | 'downloads' | 'notice' | 'locale' | 'localePreference' | 'accent' | 'theme' | 'searchEngine' | 'restoreSession'>;
+  shared(): Pick<ShellState, 'shortcuts' | 'gate' | 'downloads' | 'notice' | 'locale' | 'localePreference' | 'accent' | 'theme' | 'searchEngine' | 'restoreSession' | 'setup'>;
   canBrowse(): boolean;
   run(id: CommandId, win: ShellWindow): void;
   prepareTab(wc: WebContents): void;
@@ -70,7 +70,11 @@ export class ShellWindow implements TabHost {
   readonly win: BaseWindow;
   readonly chrome: WebContentsView;
   readonly settings: WebContentsView;
+  /** First-run setup. It replaces `root` in the window: while it is shown, nothing of the browser is attached. */
   readonly welcome: WebContentsView;
+  /** Holds every browser view (chrome, pages, overlay). Detached as a whole during setup, so no
+   *  browser view can be shown, focused or clicked then, whatever adds itself to it meanwhile. */
+  private readonly root = new View();
   private setup = false;
   get inSetup(): boolean { return this.setup; }
   readonly history: WebContentsView;
@@ -181,7 +185,7 @@ export class ShellWindow implements TabHost {
     this.bookmarksTab = Tab.bookmarks(this.bookmarks);
     this.bookmarksTab.host = this;
     this.surfaces = new Surfaces(
-      this.win.contentView,
+      this.root,
       this.overlay,
       () => [this.chrome.webContents, this.recovery.webContents, ...this.tabs.map((tab) => tab.wc)].find((wc) => wc.isFocused()) ?? null,
       () => this.broadcast(),
@@ -192,8 +196,10 @@ export class ShellWindow implements TabHost {
     );
     this.paint();
     nativeTheme.on('updated', this.paint);
-    this.win.contentView.addChildView(this.chrome);
-    this.win.contentView.addChildView(this.overlay);
+    this.root.addChildView(this.chrome);
+    this.root.addChildView(this.overlay);
+    this.setup = this.host.shared().setup.step !== 'normal';
+    this.win.contentView.addChildView(this.setup ? this.welcome : this.root);
     this.win.on('resize', () => this.layout());
     this.win.on('move', () => this.castShadow(this.shadowCard));
     this.win.on('focus', () => host.focused(this));
@@ -220,6 +226,7 @@ export class ShellWindow implements TabHost {
     if (!mac) this.win.setTitleBarOverlay({ color: t.frame, symbolColor: t.symbol, height: captionHeight(this.host.tabLayout()) });
     this.chrome.setBackgroundColor(t.frame);
     this.settings.setBackgroundColor(t.frame);
+    this.welcome.setBackgroundColor(t.surface);
   };
 
   get state(): ShellState {
@@ -242,7 +249,7 @@ export class ShellWindow implements TabHost {
       permissionPrompt: this.permission && { id: this.permission.id, origin: this.permission.origin, permissions: this.permission.permissions, error: this.permission.error },
       contextMenu: this.menu && { token: this.menu.token, items: this.menu.items },
       focus: this.focus,
-      trafficLightPosition: mac ? trafficLightPosition(this.host.tabLayout()) : null,
+      trafficLightPosition: mac ? (this.setup ? setupTrafficLights() : trafficLightPosition(this.host.tabLayout())) : null,
     };
   }
 
@@ -661,12 +668,12 @@ export class ShellWindow implements TabHost {
       if (previous?.state.error || previous?.state.crashed) { this.host.forget(previous.wc); previous.retryPending = false; previous.invalidateRecovery(); }
     }
     this.addressSession = null; this.surfaces.close();
-    for (const t of this.tabs) { this.win.contentView.removeChildView(t.view); const home = this.homes.get(t.id); if (home) this.win.contentView.removeChildView(home); }
+    for (const t of this.tabs) { this.root.removeChildView(t.view); const home = this.homes.get(t.id); if (home) this.root.removeChildView(home); }
     this.visibleHome = null;
-    this.win.contentView.removeChildView(this.recovery);
+    this.root.removeChildView(this.recovery);
     this.recoveryVisible = false;
-    this.win.contentView.addChildView(tab.view);
-    this.win.contentView.addChildView(this.overlay);
+    this.root.addChildView(tab.view);
+    this.root.addChildView(this.overlay);
     this.active = id;
     if (tab.saved && !tab.saved.started) { tab.saved.started = true; this.host.load(tab.wc, tab.saved.url); }
     this.updateHome(tab);
@@ -802,14 +809,14 @@ export class ShellWindow implements TabHost {
         this.addressSession = null;
         this.surfaces.close(false);
       }
-      this.win.contentView.addChildView(this.recovery);
-      this.win.contentView.addChildView(this.overlay);
+      this.root.addChildView(this.recovery);
+      this.root.addChildView(this.overlay);
       this.layout();
-      if (this.focus === 'page') this.recovery.webContents.focus();
+      if (this.focus === 'page' && !this.setup) this.recovery.webContents.focus();
     } else {
       const hadFocus = this.recovery.webContents.isFocused();
-      this.win.contentView.removeChildView(this.recovery);
-      if (hadFocus) this.current?.focus();
+      this.root.removeChildView(this.recovery);
+      if (hadFocus && !this.setup) this.current?.focus();
     }
   }
 
@@ -818,11 +825,11 @@ export class ShellWindow implements TabHost {
     if (!home) return;
     const blank = !tab.saved && !tab.state.error && !tab.state.crashed && (!tab.wc.getURL() || tab.wc.getURL() === 'about:blank');
     if ((this.visibleHome === tab.id) === blank) return;
-    this.win.contentView.removeChildView(home);
+    this.root.removeChildView(home);
     this.visibleHome = blank ? tab.id : null;
-    if (blank) { this.win.contentView.addChildView(home); this.win.contentView.addChildView(this.overlay); }
+    if (blank) { this.root.addChildView(home); this.root.addChildView(this.overlay); }
     this.layout();
-    if (blank && this.focus === 'page') home.webContents.focus();
+    if (blank && this.focus === 'page' && !this.setup) home.webContents.focus();
   }
 
   closed(tab: Tab): void {
@@ -834,8 +841,8 @@ export class ShellWindow implements TabHost {
     this.tabs.splice(i, 1);
     this.host.forget(tab.wc);
     const home = this.homes.get(tab.id);
-    if (home) { this.win.contentView.removeChildView(home); if (this.visibleHome === tab.id) this.visibleHome = null; this.homes.delete(tab.id); if (!home.webContents.isDestroyed()) home.webContents.close(); }
-    this.win.contentView.removeChildView(tab.view);
+    if (home) { this.root.removeChildView(home); if (this.visibleHome === tab.id) this.visibleHome = null; this.homes.delete(tab.id); if (!home.webContents.isDestroyed()) home.webContents.close(); }
+    this.root.removeChildView(tab.view);
     if (this.lastWeb === tab.id) this.lastWeb = null;
     if (this.active === tab.id) this.active = null;
     if (this.tabs.length === 0) { this.host.lastTabClosed(); this.win.close(); return; }
@@ -1026,6 +1033,7 @@ export class ShellWindow implements TabHost {
 
   private castShadow(card: Rect | null): void {
     if (this.shadow.isDestroyed()) return;
+    if (this.setup) card = null;
     const was = this.shadowCard;
     this.shadowCard = card;
     if (!card) {
@@ -1044,23 +1052,17 @@ export class ShellWindow implements TabHost {
     void this.shadow.webContents.executeJavaScript("document.body.classList.add('in')").catch(() => undefined);
   }
 
-  /** Detach all browser views while setup owns the window; detached views cannot receive input. */
+  /** Shows setup or the browser. The two never share the window: the other one is detached. */
   setSetup(enabled: boolean): void {
-    if (enabled === this.setup) return;
+    if (enabled === this.setup || !this.alive) return;
     this.setup = enabled;
     this.surfaces.close(false);
-    if (enabled) {
-      for (const view of [this.chrome, this.overlay, this.recovery, ...this.tabs.map(t => t.view), ...this.homes.values()]) this.win.contentView.removeChildView(view);
-      this.win.contentView.addChildView(this.welcome);
-      this.welcome.webContents.focus();
-    } else {
-      this.win.contentView.removeChildView(this.welcome);
-      this.win.contentView.addChildView(this.chrome);
-      const active = this.active;
-      if (active !== null) this.activate(active);
-      else this.win.contentView.addChildView(this.overlay);
-    }
+    this.addressSession = null;
+    const [show, hide] = enabled ? [this.welcome, this.root] : [this.root, this.welcome];
+    this.win.contentView.removeChildView(hide);
+    this.win.contentView.addChildView(show);
     this.layout();
+    this.focusPage();
     this.broadcast();
   }
 
@@ -1070,9 +1072,10 @@ export class ShellWindow implements TabHost {
     const { width, height } = this.win.getContentBounds();
     const all = { x: 0, y: 0, width, height };
     const layout = this.host.tabLayout();
+    this.root.setBounds(all);
     if (this.setup) {
-      if (mac) this.win.setWindowButtonPosition({ x: 14, y: 19 });
-      else if (this.caption !== 40) { this.caption = 40; this.win.setTitleBarOverlay({ height: 40 }); }
+      if (mac) this.win.setWindowButtonPosition(setupTrafficLights());
+      else if (this.caption !== SETUP_CAPTION) { this.caption = SETUP_CAPTION; this.win.setTitleBarOverlay({ height: SETUP_CAPTION }); }
       this.welcome.setBounds(all);
       return;
     }

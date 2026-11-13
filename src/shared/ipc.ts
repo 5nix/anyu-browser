@@ -6,7 +6,8 @@ import type { Accent, Theme } from './appearance.ts';
 import type { GateView } from '../main/gate.ts';
 import type { Locale, LocalePreference } from './i18n/index.ts';
 import type { CommandId } from './commands.ts';
-import type { Profile, ProfilePatch, SubscriptionVia, NodeSelection } from './profile.ts';
+import type { Profile, ProfilePatch, SubscriptionVia, NodeSelection, SetupChoices } from './profile.ts';
+import type { SetupStep } from './welcome.ts';
 
 export interface Shortcut { id: number; name: string; url: string; favicon?: string | null }
 
@@ -88,6 +89,8 @@ export interface ShellState {
   contextMenu: { token: string; items: MenuEntry[] } | null;
   /** Which of the window's pages has the keyboard: the chrome, the page in front, or the overlay. */
   focus: 'chrome' | 'page' | 'overlay';
+  /** First-run setup: the derived step ('normal' outside setup), and whether setup is still unfinished. */
+  setup: { step: SetupStep; pending: boolean };
 }
 
 export interface PermissionEntry { origin: string; permission: Permission; decision: 'allow' | 'deny' }
@@ -189,6 +192,12 @@ export interface CaveCalls {
   resetEnvironment(): void;
   revealProfile(): void;
   restart(): void;
+  /** Records a setup choice; the window follows the step derived from it. */
+  setSetup(choices: Partial<SetupChoices>): void;
+  /** Leaves "set up later" and shows setup at the derived step. */
+  continueSetup(): void;
+  /** Whether something accepts connections at the configured local proxy port (loopback only). */
+  localPortOpen(): boolean;
 }
 
 /** Every event the main process sends to a shell page, with its payload. */
@@ -214,7 +223,7 @@ export const CALLS: Record<keyof CaveCalls, true> = {
 
   siteInfo: true, removePermission: true, panelData: true, updateProfile: true, importSubscriptionFile: true, importSubscriptionText: true, addSubscription: true, updateSource: true, updateSourceFile: true, updateSourceText: true, renameSource: true, removeSource: true,
   selectNode: true, testDelays: true, measureExit: true, pause: true, resume: true, restartAndCheck: true, runChecks: true, copyReport: true,
-  clearSite: true, resetEnvironment: true, revealProfile: true, restart: true,
+  clearSite: true, resetEnvironment: true, revealProfile: true, restart: true, setSetup: true, continueSetup: true, localPortOpen: true,
 };
 export const EVENTS: Record<keyof CaveEvents, true> = { state: true, addressResults: true, found: true, resetFind: true, focusAddress: true, cancelAddressEdit: true, openFind: true, section: true, shortcutAction: true };
 

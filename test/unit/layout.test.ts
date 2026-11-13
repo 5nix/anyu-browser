@@ -85,7 +85,9 @@ test('sidebar width defaults and clamps', () => {
   assert.equal(pageBounds('side', 1000, 800, true, 300).x, 300);
 });
 
-test('setup reserves a 52px band and fills the remaining window', async () => {
-  const { setupPageBounds } = await import('../../src/shared/layout.ts');
-  assert.deepEqual(setupPageBounds(720, 480), { x: 0, y: 52, width: 720, height: 428 });
+test('setup centres the macOS window buttons in its 52px band', async () => {
+  const { setupTrafficLights, METRICS, SETUP_CAPTION } = await import('../../src/shared/layout.ts');
+  const { y } = setupTrafficLights();
+  assert.equal(y + METRICS.light / 2, METRICS.setupBand / 2);
+  assert.ok(SETUP_CAPTION <= METRICS.setupBand);
 });

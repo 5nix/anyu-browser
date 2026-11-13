@@ -137,6 +137,7 @@ body.side .tab.leaving { animation: tab-out-y var(--dur-tab) var(--ease-out) for
 #address-form { --end: 28px; --inset: calc((var(--h-field) - var(--end)) / 2); --text-gap: 7px; --field-r: var(--r-tab);
   position: relative; flex: 1; display: grid; grid-template-columns: var(--end) minmax(0, 1fr) auto auto var(--end); align-items: center;
   height: var(--h-field); min-width: 0; padding: 0 var(--inset); border-radius: var(--field-r); }
+#address-form:not(:has(#bookmark)) { grid-template-columns: var(--end) minmax(0, 1fr) auto auto auto; }
 #site-icon, #bookmark { display: grid; place-items: center; width: var(--end); height: var(--end); border-radius: calc(var(--field-r) - var(--inset)); color: var(--text-2); }
 #site-icon svg.icon, #bookmark svg.icon { width: 16px; height: 16px; }
 #site-icon:hover, #bookmark:hover { background: var(--press); }

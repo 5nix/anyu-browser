@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { shortcutUrl } from '../../src/shared/shortcut.ts';
-import { toUrl } from '../../src/shared/url.ts';
+import { canBookmarkTab, canBookmarkUrl, toUrl } from '../../src/shared/url.ts';
 
 test('address bar input', () => {
   assert.equal(toUrl('example.com'), 'https://example.com');
@@ -30,4 +30,23 @@ test('shortcut URLs normalize URL input without searching', () => {
     ['[::1]:3000', 'http://[::1]:3000/'], ['https://example.com', 'https://example.com/'],
   ]) assert.equal(shortcutUrl(input), expected);
   for (const input of ['', 'not a url', 'javascript:alert(1)', '999.999.999.999', 'https://']) assert.equal(shortcutUrl(input), null);
+});
+
+test('bookmark eligibility only includes live http and https web tabs', () => {
+  assert.equal(canBookmarkUrl('https://example.com/'), true);
+  assert.equal(canBookmarkUrl('http://localhost:3000/a'), true);
+  for (const url of ['', 'about:blank', 'data:text/plain,hi', 'blob:https://example.com/1', 'file:///tmp/a']) {
+    assert.equal(canBookmarkUrl(url), false);
+  }
+  const base = { kind: 'web', url: 'https://example.com/', crashed: false, error: null };
+  assert.equal(canBookmarkTab(base), true);
+  assert.equal(canBookmarkTab({ ...base, url: 'http://example.com/' }), true);
+  assert.equal(canBookmarkTab({ ...base, url: 'about:blank' }), false);
+  assert.equal(canBookmarkTab({ ...base, url: 'data:text/html,hi' }), false);
+  assert.equal(canBookmarkTab({ ...base, crashed: true }), false);
+  assert.equal(canBookmarkTab({ ...base, error: { kind: 'network', code: 'ERR_FAILED' } }), false);
+  assert.equal(canBookmarkTab({ ...base, kind: 'settings', url: '' }), false);
+  assert.equal(canBookmarkTab({ ...base, kind: 'bookmarks', url: '' }), false);
+  assert.equal(canBookmarkTab({ ...base, kind: 'history', url: '' }), false);
+  assert.equal(canBookmarkTab(undefined), false);
 });

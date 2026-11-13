@@ -7,7 +7,7 @@ import { EventEmitter } from 'node:events';
 import { app, Menu, nativeTheme, type WebContents } from 'electron';
 import { setLocale, systemLocale, t, type LocalePreference } from '../../shared/i18n/index.ts';
 import { isCommand, type CommandId } from '../../shared/commands.ts';
-import { isSearchEngine } from '../../shared/url.ts';
+import { canBookmarkUrl, isSearchEngine } from '../../shared/url.ts';
 import type { SearchEngine, ShellState, TabLayout, Shortcut } from '../../shared/ipc.ts';
 import { appMenu, bindCommands, type Commands } from './commands.ts';
 import type { History, Bookmarks, SiteSettings, Sessions, Downloads as DownloadRepository } from '../store/index.ts';
@@ -93,8 +93,8 @@ export class Browser extends EventEmitter {
     });
     this.commands = bindCommands(() => this.newWindow().focusAddress());
     this.host = {
-      bookmarkMatches: (url) => /^https?:\/\//i.test(url) ? o.bookmarks.find(url) : [],
-      toggleBookmark: (win) => { const wc = win.current; const url = wc?.getURL(); if (!wc || !url || !/^https?:\/\//i.test(url)) return; if (!o.bookmarks.find(url).length) { o.bookmarks.add({ parent: null, kind: 'link', title: wc.getTitle().slice(0, 1024), url }); this.broadcast(); } else win.editBookmark(); },
+      bookmarkMatches: (url) => canBookmarkUrl(url) ? o.bookmarks.find(url) : [],
+      toggleBookmark: (win) => { const wc = win.current; const url = wc?.getURL(); if (!win.canBookmark || !wc || !url || !canBookmarkUrl(url)) return; if (!o.bookmarks.find(url).length) { o.bookmarks.add({ parent: null, kind: 'link', title: wc.getTitle().slice(0, 1024), url }); this.broadcast(); } else win.editBookmark(); },
       rendererDir: o.rendererDir,
       preload: o.preload,
       tabLayout: () => this.tabLayout,
@@ -126,13 +126,14 @@ export class Browser extends EventEmitter {
       back: (wc) => this.navigator.back(wc),
       focused: (win) => { this.front = win; this.updateMenu(); },
       closedTabsChanged: () => this.updateMenu(),
+      activeStateChanged: () => this.updateMenu(),
       sessionChanged: () => this.scheduleSession(),
       sessionResume: () => { this.suppressSessionSave = false; },
       windowClosing: () => this.saveSession(),
       lastTabClosed: () => this.saveSession(true),
       closed: (win) => {
         this.windows.splice(this.windows.indexOf(win), 1);
-        if (this.front === win) this.front = this.windows[0] ?? null;
+        if (this.front === win) { this.front = this.windows[0] ?? null; this.updateMenu(); }
         if (!this.windows.length) this.emit('closed');
       },
     };
@@ -140,6 +141,7 @@ export class Browser extends EventEmitter {
     this.sessionInterval = setInterval(() => this.saveSession(), 5000);
   }
 
+  private menuState: { canReopen: boolean; canBookmark: boolean; locale: string } | null = null;
   private suppressSessionSave = false;
 
   private scheduleSession(): void {
@@ -160,7 +162,12 @@ export class Browser extends EventEmitter {
 
   stopSessionSaving(): void { clearInterval(this.sessionInterval); if (this.sessionTimer) clearTimeout(this.sessionTimer); }
 
-  private updateMenu(): void { Menu.setApplicationMenu(appMenu((id) => this.run(id), this.front?.canReopenTab ?? false)); }
+  private updateMenu(): void {
+    const next = { canReopen: this.front?.canReopenTab ?? false, canBookmark: this.front?.canBookmark ?? false, locale: this.locale };
+    if (this.menuState && this.menuState.canReopen === next.canReopen && this.menuState.canBookmark === next.canBookmark && this.menuState.locale === next.locale) return;
+    this.menuState = next;
+    Menu.setApplicationMenu(appMenu((id) => this.run(id), next.canReopen, next.canBookmark));
+  }
 
   /** A new window with one tab. */
   newWindow(url?: string): ShellWindow {

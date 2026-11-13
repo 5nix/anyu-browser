@@ -44,3 +44,11 @@ export function toUrl(input: string, search: SearchEngine = DEFAULT_SEARCH_ENGIN
     : (PRESET_TEMPLATES.get(engine.kind) ?? SEARCH_PRESETS[0].template);
   return template.replace('{query}', encodeURIComponent(s));
 }
+
+export function canBookmarkUrl(url: string): boolean {
+  return /^https?:\/\//i.test(url);
+}
+
+export function canBookmarkTab(tab: { kind: string; url: string; crashed: boolean; error: unknown } | null | undefined): boolean {
+  return !!tab && tab.kind === 'web' && !tab.crashed && !tab.error && canBookmarkUrl(tab.url);
+}

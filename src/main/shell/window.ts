@@ -10,7 +10,7 @@ import { moveOrder, pinOrder } from './tab-order.ts';
 import { join } from 'node:path';
 import { zoomOrigin, zoomStep } from '../../shared/zoom.ts';
 import { t } from '../../shared/i18n/index.ts';
-import { toUrl } from '../../shared/url.ts';
+import { canBookmarkTab, toUrl } from '../../shared/url.ts';
 import { FRAME, METRICS, SETUP_CAPTION, captionHeight, pageBounds, setupTrafficLights } from '../../shared/layout.ts';
 import { channel, type CaveEvents, type SettingsSection, type ShellState, type TabLayout, type MenuEntry, type Rect, type SurfaceName, type Permission } from '../../shared/ipc.ts';
 import { mac, titleBar, trafficLightPosition } from '../platform.ts';
@@ -56,6 +56,7 @@ export interface WindowHost {
   back(wc: WebContents): void;
   focused(win: ShellWindow): void;
   closedTabsChanged(): void;
+  activeStateChanged(): void;
   sessionChanged(): void;
   sessionResume(): void;
   windowClosing(): void;
@@ -99,6 +100,7 @@ export class ShellWindow implements TabHost {
   private tabs: Tab[] = [];
   private closedTabs = new ClosedTabs();
   get canReopenTab(): boolean { return this.closedTabs.available; }
+  get canBookmark(): boolean { const tab = this.tabs.find((t) => t.id === this.active); return canBookmarkTab(tab?.state); }
   private homes = new Map<number, WebContentsView>();
   private visibleHome: number | null = null;
   private active: number | null = null;
@@ -239,10 +241,11 @@ export class ShellWindow implements TabHost {
 
   get state(): ShellState {
     const web = this.tabs.find((t) => t.id === this.lastWeb);
+    const bookmarkMatches = this.canBookmark && this.current ? this.host.bookmarkMatches(this.current.getURL()) : [];
     return {
       ...this.host.shared(),
-      bookmarked: !!this.current && this.host.bookmarkMatches(this.current.getURL()).length > 0,
-      bookmarkMatches: this.current ? this.host.bookmarkMatches(this.current.getURL()) : [],
+      bookmarked: bookmarkMatches.length > 0,
+      bookmarkMatches,
       tabs: this.tabs.map((t) => t.state),
       recovery: this.recoveryState,
       active: this.active,
@@ -463,9 +466,10 @@ export class ShellWindow implements TabHost {
 
   broadcast(): void {
     if (!this.alive) return;
-    if (this.surfaces.state?.name === 'bookmarkEdit' && (this.bookmarkTarget?.tab !== this.active || this.bookmarkTarget?.url !== this.current?.getURL())) { this.bookmarkTarget = null; this.surfaces.close(false); return; }
+    if (this.surfaces.state?.name === 'bookmarkEdit' && (!this.canBookmark || this.bookmarkTarget?.tab !== this.active || this.bookmarkTarget?.url !== this.current?.getURL())) { this.bookmarkTarget = null; this.surfaces.close(false); return; }
     const s = this.state;
     this.host.sessionChanged();
+    this.host.activeStateChanged();
     for (const v of this.ui) this.send(v, 'state', s);
   }
 
@@ -712,7 +716,7 @@ export class ShellWindow implements TabHost {
   }
 
   toggleBookmark(): void { this.host.toggleBookmark(this); }
-  editBookmark(): void { this.bookmarkTarget = { tab: this.active, url: this.current?.getURL() ?? '' }; this.surfaces.toggle('bookmarkEdit'); }
+  editBookmark(): void { if (!this.canBookmark) return; this.bookmarkTarget = { tab: this.active, url: this.current?.getURL() ?? '' }; this.surfaces.toggle('bookmarkEdit'); }
 
   private get zoomValue(): number {
     const wc = this.current;

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { startWorld } from './harness.mjs';
-import { devtoolsPort, evaluate, waitFor } from './cdp.mjs';
+import { devtoolsPort, evaluate, gateState, waitFor } from './cdp.mjs';
 
 test('chrome layout: tabs stay above the pinned new-tab row', async (t) => {
   const w = await startWorld({ blank: true, extra: ['--remote-debugging-port=0'] });
@@ -76,13 +76,18 @@ test('Windows side chrome places navigation below the caption band', async (t) =
   await shell("cave.setTabLayout('top')");
   await waitFor(() => shell("document.body.classList.contains('top')"));
   await waitFor(() => shell("!document.querySelector('.tab.entering')"));
-  const top = await shell(`(() => { const r = s => { const b = document.querySelector(s).getBoundingClientRect(); return { x: b.x, y: b.y, right: innerWidth - b.right, bottom: b.bottom, cy: b.y + b.height / 2 }; };
+  const top = await shell(`(() => { const r = s => { const el = document.querySelector(s); if (!el) return null; const b = el.getBoundingClientRect(); return { x: b.x, y: b.y, right: innerWidth - b.right, width: b.width, bottom: b.bottom, cy: b.y + b.height / 2 }; };
     return { band: r('#drag-bar'), tab: r('.tab'), add: r('#new-tab svg'), fav: r('.tab .fav svg, .tab .fav img'), sheet: r('#sheet'), field: r('#address-form'), site: r('#site-icon'), star: r('#bookmark') }; })()`);
   assert.equal(top.band.bottom, 40);
   assert.deepEqual([top.tab.x, top.tab.y, top.tab.bottom], [8, 8, 40]);
   assert.equal(top.add.cy, top.tab.cy);
   assert.equal(top.fav.cy, top.tab.cy);
   assert.equal(top.sheet.y, 85);
-  assert.equal(top.site.x - top.field.x, top.star.right - top.field.right, 'site icon and star are mirrored');
-  assert.equal(top.site.cy, top.star.cy);
+  assert.equal(top.star, null, 'bookmark button is hidden on about:blank');
+  await waitFor(async () => (await gateState(port)) === 'open', 60000);
+  await shell("cave.navigate('http://fp.cave.test/fp.html')");
+  const web = await waitFor(() => shell(`(() => { const star = document.querySelector('#bookmark'); if (!star) return null; const r = s => { const b = document.querySelector(s).getBoundingClientRect(); return { x: b.x, y: b.y, right: innerWidth - b.right, width: b.width, bottom: b.bottom, cy: b.y + b.height / 2 }; }; return { field: r('#address-form'), site: r('#site-icon'), star: r('#bookmark') }; })()`));
+  assert.equal(web.field.width, top.field.width, 'address field width does not shift when bookmark appears');
+  assert.equal(web.site.x - web.field.x, web.star.right - web.field.right, 'site icon and star are mirrored');
+  assert.equal(web.site.cy, web.star.cy);
 });

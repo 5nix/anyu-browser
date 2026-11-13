@@ -52,10 +52,11 @@ export function bindCommands(newWindow: () => void): Commands {
 }
 
 /** The application menu: every item is a command, so its label and shortcut come from the table. */
-export function appMenu(run: (id: CommandId) => void, canReopen = false): Menu {
-  const item = (id: CommandId): Electron.MenuItemConstructorOptions => ({ id, enabled: id !== 'tab.reopen' || canReopen, label: label(id), accelerator: accelerators(id, mac)[0], click: () => run(id) });
+export function appMenu(run: (id: CommandId) => void, canReopen = false, canBookmark = false): Menu {
+  const enabled = (id: CommandId) => (id !== 'tab.reopen' || canReopen) && (id !== 'bookmark.toggle' || canBookmark);
+  const item = (id: CommandId): Electron.MenuItemConstructorOptions => ({ id, enabled: enabled(id), label: label(id), accelerator: accelerators(id, mac)[0], click: () => run(id) });
   // Invisible menu entries still register accelerators, including when the menu bar is hidden.
-  const alternatives = (Object.keys(COMMANDS) as CommandId[]).flatMap((id) => accelerators(id, mac).slice(1).map((key) => ({ id, enabled: id !== 'tab.reopen' || canReopen, label: label(id), accelerator: key, visible: false, click: () => run(id) })));
+  const alternatives = (Object.keys(COMMANDS) as CommandId[]).flatMap((id) => accelerators(id, mac).slice(1).map((key) => ({ id, enabled: enabled(id), label: label(id), accelerator: key, visible: false, click: () => run(id) })));
   const sep = { type: 'separator' as const };
   return Menu.buildFromTemplate([
     ...(mac ? [{ role: 'appMenu' as const, submenu: [{ role: 'about' as const, label: t('about') }, { role: 'services' as const, label: t('services') }, { role: 'hide' as const, label: t('hide') }, { role: 'hideOthers' as const, label: t('hideOthers') }, { role: 'unhide' as const, label: t('unhide') }, sep, item('app.quit')] }] : []),

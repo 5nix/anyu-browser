@@ -68,6 +68,7 @@ test('sources can be added, renamed and removed without losing selection or open
   await waitFor(() => settings("document.querySelector('#confirm').open"));
   await snapshot('remove-confirmation.png');
   await click(port, settingsTarget, '#confirm-ok');
+  // The gate closes first; the selection is cleared after it.
   await waitFor(async () => (await gateState(port)) === 'closed');
-  assert.equal(await settings('cave.panelData().then(d => d.nodes.selected)'), null);
+  await waitFor(() => settings('cave.panelData().then(d => d.nodes.selected === null)'));
 });

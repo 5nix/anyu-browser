@@ -101,8 +101,8 @@ function NodesSection({ active, state, data, act, confirm, busy }: Props) {
   useEffect(() => { if (!active) { setEditor(false); setRenaming(null); setEditingSource(null); } }, [active]);
   return <section data-section="nodes" class="entering" hidden={!active}>
     <h2>{t('set.nodes.title')}</h2>
+    <div class="group"><h3>{t('set.nodes.connection')}</h3>
     <div class="card" ref={connRef}>
-      <div class="label"><b>{t('set.nodes.connection')}</b></div>
       <label class="row"><div class="label"><b>{t('set.nodes.modeSystem')}</b><small>{t('set.nodes.modeSystemHint')}</small></div><input type="radio" name="connection-mode" checked={mode === 'system'} disabled={busy.has('connection')} onChange={() => act(() => cave.updateProfile({ connectionMode: 'system' }), 'connection')} /></label>
       <label class="row"><div class="label"><b>{t('set.nodes.modeIndependent')}</b><small>{t('set.nodes.modeIndependentHint')}{cave.platform !== 'win32' && ` ${t('set.nodes.modeIndependentUnsupported')}`}</small></div><input type="radio" name="connection-mode" checked={mode === 'independent'} disabled={busy.has('connection') || cave.platform !== 'win32'} onChange={() => act(() => cave.updateProfile({ connectionMode: 'independent' }), 'connection')} /></label>
       <label class="row"><div class="label"><b>{t('set.nodes.modeExternal')}</b><small>{t('set.nodes.modeExternalHint')}</small></div><input type="radio" name="connection-mode" checked={mode === 'external'} disabled={busy.has('connection')} onChange={() => act(() => cave.updateProfile({ connectionMode: 'external' }), 'connection')} /></label>
@@ -118,8 +118,9 @@ function NodesSection({ active, state, data, act, confirm, busy }: Props) {
       <div class="source-editor">
         <label class="editor-field"><span>{t('set.nodes.monitorUrl')}</span><input id="monitor-url" value={monitor} onInput={e => setMonitor(e.currentTarget.value)} placeholder="https://www.cloudflare.com/cdn-cgi/trace" spellcheck={false} /></label>
         <p><small>{t('set.nodes.monitorUrlHint')}</small></p>
-        <div class="editor-actions"><button id="save-monitor" class="btn primary" disabled={busy.has('connection')} onClick={() => act(() => cave.updateProfile({ monitorUrl: monitor.trim() }), 'connection')}>{t('set.nodes.saveConnection')}</button></div>
+        <div class="editor-actions"><button id="save-monitor" class="btn primary" disabled={busy.has('connection')} onClick={() => act(() => cave.updateProfile({ monitorUrl: monitor.trim() }), 'connection')}>{t('set.nodes.saveMonitor')}</button></div>
       </div>
+    </div>
     </div>
     <div class="nodes-toolbar"><span></span><button id="delays" disabled={busy.has('delays') || !nodes.length} onClick={() => act(() => cave.testDelays(), 'delays')} class="btn"><Icon name="zap" />{t('set.nodes.delays')}</button><button id="add-source" onClick={() => setEditor(true)} class="btn"><Icon name="plus" />{t('set.nodes.add')}</button></div>
     {editor && <div id="source-editor" class="source-editor">

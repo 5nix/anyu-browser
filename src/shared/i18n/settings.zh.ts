@@ -15,6 +15,7 @@ export const settingsZh = {
   'set.nodes.monitorUrl': '监控网址（可选）',
   'set.nodes.monitorUrlHint': '出口核对就经这个网址进行，须是 https 并返回含 ip= 与 loc= 两行的 trace 文本，留空用默认的 Cloudflare 地址。经它测到的出口若是直连或与配置的国家不符，闸门会截断全部连接。监控只能抽查这一个网址，代理软件对其他域名的分流不在可见范围。',
   'set.nodes.saveConnection': '保存连接设置',
+  'set.nodes.saveMonitor': '保存监控网址',
   'set.nodes.externalActive': '当前走本地代理端口，下面的订阅节点不参与连接。点选某个节点会切回内置节点方式。',
   "set.nodes.pasted": "粘贴",
   "set.nodes.rename": "重命名来源",

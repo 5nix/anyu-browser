@@ -19,6 +19,7 @@ export const settingsEn: Record<keyof typeof settingsZh, string> = {
   'set.nodes.monitorUrl': 'Monitor URL (optional)',
   'set.nodes.monitorUrlHint': 'The exit check goes through this URL; it must be https and return trace text with ip= and loc= lines. Empty uses the default Cloudflare address. If the exit seen through it is direct or mismatches the configured country, the gate cuts every connection. Monitoring samples this one URL only; per-domain splits inside the proxy software are not visible.',
   'set.nodes.saveConnection': 'Save connection settings',
+  'set.nodes.saveMonitor': 'Save monitor URL',
   'set.nodes.externalActive': 'The local proxy port is in use; the subscription nodes below take no part. Selecting a node switches back to a built-in node mode.',
   "set.nodes.pasted": "Pasted",
   "set.nodes.rename": "Rename source",

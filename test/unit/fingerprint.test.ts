@@ -7,16 +7,13 @@ const linux: PlatformHints = { platform: 'Linux', platformVersion: '', architect
 const mac: PlatformHints = { platform: 'macOS', platformVersion: '14.6.1', architecture: 'arm', bitness: '64', wow64: false };
 const profile = { ...defaultProfile('en-US', 'Etc/GMT+8'), acceptLanguages: ['en-US', 'en'] };
 
-test('brands match Chrome 156 exactly (verified against the engine)', () => {
+test('brands and GREASE follow Chrome major versions', () => {
   assert.deepEqual(chromeBrands(156, '156', false), [
     { brand: 'Not:A-Brand', version: '8' },
     { brand: 'Chromium', version: '156' },
     { brand: 'Google Chrome', version: '156' },
   ]);
   assert.equal(chromeBrands(156, '156.0.8078.96', true)[0].version, '8.0.0.0');
-});
-
-test('brand GREASE follows the major version like Chrome', () => {
   assert.deepEqual(chromeBrands(131, '131', false).map((b) => b.brand), ['Google Chrome', 'Chromium', 'Not_A Brand']);
   assert.equal(chromeBrands(131, '131', false)[2].version, '24');
 });

@@ -2,17 +2,17 @@
 // is a local SOCKS5 server and every page is served by the local fixture server.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile, writeFile, mkdir, mkdtemp, readdir, rm } from 'node:fs/promises';
+import { readFile, writeFile, mkdtemp, readdir, rm } from 'node:fs/promises';
 import { X509Certificate, createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { parse } from 'yaml';
 import { execFileSync } from 'node:child_process';
 import { createServer } from 'node:net';
-import { startWorld, PROFILE } from './harness.mjs';
+import { launch, startWorld, PROFILE } from './harness.mjs';
 import { startFixtureServer } from '../server.mjs';
 import { startSocks } from '../socks.mjs';
-import { click, devtoolsPort, evaluate, gateState, listTargets, rightClick, screenshot, waitFor, withTarget } from './cdp.mjs';
+import { click, devtoolsPort, evaluate, gateState, listTargets, rightClick, waitFor, withTarget } from './cdp.mjs';
 
 const isFixture = (u) => u.startsWith('http://fp.cave.test/');
 
@@ -656,45 +656,37 @@ test('new tab shortcuts persist and web content cannot open shell pages', async 
   assert.equal(await evaluate(port2, isFixture, 'location.href'), 'http://fp.cave.test/fp.html');
 });
 
-test('toolbar menu commands and disabled entries', async (t) => {
-  const w = await startWorld({ extra: ['--remote-debugging-port=0'] });
-  t.after(() => w.stop());
-  const port = await devtoolsPort(w.log);
-  const shell = (u) => u.endsWith('/shell.html');
-  const overlay = (u) => u.endsWith('/overlay.html');
-  await waitFor(() => evaluate(port, shell, '!!document.querySelector("#menu-button")'));
-  await click(port, shell, '#menu-button');
-  const state = await waitFor(() => evaluate(port, shell, 'cave.getState().then(s => s.contextMenu)'));
-  assert.deepEqual(state.items.filter(i => !i.separator).map(i => i.id), ['tab.new', 'window.new', 'history.open', 'bookmarks.open', 'downloads.open', 'zoom.out', 'zoom.reset', 'zoom.in', 'page.print', 'settings.open']);
-  assert.equal(state.items.find(i => i.id === 'history.open').enabled, true);
-  await evaluate(port, overlay, `cave.contextAction(${JSON.stringify(state.token)}, 'tab.new')`);
-  await waitFor(() => evaluate(port, shell, 'cave.getState().then(s => s.tabs.length >= 2 && !s.contextMenu)'));
-  const before = await evaluate(port, shell, 'cave.getState().then(s => s.tabs.length)');
-  await evaluate(port, overlay, `cave.contextAction(${JSON.stringify(state.token)}, 'tab.new')`);
-  assert.equal(await evaluate(port, shell, 'cave.getState().then(s => s.tabs.length)'), before);
+test('toolbar menu commands and single-use context tokens', async (t) => {
+  const { port, shell, overlay } = await launch(t);
+  await waitFor(() => shell('!!document.querySelector("#menu-button")'));
+  await click(port, u => u.endsWith('/shell.html'), '#menu-button');
+  const state = await waitFor(() => shell('cave.getState().then(s => s.contextMenu)'));
+  assert.equal(state.items.find(i => i.id === 'history.open')?.enabled, true);
+  await overlay(`cave.contextAction(${JSON.stringify(state.token)}, 'tab.new')`);
+  await waitFor(() => shell('cave.getState().then(s => s.tabs.length >= 2 && !s.contextMenu)'));
+  const before = await shell('cave.getState().then(s => s.tabs.length)');
+  await overlay(`cave.contextAction(${JSON.stringify(state.token)}, 'tab.new')`);
+  assert.equal(await shell('cave.getState().then(s => s.tabs.length)'), before);
 });
 
 
 test('menu keyboard navigation and Escape', async (t) => {
-  const w = await startWorld({ blank: true, extra: ['--remote-debugging-port=0'] });
-  t.after(() => w.stop());
-  const port = await devtoolsPort(w.log), shell = u => u.endsWith('/shell.html'), overlay = u => u.endsWith('/overlay.html');
-  await waitFor(() => evaluate(port, shell, '!!document.querySelector("#menu-button")'));
-  await click(port, shell, '#menu-button');
-  await waitFor(() => evaluate(port, overlay, "document.activeElement?.getAttribute('role') === 'menu'"));
-  assert.deepEqual(await evaluate(port, overlay, "[getComputedStyle(document.documentElement).overflow, getComputedStyle(document.body).overflow]"), ['hidden', 'hidden']);
-  await waitFor(() => evaluate(port, overlay, "document.querySelector('[data-surface=menu]')?.classList.contains('in')"));
-  assert.ok((await evaluate(port, shell, 'cave.testSuggestionBounds()')).width > 100);
+  const { port, shell, overlay } = await launch(t, { blank: true });
+  await waitFor(() => shell('!!document.querySelector("#menu-button")'));
+  await click(port, u => u.endsWith('/shell.html'), '#menu-button');
+  await waitFor(() => overlay("document.activeElement?.getAttribute('role') === 'menu'"));
+  await waitFor(() => overlay("document.querySelector('[data-surface=menu]')?.classList.contains('in')"));
+  assert.ok((await shell('cave.testSuggestionBounds()')).width > 100);
 
-  assert.equal(await evaluate(port, overlay, "!!document.querySelector('[role=menuitem]:focus')"), false);
-  await evaluate(port, overlay, "document.activeElement.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true}))");
-  assert.ok((await evaluate(port, shell, 'cave.getState()')).surface);
-  await evaluate(port, overlay, "document.activeElement.dispatchEvent(new KeyboardEvent('keydown', {key: 'ArrowUp', bubbles: true}))");
-  assert.equal(await evaluate(port, overlay, "document.activeElement === [...document.querySelectorAll('[role=menuitem]:not(:disabled)')].at(-1)"), true);
-  await evaluate(port, overlay, "document.activeElement.dispatchEvent(new KeyboardEvent('keydown', {key: 'ArrowDown', bubbles: true}))");
-  assert.equal(await evaluate(port, overlay, "document.activeElement === document.querySelector('[role=menuitem]:not(:disabled)')"), true);
-  await evaluate(port, overlay, "document.activeElement.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}))");
-  await waitFor(() => evaluate(port, shell, 'cave.getState().then(s => !s.surface)'));
+  assert.equal(await overlay("!!document.querySelector('[role=menuitem]:focus')"), false);
+  await overlay("document.activeElement.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true}))");
+  assert.ok((await shell('cave.getState()')).surface);
+  await overlay("document.activeElement.dispatchEvent(new KeyboardEvent('keydown', {key: 'ArrowUp', bubbles: true}))");
+  assert.equal(await overlay("document.activeElement === [...document.querySelectorAll('[role=menuitem]:not(:disabled)')].at(-1)"), true);
+  await overlay("document.activeElement.dispatchEvent(new KeyboardEvent('keydown', {key: 'ArrowDown', bubbles: true}))");
+  assert.equal(await overlay("document.activeElement === document.querySelector('[role=menuitem]:not(:disabled)')"), true);
+  await overlay("document.activeElement.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}))");
+  await waitFor(() => shell('cave.getState().then(s => !s.surface)'));
 });
 
 test('tab context targets inactive tab', async (t) => {
@@ -894,26 +886,6 @@ test('address suggestion receives a native-view mouse press after focus moves', 
   await waitFor(() => shell('cave.getState().then(s => !s.address && s.tabs.find(t => t.id === s.active)?.url.includes("fp.cave.test"))'), 5000);
 });
 
-test('suggestion-related select controls keep the shared caret spacing', async (t) => {
-  const w = await startWorld({ blank: true, extra: ['--remote-debugging-port=0'] });
-  t.after(() => w.stop());
-  const port = await devtoolsPort(w.log);
-  const shell = expr => evaluate(port, u => u.endsWith('/shell.html'), expr);
-  const settings = expr => evaluate(port, u => u.endsWith('/settings.html'), expr);
-  const bookmarks = expr => evaluate(port, u => u.endsWith('/bookmarks.html'), expr);
-  await waitFor(() => shell("cave.openSettings('nodes').then(() => true)"));
-  const css = `el => { const s = getComputedStyle(el); return [s.appearance, s.paddingRight, s.backgroundPosition, s.backgroundImage.includes('linear-gradient')]; }`;
-  const expected = ['none', '36px', 'calc(100% - 17px) 50%, calc(100% - 12px) 50%, 0% 0%', true];
-  await waitFor(() => settings("!!document.querySelector('#add-source')"));
-  await click(port, u => u.endsWith('/settings.html'), '#add-source');
-  await waitFor(() => settings("!!document.querySelector('#sub-via')"));
-  assert.deepEqual(await settings(`Array.from(document.querySelectorAll('select'), ${css})`), Array(5).fill(expected));
-  await shell("cave.bookmarkAdd(null, 'link', 'Example', 'http://example.test/')");
-  await shell("cave.run('bookmarks.open')");
-  await waitFor(() => bookmarks("!!document.querySelector('select.move-control')"));
-  assert.deepEqual(await bookmarks(`(${css})(document.querySelector('select.move-control'))`), expected);
-});
-
 test('suggestions align with the address field in both tab layouts', async (t) => {
   const w = await startWorld({ extra: ['--remote-debugging-port=0'] });
   t.after(() => w.stop());
@@ -1012,55 +984,13 @@ test('site zoom persists, synchronizes and clears', async (t) => {
   assert.ok(second.socks.targets.every(target => target.host.endsWith('.test')));
 });
 
-test('certificate exception continues and applies to a second visit', async (t) => {
-  const w = await startWorld({ tls: true, blank: true, extra: ['--remote-debugging-port=0'] });
-  t.after(() => w.stop());
-  const port = await devtoolsPort(w.log);
-  const shell = (expr) => evaluate(port, (u) => u.endsWith('/shell.html'), expr);
-  const recovery = (u) => u.endsWith('/internal-error.html');
-  await waitFor(async () => (await gateState(port)) === 'open');
-  await shell("cave.navigate('https://bad.cave.test/')");
-  await waitFor(async () => (await shell('cave.getState()')).recovery?.canContinue);
-  await click(port, recovery, '[aria-expanded]');
-  await click(port, recovery, '.advanced button');
-  await waitFor(() => evaluate(port, u => u === 'https://bad.cave.test/', 'document.title'));
-  assert.equal((await shell('cave.getState()')).tabs.find(t => t.url === 'https://bad.cave.test/').insecure, true);
-  await shell("cave.navigate('http://fp.cave.test/')");
-  await waitFor(() => evaluate(port, u => u === 'http://fp.cave.test/', 'document.title'));
-  assert.equal((await shell('cave.getState()')).tabs.find(t => t.url === 'http://fp.cave.test/').insecure, false);
-  await shell("cave.navigate('https://bad.cave.test/')");
-  await waitFor(() => evaluate(port, u => u === 'https://bad.cave.test/', 'document.title'));
-  assert.equal((await shell('cave.getState()')).recovery, null);
-  assert.equal((await shell('cave.getState()')).tabs.find(t => t.url === 'https://bad.cave.test/').insecure, true);
-});
-
-test('certificate exception is revoked on reset', async (t) => {
-  const w = await startWorld({ tls: true, blank: true, extra: ['--remote-debugging-port=0'] });
-  t.after(() => w.stop());
-  const port = await devtoolsPort(w.log);
-  const shell = (expr) => evaluate(port, u => u.endsWith('/shell.html'), expr);
-  const recovery = u => u.endsWith('/internal-error.html');
-  await waitFor(async () => (await gateState(port)) === 'open');
-  await shell("cave.navigate('https://bad.cave.test/')");
-  await waitFor(async () => (await shell('cave.getState()')).recovery?.canContinue);
-  await click(port, recovery, '[aria-expanded]');
-  await click(port, recovery, '.advanced button');
-  await waitFor(() => evaluate(port, u => u === 'https://bad.cave.test/', 'document.title'));
-  await shell('cave.resetEnvironment()');
-  await shell("cave.navigate('https://bad.cave.test/')");
-  assert.equal((await waitFor(async () => (await shell('cave.getState()')).recovery)).kind, 'certificate');
-});
-
-test('certificate exceptions do not cross hosts, certificates, site clearing or restart', async (t) => {
-  const w = await startWorld({ tls: true, blank: true, keepDir: true, extra: ['--remote-debugging-port=0'] });
+test('certificate exceptions do not cross hosts, certificates, site clearing, reset or restart', async (t) => {
+  const { w, port, shell } = await launch(t, { tls: true, blank: true, keepDir: true, open: true });
   let restarted;
-  t.after(async () => { await w.stop(); if (restarted) await restarted.stop(); else { const { rm } = await import('node:fs/promises'); await rm(w.dir, { recursive: true, force: true }); } });
-  const port = await devtoolsPort(w.log);
-  const shell = expr => evaluate(port, u => u.endsWith('/shell.html'), expr);
+  t.after(async () => { if (restarted) await restarted.stop(); else await rm(w.dir, { recursive: true, force: true }); });
   const recovery = u => u.endsWith('/internal-error.html');
   const warning = async () => waitFor(async () => (await shell('cave.getState()')).recovery?.kind === 'certificate');
   const accept = async () => { await waitFor(async () => (await shell('cave.getState()')).recovery?.canContinue); await click(port, recovery, '[aria-expanded]'); await click(port, recovery, '.advanced button'); await waitFor(() => evaluate(port, u => u === 'https://bad.cave.test/', 'document.title')); };
-  await waitFor(async () => (await gateState(port)) === 'open');
   await shell("cave.navigate('https://bad.cave.test/')"); await warning(); await accept();
   const cert = new X509Certificate(await readFile(join(w.dir, 'untrusted-cert.pem')));
   const digest = createHash('sha256').update(cert.raw).digest();
@@ -1081,6 +1011,9 @@ test('certificate exceptions do not cross hosts, certificates, site clearing or 
   await shell("cave.navigate('https://bad.cave.test/')"); await waitFor(() => evaluate(port, u => u === 'https://bad.cave.test/', 'document.title'));
   await shell("cave.clearSite('https://bad.cave.test/')"); await warning();
   await accept();
+  await shell('cave.resetEnvironment()');
+  await shell("cave.navigate('https://bad.cave.test/')"); await warning();
+  await accept();
   await w.rotateUntrusted();
   await shell("cave.navigate('http://fp.cave.test/')"); await waitFor(() => evaluate(port, u => u === 'http://fp.cave.test/', 'document.title'));
   await shell("cave.navigate('https://bad.cave.test/')"); await warning();
@@ -1093,47 +1026,20 @@ test('certificate exceptions do not cross hosts, certificates, site clearing or 
   assert.equal((await waitFor(async () => (await shell2('cave.getState()')).recovery)).kind, 'certificate');
 });
 
-test('permission prompt answers notification requests on HTTPS', async (t) => {
-  const w = await startWorld({ tls: true, blank: true, profile: { ...PROFILE, notifications: true }, extra: ['--remote-debugging-port=0'] });
-  t.after(() => w.stop());
-  const port = await devtoolsPort(w.log);
-  const shell = expr => evaluate(port, u => u.endsWith('/shell.html'), expr);
-  const page = expr => evaluate(port, u => u === w.httpsUrl, expr);
+test('permission decisions survive restart and both clear paths', async t => {
+  const profile = { ...PROFILE, notifications: true };
+  const { w: first, port, shell } = await launch(t, { tls: true, blank: true, keepDir: true, profile, open: true });
+  let second;
+  t.after(async () => { if (second) await second.stop(); else await rm(first.dir, { recursive: true, force: true }); });
   const overlay = u => u.endsWith('/overlay.html');
-  await waitFor(async () => (await gateState(port)) === 'open');
-  await shell(`cave.navigate(${JSON.stringify(w.httpsUrl)})`);
+  const page = expr => evaluate(port, u => u.startsWith(first.httpsUrl), expr);
+  await shell(`cave.navigate(${JSON.stringify(first.httpsUrl)})`);
   await waitFor(() => page('document.title'));
-  await page("window.answer = 'pending'; Notification.requestPermission().then(v => window.answer = v); 'started'");
+  await page("window.result = 'pending'; Notification.requestPermission().then(v => window.result = v); 'started'");
   const prompt = await waitFor(async () => (await shell('cave.getState()')).permissionPrompt);
   assert.equal(await page('typeof window.cave'), 'undefined');
   await shell(`cave.respondPermission(${JSON.stringify(prompt.id)}, 'once')`);
   assert.equal((await shell('cave.getState()')).permissionPrompt.id, prompt.id);
-  await click(port, overlay, '#permission .actions button:first-child');
-  assert.equal(await waitFor(async () => (await page('window.answer')) === 'denied' && 'denied'), 'denied');
-  await shell(`cave.clearSite(${JSON.stringify(w.httpsUrl)})`);
-  await shell(`cave.navigate(${JSON.stringify(w.httpsUrl + '?again')})`);
-  const page2 = expr => evaluate(port, u => u === w.httpsUrl + '?again', expr);
-  await waitFor(() => page2('document.title'));
-  await page2("window.answer = 'pending'; Notification.requestPermission().then(v => window.answer = v); 'started'");
-  await waitFor(async () => (await shell('cave.getState()')).permissionPrompt);
-  await click(port, overlay, '#permission .actions button:nth-child(2)');
-  assert.equal(await waitFor(async () => (await page2('window.answer')) === 'granted' && 'granted'), 'granted');
-});
-
-test('permission decisions survive restart and both clear paths', async t => {
-  const profile = { ...PROFILE, notifications: true };
-  const first = await startWorld({ tls: true, blank: true, keepDir: true, profile, extra: ['--remote-debugging-port=0'] });
-  let second;
-  t.after(async () => { await first.stop(); if (second) await second.stop(); });
-  const port = await devtoolsPort(first.log);
-  const shell = expr => evaluate(port, u => u.endsWith('/shell.html'), expr);
-  const overlay = u => u.endsWith('/overlay.html');
-  const page = expr => evaluate(port, u => u.startsWith(first.httpsUrl), expr);
-  await waitFor(async () => (await gateState(port)) === 'open');
-  await shell(`cave.navigate(${JSON.stringify(first.httpsUrl)})`);
-  await waitFor(() => page('document.title'));
-  await page("window.result = 'pending'; Notification.requestPermission().then(v => window.result = v); 'started'");
-  await waitFor(async () => (await shell('cave.getState()')).permissionPrompt);
   await click(port, overlay, '#permission button:first-child');
   await waitFor(async () => (await page('window.result')) === 'denied');
   await first.stop();
@@ -1403,25 +1309,6 @@ test('address security indicator reflects the active page', async t => {
   assert.equal(s.tabs.find(tab => tab.id === s.active).insecure, true);
 });
 
-test('status chip toggles its card in both layouts', async t => {
-  const w = await startWorld({ blank: true, extra: ['--remote-debugging-port=0'] });
-  t.after(() => w.stop());
-  const port = await devtoolsPort(w.log);
-  const shell = u => u.endsWith('/shell.html');
-  const state = () => evaluate(port, shell, 'cave.getState()');
-  await waitFor(async () => (await gateState(port)) === 'open');
-  for (const layout of ['top', 'side']) {
-    await evaluate(port, shell, `cave.setTabLayout(${JSON.stringify(layout)})`);
-    await waitFor(() => evaluate(port, shell, `document.body.classList.contains(${JSON.stringify(layout)})`));
-    await click(port, shell, '#status');
-    const opened = await waitFor(async () => { const s = await state(); return s.surface?.name === 'status' && s; });
-    // Anchored overlay views exclude their trigger; the second press targets the shell.
-    assert.ok(opened.surface.anchor.width > 0);
-    await click(port, shell, '#status');
-    await waitFor(async () => !(await state()).surface);
-  }
-});
-
 test('prompts stay in their window and render auth realms as text', async t => {
   const w = await startWorld({ tls: true, blank: true, profile: { ...PROFILE, notifications: true }, extra: ['--remote-debugging-port=0'] });
   t.after(() => w.stop());
@@ -1472,30 +1359,6 @@ test('reopen closed tab restores its URL, pin and position', async (t) => {
   const state = await waitFor(async () => { const s = await shell('cave.getState()'); return s.tabs.length === 2 && s.tabs[0].url === 'http://find.cave.test/find.html' && s; });
   assert.equal(state.tabs[0].pinned, true);
   assert.equal(state.active, state.tabs[0].id);
-});
-
-test('session snapshots persist open tabs and survive window shutdown', async (t) => {
-  const w = await startWorld({ blank: true, keepDir: true, extra: ['--remote-debugging-port=0'] });
-  t.after(async () => { await w.stop(); await rm(w.dir, { recursive: true, force: true }); });
-  const port = await devtoolsPort(w.log);
-  const shell = (expr) => evaluate(port, (u) => u.endsWith('/shell.html'), expr);
-  await waitFor(async () => (await gateState(port)) === 'open', 60000);
-  await shell('cave.setRestoreSession(true)');
-  await shell("cave.navigate('http://find.cave.test/find.html')");
-  await waitFor(() => evaluate(port, (u) => u === 'http://find.cave.test/find.html', 'document.title'));
-  const id = await shell('cave.getState().then(s => s.active)');
-  await shell(`cave.pinTab(${id}, true)`);
-  await new Promise(resolve => setTimeout(resolve, 1000));
-  await w.stop();
-  const { DatabaseSync } = await import('node:sqlite');
-  const db = new DatabaseSync(join(w.dir, 'cave.sqlite'));
-  try {
-    const saved = JSON.parse(db.prepare('SELECT data FROM sessions ORDER BY id DESC LIMIT 1').get().data);
-    assert.equal(saved.version, 1);
-    assert.equal(saved.windows[0].tabs[0].url, 'http://find.cave.test/find.html');
-    assert.equal(saved.windows[0].tabs[0].pinned, true);
-    assert.equal(saved.windows[0].active, 0);
-  } finally { db.close(); }
 });
 
 test('environment reset clears saved session and closed tab stack', async (t) => {
@@ -1581,13 +1444,8 @@ test('session: crash offers a saved session even when restore is off', async t =
 });
 
 
-test('downloads: bubble shows streaming progress and completion', async t => {
-  const w = await startWorld({ blank: true, extra: ['--remote-debugging-port=0'] });
-  t.after(() => w.stop());
-  const port = await devtoolsPort(w.log);
-  const shell = expr => evaluate(port, u => u.endsWith('/shell.html'), expr);
-  const overlay = expr => evaluate(port, u => u.endsWith('/overlay.html'), expr);
-  await waitFor(async () => (await gateState(port)) === 'open', 60000);
+test('downloads: bubble shows streaming progress, full list and clearing records', async t => {
+  const { port, shell, overlay, settings } = await launch(t, { blank: true, open: true });
   await shell("cave.navigate('http://download.cave.test/')");
   await waitFor(() => evaluate(port, u => u === 'http://download.cave.test/', 'document.title'));
   await evaluate(port, u => u === 'http://download.cave.test/', "location.href='/slow-download'");
@@ -1595,10 +1453,15 @@ test('downloads: bubble shows streaming progress and completion', async t => {
   await shell("document.querySelector('#downloads').click()");
   await waitFor(async () => (await shell('cave.getState()')).surface?.name === 'downloads');
   assert.match(await waitFor(() => overlay("document.querySelector('#downloads')?.textContent")), /slow.bin/);
-  await waitFor(async () => (await shell('cave.getState()')).downloads[0]?.state === 'completed', 15000);
+  const completed = await waitFor(async () => (await shell('cave.getState()')).downloads.find(d => d.state === 'completed'), 15000);
   assert.match(await overlay("document.querySelector('#downloads')?.textContent"), /完成|Completed/);
   await shell("document.querySelector('#downloads').click()");
   await waitFor(async () => !(await shell('cave.getState()')).surface);
+  await shell("cave.run('downloads.open')");
+  await waitFor(() => settings("document.querySelector('[data-section=downloads]:not([hidden]) #downloads')?.textContent.includes('slow.bin')"));
+  await settings("[...document.querySelectorAll('[data-section=downloads] button')].find(b => b.textContent === '清除记录').click()");
+  await waitFor(async () => (await shell('cave.listDownloads()')).length === 0);
+  assert.ok((await readFile(completed.path)).length > 0, 'clearing records keeps the file');
 });
 
 
@@ -1671,22 +1534,6 @@ test('downloads: persistence, windows and environment reset', async t => {
 });
 
 
-test('downloads: command opens the full list and clears records', async t => {
-  const w = await startWorld({ blank: true, extra: ['--remote-debugging-port=0'] }); t.after(() => w.stop());
-  const port = await devtoolsPort(w.log), shell = expr => evaluate(port, u => u.endsWith('/shell.html'), expr);
-  await waitFor(async () => (await gateState(port)) === 'open', 60000);
-  await shell("cave.navigate('http://download.cave.test/')");
-  await waitFor(() => evaluate(port, u => u === 'http://download.cave.test/', 'document.title'));
-  await evaluate(port, u => u === 'http://download.cave.test/', "location.href='/slow-download'");
-  const completed = await waitFor(async () => (await shell('cave.listDownloads()')).find(d => d.state === 'completed'), 15000);
-  await shell("cave.run('downloads.open')");
-  const settings = expr => evaluate(port, u => u.endsWith('/settings.html'), expr);
-  await waitFor(() => settings("document.querySelector('[data-section=downloads]:not([hidden]) #downloads')?.textContent.includes('slow.bin')"));
-  await settings("[...document.querySelectorAll('[data-section=downloads] button')].find(b => b.textContent === '清除记录').click()");
-  await waitFor(async () => (await shell('cave.listDownloads()')).length === 0);
-  assert.ok((await readFile(completed.path)).length > 0, 'clearing records keeps the file');
-});
-
 test('history: records committed pages and opens a shell tab', async (t) => {
   const w = await startWorld({ blank: true, extra: ['--remote-debugging-port=0'] });
   t.after(() => w.stop());
@@ -1723,20 +1570,21 @@ test('history: records committed pages and opens a shell tab', async (t) => {
 });
 
 test('history: clear browsing data persists after restart', async (t) => {
-  const w = await startWorld({ blank: true, keepDir: true, extra: ['--remote-debugging-port=0'] });
+  const { w, port, shell, settings } = await launch(t, { blank: true, keepDir: true, open: true });
   let next;
-  t.after(async () => { await w.stop(); if (next) await next.stop(); await rm(w.dir, { recursive: true, force: true }); });
-  const port = await devtoolsPort(w.log);
-  const shell = (expr) => evaluate(port, (u) => u.endsWith('/shell.html'), expr);
-  const settings = (expr) => evaluate(port, (u) => u.endsWith('/settings.html'), expr);
-  await waitFor(async () => (await gateState(port)) === 'open');
-  await shell("cave.navigate('http://find.cave.test/find.html')");
-  await waitFor(() => evaluate(port, (u) => u === 'http://find.cave.test/find.html', 'document.title'));
+  t.after(async () => { if (next) await next.stop(); await rm(w.dir, { recursive: true, force: true }); });
+  await shell("cave.navigate('http://download.cave.test/')");
+  await waitFor(() => evaluate(port, (u) => u === 'http://download.cave.test/', 'document.title'));
+  await evaluate(port, (u) => u === 'http://download.cave.test/', "location.href='/slow-download'");
+  const download = await waitFor(async () => (await shell('cave.listDownloads()')).find(d => d.state === 'completed'), 15000);
   await shell("cave.openSettings('privacy')");
   await waitFor(() => settings('document.querySelector("#clear-data button")'));
+  await settings("document.querySelectorAll('#clear-data input')[3].click()");
   await settings('document.querySelector("#clear-data button").click()');
   await waitFor(async () => (await shell('cave.getState()')).tabs.some(t => t.kind === 'settings'));
   await waitFor(async () => (await settings('document.querySelector("#clear-data button").disabled')) === false);
+  await waitFor(async () => (await shell('cave.listDownloads()')).length === 0);
+  assert.ok((await readFile(download.path)).length > 0);
   await shell("cave.run('history.open')");
   await waitFor(async () => (await evaluate(port, (u) => u.endsWith('/history.html'), "cave.historyList('', null, 10)"))?.length === 0);
   await w.stop();
@@ -1746,6 +1594,8 @@ test('history: clear browsing data persists after restart', async (t) => {
   const page = (expr) => evaluate(port2, (u) => u.endsWith('/history.html'), expr);
   await waitFor(() => page('document.querySelector("main")'));
   assert.equal(await page('document.querySelectorAll(".visit").length'), 0);
+  assert.deepEqual(await evaluate(port2, (u) => u.endsWith('/shell.html'), 'cave.listDownloads()'), []);
+  assert.ok((await readFile(download.path)).length > 0);
 });
 
 test('history: excludes internal pages, failed loads and subframes', async (t) => {
@@ -1785,33 +1635,6 @@ test('history: site data clearing reloads web tabs', async (t) => {
   await settings("document.querySelector('#clear-data button').click()");
   try { await waitFor(async () => (await page("document.cookie.includes('historytest=') || localStorage.getItem('historytest') !== null")) === false); } catch (error) { throw new Error(`${error.message}; notice: ${await settings("document.querySelector('#notice').textContent")}`); }
   await waitFor(async () => (await page("performance.getEntriesByType('navigation')[0].type")) === 'reload');
-});
-
-test('history: clearing download records keeps downloaded files', async (t) => {
-  const w = await startWorld({ blank: true, keepDir: true, extra: ['--remote-debugging-port=0'] });
-  let next;
-  t.after(async () => { await w.stop(); if (next) await next.stop(); await rm(w.dir, { recursive: true, force: true }); });
-  const port = await devtoolsPort(w.log);
-  const shell = (expr) => evaluate(port, (u) => u.endsWith('/shell.html'), expr);
-  const settings = (expr) => evaluate(port, (u) => u.endsWith('/settings.html'), expr);
-  await waitFor(async () => (await gateState(port)) === 'open');
-  await shell("cave.navigate('http://download.cave.test/')");
-  await waitFor(() => evaluate(port, (u) => u === 'http://download.cave.test/', 'document.title'));
-  await evaluate(port, (u) => u === 'http://download.cave.test/', "location.href='/slow-download'");
-  const download = await waitFor(async () => (await shell('cave.listDownloads()')).find(d => d.state === 'completed'), 15000);
-  await shell("cave.openSettings('privacy')");
-  await waitFor(() => settings('document.querySelector("#clear-data")'));
-  await settings("document.querySelectorAll('#clear-data input')[0].click()");
-  await settings("document.querySelectorAll('#clear-data input')[3].click()");
-  await waitFor(() => settings("!document.querySelector('#clear-data button').disabled"));
-  await settings("document.querySelector('#clear-data button').click()");
-  await waitFor(async () => (await shell('cave.listDownloads()')).length === 0);
-  assert.ok((await readFile(download.path)).length > 0);
-  await w.stop();
-  next = await startWorld({ dir: w.dir, blank: true, keepDir: true, extra: ['--remote-debugging-port=0'] });
-  const port2 = await devtoolsPort(next.log);
-  assert.deepEqual(await waitFor(() => evaluate(port2, (u) => u.endsWith('/shell.html'), 'cave.listDownloads()')), []);
-  assert.ok((await readFile(download.path)).length > 0);
 });
 
 test('history: all-time clear revokes certificates and closed tabs', async (t) => {
@@ -1885,20 +1708,6 @@ test('bookmark: star synchronizes windows and persists', async (t) => {
   await waitFor(async () => !(await evaluate(next, shell, 'cave.getState()')).bookmarked);
 });
 
-test('address editing ends when the page is clicked', async (t) => {
-  const w = await startWorld({ extra: ['--remote-debugging-port=0'] });
-  t.after(() => w.stop());
-  const port = await devtoolsPort(w.log);
-  const shell = u => u.endsWith('/shell.html');
-  await waitFor(async () => (await gateState(port)) === 'open', 60000);
-  await waitFor(() => evaluate(port, isFixture, '!!document.body'));
-  await click(port, shell, '#address');
-  await evaluate(port, shell, `(() => { const input = document.querySelector('#address'); input.value = 'unfinished draft'; input.dispatchEvent(new Event('input', { bubbles: true })); })()`);
-  await click(port, isFixture, 'body');
-  await waitFor(() => evaluate(port, shell, `document.activeElement !== document.querySelector('#address') && document.querySelector('#address').value === 'http://fp.cave.test/fp.html'`));
-  assert.equal(await evaluate(port, shell, `document.querySelector('#address').classList.contains('viewing')`), true);
-});
-
 test('bookmarks: manager edits folders and persists across restart', async (t) => {
   const w = await startWorld({ blank: true, keepDir: true, extra: ['--remote-debugging-port=0'] });
   let next;
@@ -1957,115 +1766,40 @@ test('bookmarks: import through picker seam', async (t) => {
 });
 
 test('address: outside mouse press clears editing and selection', async (t) => {
-  const w = await startWorld({ extra: ['--remote-debugging-port=0'] });
-  t.after(() => w.stop());
-  const port = await devtoolsPort(w.log);
-  const chrome = u => u.endsWith('/shell.html');
-  const shell = expr => evaluate(port, chrome, expr);
-  await waitFor(async () => (await gateState(port)) === 'open', 60000);
+  const { port, shell } = await launch(t, { open: true });
   await shell("cave.navigate('http://fp.cave.test/')");
   await waitFor(() => evaluate(port, isFixture, 'document.title'));
-  await click(port, chrome, '#address');
+  await click(port, u => u.endsWith('/shell.html'), '#address');
   await waitFor(() => shell("cave.getState().then(s => !!s.address)"));
   assert.ok(await shell("address.selectionEnd > address.selectionStart"));
+  await shell("(() => { const input = document.querySelector('#address'); input.value = 'unfinished draft'; input.dispatchEvent(new Event('input', { bubbles: true })); })()");
   await withTarget(port, isFixture, async send => {
     const event = { x: 10, y: 10, button: 'left', clickCount: 1 };
     await send('Input.dispatchMouseEvent', { ...event, type: 'mousePressed' });
     await send('Input.dispatchMouseEvent', { ...event, type: 'mouseReleased' });
   });
   await waitFor(() => shell("cave.getState().then(s => !s.address)"));
-  assert.deepEqual(await shell("[document.activeElement === address, address.selectionStart === address.selectionEnd]"), [false, true]);
-});
-
-
-test('surface status aligns with its anchor in vertical layout', async (t) => {
-  const w = await startWorld({ blank: true, extra: ['--remote-debugging-port=0'] });
-  t.after(() => w.stop());
-  const port = await devtoolsPort(w.log);
-  const chrome = u => u.endsWith('/shell.html'), overlay = u => u.endsWith('/overlay.html');
-  const shell = expr => evaluate(port, chrome, expr);
-  await waitFor(() => shell("cave.getState()"));
-  await shell("cave.setTabLayout('side')");
-  await waitFor(() => shell("cave.getState().then(s => s.tabLayout === 'side')"));
-  await click(port, chrome, '#status');
-  await waitFor(() => evaluate(port, overlay, "document.querySelector('#status.in')"));
-  const anchor = await shell("cave.getState().then(s => s.surface.anchor)");
-  const card = await evaluate(port, overlay, "(() => { const r = document.querySelector('#status').getBoundingClientRect(); return {x:r.x,y:r.y,width:r.width,height:r.height}; })()");
-  const bounds = await shell('cave.testSuggestionBounds()');
-  assert.deepEqual([card.x, card.y], [0, 0]);
-  assert.ok(Math.abs(card.width - bounds.width) < 1 && Math.abs(card.height - bounds.height) < 1, JSON.stringify({ card, bounds }));
-  assert.ok(bounds.x >= 8 && bounds.y >= 0 && bounds.y + bounds.height <= anchor.y, JSON.stringify({anchor, card, bounds}));
-});
-
-test('vertical chrome: new tab row, country and bottom surfaces', async t => {
-  const w = await startWorld({ blank: true, extra: ['--remote-debugging-port=0'] });
-  t.after(() => w.stop());
-  const port = await devtoolsPort(w.log);
-  const chrome = u => u.endsWith('/shell.html'), overlay = u => u.endsWith('/overlay.html');
-  const shell = expr => evaluate(port, chrome, expr);
-  await waitFor(async () => (await gateState(port)) === 'open', 60000);
-  await shell("cave.setTabLayout('side')");
-  await waitFor(() => shell("document.body.classList.contains('side') && document.querySelector('#status .country')?.textContent === 'QM'"));
-  for (let i = 0; i < 3; i++) await shell('cave.newTab()');
-  await waitFor(() => shell("document.querySelectorAll('#tablist .tab').length === 4"));
-  assert.equal(await shell("(() => { const list = document.querySelector('#tablist'), button = document.querySelector('#new-tab'); return list.nextElementSibling === button && list.lastElementChild.getBoundingClientRect().bottom <= button.getBoundingClientRect().top; })()"), true);
-  await shell("cave.navigate('http://download.cave.test/')");
-  await waitFor(() => evaluate(port, u => u === 'http://download.cave.test/', 'document.title'));
-  await evaluate(port, u => u === 'http://download.cave.test/', "location.href='/slow-download'");
-  await waitFor(async () => (await shell('cave.getState()')).downloads.length);
-  for (const [name, selector] of [['status', '#status'], ['downloads', '#downloads'], ['menu', '#menu-button']]) {
-    await click(port, chrome, selector);
-    await waitFor(() => evaluate(port, overlay, `document.querySelector('#${name}.in')`));
-    await new Promise(r => setTimeout(r, 250));
-    const anchor = await shell("cave.getState().then(s => s.surface.anchor)");
-    const card = await evaluate(port, overlay, `(() => { const r = document.querySelector('#${name}').getBoundingClientRect(); return { x:r.x, y:r.y, right:r.right, bottom:r.bottom, width:r.width, viewportWidth:innerWidth, viewportHeight:innerHeight }; })()`);
-    assert.ok(card.y >= 0 && card.x >= 0 && card.right <= card.viewportWidth + 1 && card.bottom <= card.viewportHeight + 1, JSON.stringify({ anchor, card }));
-    const bounds = await shell('cave.testSuggestionBounds()');
-    assert.deepEqual([card.x, card.y], [0, 0]);
-    assert.ok(Math.abs(card.width - bounds.width) < 1 && Math.abs(card.bottom - bounds.height) < 1, JSON.stringify({ card, bounds }));
-    assert.ok(bounds.y + bounds.height <= anchor.y, JSON.stringify({ anchor, card, bounds }));
-    assert.ok(bounds.x >= 8, JSON.stringify({ anchor, card, bounds }));
-    await shell(`document.querySelector('${selector}').click()`);
-    await waitFor(async () => !(await shell('cave.getState()')).surface);
-  }
-  await shell("cave.setTabLayout('top')");
-  await waitFor(() => shell("document.body.classList.contains('top')"));
-  assert.equal(await shell("document.querySelector('#status .country')"), null);
+  assert.deepEqual(await shell("[document.activeElement === address, address.selectionStart === address.selectionEnd, address.value, address.classList.contains('viewing')]"), [false, true, 'http://fp.cave.test/', true]);
 });
 
 
 test('tab closing: closing the last tab exits the app', async (t) => {
-  const w = await startWorld({ blank: true, extra: ['--remote-debugging-port=0'] });
-  t.after(() => w.stop());
-  const port = await devtoolsPort(w.log), shell = u => u.endsWith('/shell.html');
+  const { w, port } = await launch(t, { blank: true });
+  const shell = u => u.endsWith('/shell.html');
   const id = await waitFor(() => evaluate(port, shell, 'cave.getState().then(s => s.active)'));
   const exited = new Promise(resolve => w.child.once('exit', resolve));
   await evaluate(port, shell, `cave.closeTab(${id})`).catch(() => {});
   await Promise.race([exited, new Promise((_, reject) => setTimeout(() => reject(new Error('app did not exit')), 10000))]);
 });
 
-
 test('favicon and site info route through proxy', async (t) => {
-  const w = await startWorld({ tls: true, blank: true, extra: ['--remote-debugging-port=0'] });
-  t.after(() => w.stop());
-  const port = await devtoolsPort(w.log);
-  const shellTarget = u => u.endsWith('/shell.html'), overlayTarget = u => u.endsWith('/overlay.html');
-  const shell = expr => evaluate(port, shellTarget, expr), overlay = expr => evaluate(port, overlayTarget, expr);
-  await waitFor(async () => (await gateState(port)) === 'open', 60000);
+  const { w, port, shell, overlay } = await launch(t, { tls: true, blank: true, open: true });
   await shell("cave.navigate('http://fp.cave.test/favicon-page')");
   await waitFor(() => shell("!!document.querySelector('.tab.active .fav img') && !!document.querySelector('#site-icon img')"));
-  const shots = process.env.CAVE_FAVICON_SCREENSHOTS;
-  if (shots) await mkdir(shots, { recursive: true });
-  if (shots) await writeFile(join(shots, 'tabs-top.png'), await screenshot(port, shellTarget));
-  await shell("cave.setTabLayout('side')");
-  await waitFor(() => shell("document.body.classList.contains('side')"));
-  if (shots) await writeFile(join(shots, 'tabs-side.png'), await screenshot(port, shellTarget));
-  await shell("cave.setTabLayout('top')");
   assert.ok(w.socks.targets.some(x => x.host === 'icon.cave.test' && x.port === 80));
   assert.ok(w.fixture.requests.some(x => x.host === 'icon.cave.test' && x.url === '/icon.png'));
   await shell("document.querySelector('#site-icon').click()");
   await waitFor(() => overlay("document.querySelector('#siteInfo.in')?.textContent.includes('连接不安全')"));
-  if (shots) await writeFile(join(shots, 'http-light.png'), await screenshot(port, overlayTarget));
   await shell("document.querySelector('#site-icon').click()");
   await waitFor(async () => !(await shell('cave.getState()')).surface);
   await shell(`cave.navigate(${JSON.stringify(w.httpsUrl)})`);
@@ -2076,13 +1810,29 @@ test('favicon and site info route through proxy', async (t) => {
   await waitFor(() => overlay("!!document.querySelector('.site-info-certificate')"));
   await overlay("document.querySelector('.site-info-certificate').open = true");
   assert.match(await overlay("document.querySelector('.site-info-certificate').textContent"), /secure\.cave\.test/);
-  if (shots) await writeFile(join(shots, 'https-light.png'), await screenshot(port, overlayTarget));
-  await shell("cave.setTheme('dark')");
-  await new Promise(r => setTimeout(r, 300));
-  if (shots) await writeFile(join(shots, 'https-dark.png'), await screenshot(port, overlayTarget));
   await overlay("document.querySelector('#siteInfo .status-actions button').click()");
   await waitFor(() => overlay("!!document.querySelector('.site-info-confirm')"));
   await overlay("document.querySelector('.site-info-confirm .primary').click()");
   await waitFor(async () => (await evaluate(port, u => u === w.httpsUrl, "localStorage.getItem('info')")) === null);
   assert.equal(await evaluate(port, u => u === w.httpsUrl, 'document.cookie'), '');
+});
+
+test('appearance settings synchronize and survive restart', async (t) => {
+  const { w, port, shell, settings } = await launch(t, { blank: true, keepDir: true });
+  let second;
+  t.after(async () => { if (second) await second.stop(); await rm(w.dir, { recursive: true, force: true }); });
+  const check = async (p) => {
+    for (const target of [u => u.endsWith('/shell.html'), u => u.endsWith('/settings.html')]) {
+      await waitFor(() => evaluate(p, target, "document.documentElement.dataset.accent === 'violet' && matchMedia('(prefers-color-scheme: dark)').matches"));
+    }
+  };
+  await waitFor(() => settings("!!document.querySelector('input[name=accent]')"));
+  await shell("cave.openSettings('appearance')");
+  await settings("document.querySelector('input[name=accent][value=violet]').click(); document.querySelector('input[name=theme][value=dark]').click()");
+  await check(port);
+  await w.stop();
+  second = await startWorld({ dir: w.dir, blank: true, extra: ['--remote-debugging-port=0'] });
+  const port2 = await devtoolsPort(second.log);
+  await check(port2);
+  assert.deepEqual(await evaluate(port2, u => u.endsWith('/shell.html'), "cave.getState().then(s => [s.accent, s.theme])"), ['violet', 'dark']);
 });

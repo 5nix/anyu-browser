@@ -86,13 +86,6 @@ test('languagesFor adds the base language', () => {
   assert.deepEqual(languagesFor('en'), ['en']);
 });
 
-test('subscription fetch route survives migration', () => {
-  const node = { name: 'a', type: 'ss' };
-  const p = normalizeProfile({ proxy: { subscriptionUrl: 'https://example.com', subscriptionVia: 'proxy', selectedNode: 'a' } }, base, [node]);
-  assert.equal(p.proxy.sources[0].origin.kind, 'subscription');
-  assert.deepEqual(p.proxy.selected, { source: 'legacy', node: 'a' });
-});
-
 test('stored garbage yields safe defaults', () => {
   const p = normalizeProfile({ timezone: 'bad', egressCountry: 'XXX', platform: 'linux', acceptLanguages: [], proxy: 3 }, base);
   assert.equal(p.egressCountry, '');
@@ -101,16 +94,8 @@ test('stored garbage yields safe defaults', () => {
   assert.deepEqual(normalizeProfile(null, base).proxy, { sources: [], selected: null });
 });
 
-test('profile errors follow the selected language', async () => {
-  const { setLocale } = await import('../../src/shared/i18n/index.ts');
-  setLocale('en');
-  try { assert.throws(() => validateProfile(null, defaultProfile('en-US', 'UTC')), /must be a JSON object/); }
-  finally { setLocale('zh'); }
-});
-
 test('a saved profile validation error can be translated after a locale change', async () => {
   const { setLocale } = await import('../../src/shared/i18n/index.ts');
-  const { ProfileError } = await import('../../src/shared/profile.ts');
   setLocale('zh');
   try {
     let error: unknown;

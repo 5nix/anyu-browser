@@ -2,13 +2,15 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { zh } from '../../src/shared/i18n/zh.ts';
 import { en } from '../../src/shared/i18n/en.ts';
+import { coreZh } from '../../src/shared/i18n/core.zh.ts';
+import { coreEn } from '../../src/shared/i18n/core.en.ts';
 import { setLocale, systemLocale, t } from '../../src/shared/i18n/index.ts';
 
 test('translation dictionaries have matching keys and placeholders', () => {
-  assert.deepEqual(Object.keys(en).sort(), Object.keys(zh).sort());
-  for (const key of Object.keys(zh) as (keyof typeof zh)[]) {
-    const params = (s: string) => [...s.matchAll(/\{([^{}]+)\}/g)].map(m => m[1]).sort();
-    assert.deepEqual(params(en[key]), params(zh[key]), key);
+  const params = (s: string) => [...s.matchAll(/\{([^{}]+)\}/g)].map(m => m[1]).sort();
+  for (const [a, b] of [[en, zh], [coreEn, coreZh]] as const) {
+    assert.deepEqual(Object.keys(a).sort(), Object.keys(b).sort());
+    for (const key of Object.keys(b)) assert.deepEqual(params(a[key as keyof typeof a]), params(b[key as keyof typeof b]), key);
   }
 });
 test('locale selection and interpolation', () => {
@@ -18,16 +20,6 @@ test('locale selection and interpolation', () => {
   setLocale('en'); assert.equal(t('clearSiteTitle', { host: 'example.com' }), 'Clear site data for example.com?');
   assert.equal(t('clearSiteTitle'), 'Clear site data for {host}?');
   setLocale('zh');
-});
-
-test('core translations have matching keys and placeholders', async () => {
-  const { coreZh } = await import('../../src/shared/i18n/core.zh.ts');
-  const { coreEn } = await import('../../src/shared/i18n/core.en.ts');
-  assert.deepEqual(Object.keys(coreEn).sort(), Object.keys(coreZh).sort());
-  for (const key of Object.keys(coreZh) as (keyof typeof coreZh)[]) {
-    const params = (s: string) => [...s.matchAll(/\{([^{}]+)\}/g)].map(m => m[1]).sort();
-    assert.deepEqual(params(coreEn[key]), params(coreZh[key]), key);
-  }
 });
 
 test('gate view follows locale changes without changing its facts', async () => {

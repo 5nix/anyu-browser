@@ -101,6 +101,7 @@ export class ShellWindow implements TabHost {
   private lastWeb: number | null = null;
   /** Which of the window's pages has the keyboard. */
   private focus: ShellState['focus'] = 'chrome';
+  private settingsSection: SettingsSection = 'overview';
   private closingPermission = false;
   private permissionQueue = new PermissionQueue<Prompt, boolean | AuthCredentials>();
   private get permission() { const p = this.permissionQueue.head; return p?.kind === 'permission' ? p : null; }
@@ -121,6 +122,7 @@ export class ShellWindow implements TabHost {
       minWidth: 720,
       minHeight: 480,
       title: 'Anyu',
+      icon: join(host.rendererDir, 'app-icon.png'),
       backgroundColor: t.frame,
       show: false,
       // Off-screen keeps a test window off the desktop on macOS, which still draws it; elsewhere
@@ -140,8 +142,14 @@ export class ShellWindow implements TabHost {
     this.recovery.webContents.on('focus', () => this.focused());
     this.recovery.webContents.on('before-mouse-event', (_event, mouse) => { if (mouse.type === 'mouseDown') { this.outsidePress(); this.focused(); } });
     this.overlay.setBackgroundColor('#00000000');
-    this.shadow = new BrowserWindow({ parent: this.win, show: false, frame: false, transparent: true, hasShadow: false, focusable: false, resizable: false, movable: false, minimizable: false, maximizable: false, fullscreenable: false, skipTaskbar: true, roundedCorners: false, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false } });
+    this.shadow = new BrowserWindow({ parent: this.win, show: false, ...(process.platform === 'win32' ? { width: 1, height: 1 } : {}), backgroundColor: '#00000000', frame: false, transparent: true, hasShadow: false, focusable: false, resizable: false, movable: false, minimizable: false, maximizable: false, fullscreenable: false, skipTaskbar: true, roundedCorners: false, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false } });
     this.shadow.setIgnoreMouseEvents(true);
+    if (process.platform === 'win32') this.shadow.webContents.once('did-finish-load', () => {
+      // Show a transparent, click-through 1px window once. Showing it for each menu
+      // would add Windows' own entrance animation to our instant card appearance.
+      const show = () => { if (this.alive && !this.shadow.isDestroyed()) this.shadow.showInactive(); };
+      if (this.win.isVisible()) show(); else this.win.once('show', show);
+    });
     this.shadow.webContents.on('will-navigate', (e) => e.preventDefault());
     this.shadow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
     void this.shadow.loadFile(join(host.rendererDir, 'shadow.html'));
@@ -228,6 +236,7 @@ export class ShellWindow implements TabHost {
       recovery: this.recoveryState,
       active: this.active,
       zoom: this.zoomValue,
+      settingsSection: this.settingsSection,
       zoomError: this.zoomError,
       site: web ? originOf(web.wc.getURL()) : '',
       tabLayout: this.host.tabLayout(),
@@ -723,6 +732,7 @@ export class ShellWindow implements TabHost {
 
   /** Brings up the one settings tab, opening it next to the active tab if it is not open yet. */
   openSettings(section?: SettingsSection): void {
+    if (section) this.settingsSection = section;
     if (!this.tabs.includes(this.settingsTab)) {
       const i = this.tabs.findIndex((t) => t.id === this.active);
       this.tabs.splice(i + 1, 0, this.settingsTab);
@@ -1026,8 +1036,15 @@ export class ShellWindow implements TabHost {
     if (!card) {
       if (!was) return;
       void this.shadow.webContents.executeJavaScript("document.body.classList.remove('in')").catch(() => undefined);
-      // The window stays until the fade in shadow.css has finished.
-      this.shadowHide = setTimeout(() => { this.shadowHide = null; if (!this.shadow.isDestroyed()) this.shadow.hide(); }, 160);
+      // Keep the Windows window shown but empty after the CSS fade; reopening only
+      // changes its bounds and pixels, so the OS cannot animate a new window.
+      this.shadowHide = setTimeout(() => {
+        this.shadowHide = null;
+        if (!this.shadow.isDestroyed()) {
+          if (process.platform === 'win32') this.shadow.setBounds({ width: 1, height: 1 });
+          else this.shadow.hide();
+        }
+      }, 160);
       return;
     }
     if (this.shadowHide) { clearTimeout(this.shadowHide); this.shadowHide = null; }
@@ -1035,7 +1052,7 @@ export class ShellWindow implements TabHost {
     const content = this.win.getContentBounds();
     this.shadow.setBounds({ x: content.x + card.x - 64, y: content.y + card.y - 64, width: card.width + 128, height: card.height + 128 });
     if (was) return;
-    this.shadow.showInactive();
+    if (process.platform !== 'win32') this.shadow.showInactive();
     void this.shadow.webContents.executeJavaScript("document.body.classList.add('in')").catch(() => undefined);
   }
 

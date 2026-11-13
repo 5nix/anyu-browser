@@ -88,6 +88,7 @@ export interface ShellState {
   contextMenu: { token: string; items: MenuEntry[] } | null;
   /** Which of the window's pages has the keyboard: the chrome, the page in front, or the overlay. */
   focus: 'chrome' | 'page' | 'overlay';
+  settingsSection: SettingsSection;
 }
 
 export interface PermissionEntry { origin: string; permission: Permission; decision: 'allow' | 'deny' }

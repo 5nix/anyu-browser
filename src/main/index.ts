@@ -489,6 +489,8 @@ async function start(): Promise<void> {
   if (startup.action === 'restore') browser.restore(startup.snapshot);
   else {
     const win = browser.newWindow(process.argv.find((a) => /^https?:\/\//.test(a)));
+    // A new environment has no route to enable yet: start at the node import screen.
+    if (!profile().proxy.sources.some(source => source.nodes.length > 0)) win.openSettings('nodes');
     if (startup.action === 'offer') browser.offerSession(startup.snapshot, win);
   }
   await gate.start();

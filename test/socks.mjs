@@ -26,6 +26,9 @@ export function startSocks({ map = () => null } = {}) {
           client.write(Buffer.from([5, 0, 0, 1, 127, 0, 0, 1, 0, 0]));
           client.pipe(upstream).pipe(client);
         });
+        sockets.add(upstream);
+        upstream.on('close', () => { sockets.delete(upstream); client.destroy(); });
+        client.on('close', () => upstream.destroy());
         upstream.on('error', () => client.destroy());
       });
     });

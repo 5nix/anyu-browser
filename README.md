@@ -89,6 +89,8 @@ npm start
 - `geolocation` 只是你配置的一个值。Anyu 从不探测真实位置；没有配置时，定位请求直接被拒绝。
 - 摄像头、麦克风、USB/HID/串口/蓝牙、后台读剪贴板、本地字体访问等权限一律拒绝。
 - 修改时区、语言、地理坐标、平台或通知以后，要重启 Anyu 才会生效，设置页顶部会给出提示。
+
+宿主 TUN 开启 TLS 嗅探并覆盖目标地址时，要避免把代理节点本身的连接当成网页连接改写。例如 Reality 节点的 `server` 是节点 IP，`servername` 是伪装网站；外层 TUN 如果用伪装 SNI 替换节点 IP，内层 Reality 握手就无法到达节点。此时应在**宿主代理客户端**中对节点目标 IP 设置嗅探排除（mihomo 的 `sniffer.skip-dst-address`），并通过宿主支持的配置覆盖机制持久保存。它只保留节点连接的原目标，不是 DIRECT 规则；流量仍可由宿主 TUN 的原有规则和代理节点转发。Anyu 的出口核对仍需通过才放行。不要通过关闭出口核对或自动直连解决这一冲突。
 - 目录里另外几项：`browser/` 是 Chromium 的用户数据（Cookie、历史等）；`subscription.yaml` 是导入的节点；`runtime.yaml` 是每次生成的内核配置；`logs/core.log` 是内核日志；`downloads/` 是下载目录。
 
 ### platform

@@ -14,6 +14,7 @@ import { devtoolsPort, evaluate, waitFor, screenshot } from './cdp.mjs';
 const execFile = promisify(callbackExecFile);
 const shell = u => u.endsWith('/shell.html');
 const settings = u => u.endsWith('/settings.html');
+const welcome = u => u.endsWith('/welcome.html');
 const artifacts = process.env.CAVE_WINDOWS_ARTIFACTS;
 async function debuggingArgs() {
   // Port zero makes Chromium expose navigator.webdriver=true. Use a reserved nonzero port.
@@ -40,10 +41,14 @@ test('Windows: fresh profile blocks navigation before any node is imported', { s
   const port = await devtoolsPort(w.log);
   const state = await waitFor(async () => { const s = await evaluate(port, shell, 'cave.getState()'); return s.gate.state === 'closed' && s; });
   assert.equal(state.gate.state, 'closed');
-  assert.equal(state.tabs.find(tab => tab.id === state.active)?.kind, 'settings');
+  assert.equal(state.setup.step, 'welcome');
+  assert.equal(state.setup.pending, true);
   await evaluate(port, shell, "cave.setLocale('zh')");
-  await save('fresh-settings.txt', await evaluate(port, settings, 'document.body.innerText'));
-  await waitFor(() => evaluate(port, settings, '!!document.querySelector("[data-section=nodes]:not([hidden])")'));
+  await waitFor(() => evaluate(port, welcome, "document.visibilityState === 'visible' && document.documentElement.lang === 'zh-CN' && document.querySelector('.setup')?.dataset.step === 'welcome' && (el => !!el && !el.disabled)(document.querySelector('#later'))"));
+  await save('fresh-welcome.txt', await evaluate(port, welcome, 'document.body.innerText'));
+  await evaluate(port, welcome, "document.querySelector('#later').click()");
+  await waitFor(async () => (await evaluate(port, shell, 'cave.getState()')).setup.step === 'normal');
+  await waitFor(() => evaluate(port, shell, "document.visibilityState === 'visible'"));
   assert.equal((await evaluate(port, settings, 'cave.panelData()')).profile.connectionMode, 'system');
   await evaluate(port, shell, "cave.navigate('https://example.com')");
   await waitFor(() => evaluate(port, u => u.endsWith('/overlay.html'), 'document.body.innerText.includes("example.com")'));

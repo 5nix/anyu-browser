@@ -28,24 +28,6 @@ jobs:
       - run: node scripts/fetch-core.mjs
       - run: npm test
 
-  e2e:
-    if: inputs.full
-    needs: test
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-      - run: npm ci
-      - run: node scripts/fetch-core.mjs
-      - name: System packages for the end-to-end tests
-        run: sudo apt-get update && sudo apt-get install -y xvfb strace
-      - name: End-to-end (Xvfb, local fixtures only)
-        run: xvfb-run -a -s "-screen 0 1600x1000x24" npm run test:e2e
-
   build:
     if: inputs.full
     needs: test

@@ -24,7 +24,6 @@ npm start                        # 编译并启动 Electron 应用
 
 ```bash
 npm test                         # TypeScript 类型检查与单元测试（profile、内核配置、订阅、闸门、UA/UA-CH、地址栏等）
-npm run test:e2e                 # Linux + Xvfb：真实窗口、本地 SOCKS 节点与本地测试页；需要 strace
 npm run dist                     # 在当前平台生成安装包（需先运行 scripts/fetch-core.mjs）
 ```
 

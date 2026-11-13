@@ -8,9 +8,22 @@ that would take the mouse, the keyboard focus or the frontmost window, or could 
 dialog or a stray window behind, is not run at all: skip it, say so in your report, and
 let the owner decide. A verified result never justifies an interruption.
 
+## Launching the app is the exception
+
+**The end-to-end tests are archived in `test/archive/e2e/` and are not part of any routine
+run.** Even in background mode their windows flash on the owner's screen. The default
+verification is `npm test` (typecheck and unit tests, no window) and `npm run build`.
+
+When a change touches one specific behaviour that an archived test covers and that cannot
+be judged from the code, run that one test in place, once:
+`node --test --test-name-pattern="<title>" test/archive/e2e/<file>`. Not the whole file,
+not after every merge, never for UI appearance. Do not write new e2e tests and do not move
+the archive back. Say in your report what you ran and what was left unverified. The rules
+below apply to any such launch.
+
 ## Running the app in tests
 
-1. **Launch Cave only through `startWorld()` in `test/e2e/harness.mjs`.** It sets
+1. **Launch Cave only through `startWorld()` in `test/archive/e2e/harness.mjs`.** It sets
    `CAVE_E2E_BACKGROUND=1`: windows open inactive (`showInactive`) and request an off-screen
    position; macOS may clamp that position onto a display. Window activation and window
    `focus()` calls are suppressed, while WebContents focus still routes input between views.
@@ -19,7 +32,7 @@ let the owner decide. A verified result never justifies an interruption.
 2. **Never pass `foreground: true`** and never bring a window to the front (`osascript
    activate`, `open -a`, `win.focus()`, `app.focus()`) unless the owner has agreed in this
    conversation.
-3. **All input is synthetic**: CDP `Input.dispatch*` (helpers in `test/e2e/cdp.mjs`) or
+3. **All input is synthetic**: CDP `Input.dispatch*` (helpers in `test/archive/e2e/cdp.mjs`) or
    `webContents.sendInputEvent`. Never use the real pointer or keyboard: no `cliclick`,
    `osascript` / System Events clicks or keystrokes, CGEvent, or computer-use tools.
 4. **Screenshots come from CDP** (`screenshot()` in `cdp.mjs`), not from `screencapture`
@@ -77,7 +90,7 @@ let the owner decide. A verified result never justifies an interruption.
 13. The toolbar button toggle (open on first click, close on second, repeated clicks) is
     settled. Do not write or run repeated-click, rapid-click or stress loops against any
     button or menu, and do not "re-verify" it when working on something else. The single
-    open/close check in `test/e2e/app.test.mjs` is the whole coverage it gets.
+    open/close check in `test/archive/e2e/app.test.mjs` is the whole coverage it gets.
 
 ## Correct by construction first
 

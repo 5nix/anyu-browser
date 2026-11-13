@@ -11,11 +11,11 @@ import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
-import { startFixtureServer } from '../server.mjs';
-import { startSocks } from '../socks.mjs';
+import { startFixtureServer } from '../../server.mjs';
+import { startSocks } from '../../socks.mjs';
 import { devtoolsPort, evaluate, gateState, waitFor } from './cdp.mjs';
 
-const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const execFile = promisify(execFileCallback);
 export const electronBinary = process.env.CAVE_ELECTRON || createRequire(import.meta.url)('electron');
 

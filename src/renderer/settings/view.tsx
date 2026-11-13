@@ -36,7 +36,7 @@ function OverviewSection({ active, state, data, act, confirm, checks, runChecks,
   const groups = [
     { name: t('set.conditions.network'), ids: [1, 2, 6, 10, 11], icon: 'network' },
     { name: t('set.conditions.leaks'), ids: [3, 7, 8, 9], icon: 'shield' },
-    { name: t('set.conditions.identity'), ids: [4, 5, 12, 13], icon: 'fingerprint' },
+    { name: t('set.conditions.identity'), ids: [4, 5, 12, 13, 14], icon: 'fingerprint' },
   ];
   // Option B's fix for a wrong exit: nodes already seen exiting in the right country, or changing the profile to the country observed.
   const exitFix = () => {

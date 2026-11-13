@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { allowPermission, applyPermissions } from '../../src/main/permissions.ts';
+import { PermissionQueue } from '../../src/main/permission-queue.ts';
+import { trustworthyPermissionOrigin } from '../../src/main/shell/permission-origin.ts';
 import { defaultProfile } from '../../src/shared/profile.ts';
 
 test('legacy permission ceilings and device denial remain in force', () => {
@@ -20,4 +22,28 @@ test('legacy permission ceilings and device denial remain in force', () => {
   assert.equal(decide('notifications'), true);
   assert.equal(prompts, 1);
   assert.equal(device(), false);
+});
+
+test('permission origins allow HTTPS and HTTP loopback only', () => {
+  for (const origin of ['https://example.com', 'http://localhost:1234', 'http://127.0.0.1:1234', 'http://[::1]:1234']) assert.equal(trustworthyPermissionOrigin(new URL(origin)), true, origin);
+  for (const origin of ['http://example.com', 'http://localhost.example.com', 'http://192.168.1.1', 'https://user:pass@example.com']) assert.equal(trustworthyPermissionOrigin(new URL(origin)), false, origin);
+});
+
+test('permission queue is FIFO, merges duplicates and drops a tab', () => {
+  const queue = new PermissionQueue<{ wc: object; key: string }>();
+  const a = {}, b = {}, results: string[] = [];
+  const first = { wc: a, key: 'camera' }, duplicate = { wc: a, key: 'camera' }, second = { wc: a, key: 'location' }, third = { wc: b, key: 'camera' };
+  assert.equal(queue.enqueue(first, v => results.push(`first:${v}`)), true);
+  assert.equal(queue.enqueue(duplicate, v => results.push(`duplicate:${v}`)), false);
+  queue.enqueue(second, v => results.push(`second:${v}`));
+  queue.enqueue(third, v => results.push(`third:${v}`));
+  assert.equal(queue.head, first);
+  queue.finish(first, true);
+  queue.finish(first, false);
+  assert.equal(queue.head, second);
+  queue.removeTab(a);
+  assert.equal(queue.head, third);
+  queue.clear();
+  assert.equal(queue.head, null);
+  assert.deepEqual(results, ['first:true', 'duplicate:true', 'second:false', 'third:false']);
 });

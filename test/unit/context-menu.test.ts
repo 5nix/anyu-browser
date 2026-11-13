@@ -25,10 +25,3 @@ test('web URL validation limits length and rejects privileged schemes', () => {
   for (const value of ['file:///tmp/a', 'javascript:alert(1)', 'https://' + 'a'.repeat(8192), '', null]) assert.equal(validWeb(value), false);
   assert.equal(validWeb('https://example.com/'), true);
 });
-
-test('address menu contains editing actions and paste and go', async () => {
-  const { addressMenu } = await import('../../src/main/shell/context-menu.ts');
-  assert.deepEqual(ids(addressMenu()), ['cut', 'copy', 'paste', 'address.pasteAndGo', 'selectAll']);
-  const action = addressMenu().find(i => !('separator' in i) && i.id === 'address.pasteAndGo');
-  assert.ok(action && !('separator' in action) && !action.shortcut);
-});

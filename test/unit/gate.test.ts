@@ -77,6 +77,8 @@ test('only a pause reads as paused, whatever a closed reason says', () => {
 });
 
 test('parseTrace reads ip and loc', () => {
-  assert.deepEqual(parseTrace('fl=1\nip=203.0.113.7\nts=1\nloc=qm\n'), { ip: '203.0.113.7', country: 'QM' });
-  assert.deepEqual(parseTrace('garbage'), { ip: '', country: '' });
+  assert.deepEqual(parseTrace('fl=1\nip=203.0.113.7\nts=1\nloc=qm\n'), { ip: '203.0.113.7', country: 'QM', colo: '' });
+  assert.deepEqual(parseTrace('garbage'), { ip: '', country: '', colo: '' });
+  assert.equal(parseTrace('colo=nrt\n').colo, 'NRT');
+  assert.equal(parseTrace('colo=NRT1\n').colo, '');
 });

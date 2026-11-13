@@ -197,6 +197,8 @@ export interface CaveCalls {
   setSetup(choices: Partial<SetupChoices>): void;
   /** Leaves "set up later" and shows setup at the derived step. */
   continueSetup(): void;
+  /** Resets setup completion flags without deleting profile data or changing the gate. */
+  restartSetup(): void;
   /** Whether something accepts connections at the configured local proxy port (loopback only). */
   localPortOpen(): boolean;
 }
@@ -224,7 +226,7 @@ export const CALLS: Record<keyof CaveCalls, true> = {
 
   siteInfo: true, removePermission: true, panelData: true, updateProfile: true, importSubscriptionFile: true, importSubscriptionText: true, addSubscription: true, updateSource: true, updateSourceFile: true, updateSourceText: true, renameSource: true, removeSource: true,
   selectNode: true, testDelays: true, measureExit: true, pause: true, resume: true, restartAndCheck: true, runChecks: true, copyReport: true,
-  clearSite: true, resetEnvironment: true, revealProfile: true, restart: true, setSetup: true, continueSetup: true, localPortOpen: true,
+  clearSite: true, resetEnvironment: true, revealProfile: true, restart: true, setSetup: true, continueSetup: true, restartSetup: true, localPortOpen: true,
 };
 export const EVENTS: Record<keyof CaveEvents, true> = { state: true, addressResults: true, found: true, resetFind: true, focusAddress: true, cancelAddressEdit: true, openFind: true, section: true, shortcutAction: true };
 

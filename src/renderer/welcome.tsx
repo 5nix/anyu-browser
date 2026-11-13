@@ -53,8 +53,13 @@ function Welcome() {
   const [data, setData] = useState<PanelData | null>(null);
   const refresh = () => cave.panelData().then(setData, () => {});
   useEffect(() => { if (state) void refresh(); }, [state]);
+  const run = useRef(0);
+  const prevStep = useRef<SetupStep | null>(null);
+  const step = state?.setup.step ?? null;
+  if (step && step !== 'normal' && prevStep.current === 'normal') run.current++;
+  if (step) prevStep.current = step;
   if (!state || !data) return null;
-  return <Setup state={state} data={data} refresh={refresh} />;
+  return <Setup key={run.current} state={state} data={data} refresh={refresh} />;
 }
 
 function Setup({ state, data, refresh }: { state: ShellState; data: PanelData; refresh: () => Promise<void> }) {
@@ -103,6 +108,16 @@ function Setup({ state, data, refresh }: { state: ShellState; data: PanelData; r
   const [now, setNow] = useState(Date.now());
   const [checkStarted, setCheckStarted] = useState<number | null>(null);
   const [portOpen, setPortOpen] = useState<{ reason: string; open: boolean } | null>(null);
+
+  useEffect(() => {
+    if (step !== 'welcome') return;
+    setPath(external ? 'external' : 'source');
+    setCountry(profile.egressCountry);
+    setExt({ ...profile.externalProxy, port: profile.externalProxy.port ? String(profile.externalProxy.port) : '' });
+    setTheme(state.theme);
+    setTabs(state.tabLayout);
+    setSearch(state.searchEngine);
+  }, [step, external, profile, state.theme, state.tabLayout, state.searchEngine]);
 
   const act = async (key: string, fn: () => Promise<unknown>) => {
     setBusy(key); setNotice(null);
@@ -170,7 +185,16 @@ function Setup({ state, data, refresh }: { state: ShellState; data: PanelData; r
 
   // ---- actions ----
   const later = () => act('later', () => cave.setSetup({ dismissed: true }));
-  const start = () => act('start', async () => { if (!profile.setup.started) await cave.setSetup({ started: true }); hold(null); });
+  const start = () => act('start', async () => { if (!profile.setup.started) await cave.setSetup({ started: true }); setConnect('path'); hold('connect'); });
+  const keepSource = () => act('keep-source', async () => {
+    if (external) await cave.updateProfile({ connectionMode: 'system' });
+    if (!selected) {
+      const targetSource = source ?? sources[0];
+      const first = targetSource?.nodes[0];
+      if (targetSource && first) await cave.selectNode(targetSource.id, String(first.name));
+    }
+    hold('node');
+  });
   const importSource = () => {
     const before = new Set(sources.map(s => s.id));
     const run = tab === 'url' ? () => cave.addSubscription(url.trim(), 'direct') : tab === 'paste' ? () => cave.importSubscriptionText(paste) : () => cave.importSubscriptionFile();
@@ -187,7 +211,7 @@ function Setup({ state, data, refresh }: { state: ShellState; data: PanelData; r
       if (next.profile.connectionMode === 'external') await cave.updateProfile({ connectionMode: 'system' });
       const first = added.nodes[0];
       if (first) await cave.selectNode(added.id, String(first.name));
-      hold(null);
+      hold('node');
     }, (err) => {
       const text = message(err), code = /HTTP (\d{3})/.exec(text)?.[1];
       setFetching({ status: 'error', kind: code ? 'status' : EMPTY.some(e => text.startsWith(e)) ? 'empty' : 'other', code, message: text, tab });
@@ -195,7 +219,7 @@ function Setup({ state, data, refresh }: { state: ShellState; data: PanelData; r
   };
   const savePort = () => act('port', async () => {
     await cave.updateProfile({ connectionMode: 'external', externalProxy: { protocol: ext.protocol === 'http' ? 'http' : 'socks5', host: ext.host.trim(), port: Number(ext.port), username: ext.username, password: ext.password } });
-    hold(null);
+    hold('node');
   });
   const selectNode = (n: NodeRow) => { if (!isSelected(n)) void act('select', () => cave.selectNode(n.source, n.name)); };
   const checkExit = () => act('check', async () => {
@@ -265,6 +289,7 @@ function Setup({ state, data, refresh }: { state: ShellState; data: PanelData; r
         {fetching.status === 'error' && fetching.kind === 'empty' && <Fix kind="warn" icon="triangle-alert" title={t(fetching.tab === 'url' ? 'welcome.source.emptyUrl' : 'welcome.source.emptyText')} detail={t(fetching.tab === 'url' ? 'welcome.source.emptyUrlHint' : 'welcome.source.emptyTextHint')} />}
         {fetching.status === 'error' && fetching.kind === 'other' && <Fix kind="bad" icon="circle-x" title={fetching.tab === 'url' ? t('welcome.source.failed', { host: hostOf(url.trim()) }) : fetching.message} detail={fetching.tab === 'url' ? fetching.message : undefined}><button class="btn primary" onClick={importSource}>{t('welcome.retry')}</button></Fix>}
       </>;
+      if (sources.length > 0) secondary = <button id="keep-source" class="btn quiet" disabled={busy !== null} onClick={keepSource}>{t('welcome.source.keep')}</button>;
       primaryButton = P(tab === 'url' ? t('welcome.source.fetch') : tab === 'file' ? t('welcome.source.choose') : t('welcome.source.import'), importSource, ready, 'import');
       break;
     }

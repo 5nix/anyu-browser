@@ -31,6 +31,7 @@ export const welcomeZh = {
   'welcome.source.pasteLabel': 'Clash 配置内容',
   'welcome.source.fetch': '获取节点',
   'welcome.source.import': '导入',
+  'welcome.source.keep': '保留现有节点',
   'welcome.source.loading': '正在从 {host} 获取 · {s} 秒',
   'welcome.source.status': '{host} 返回 {status}，没能获取',
   'welcome.source.statusHint': '到订阅服务商那里重新复制链接。',

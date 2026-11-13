@@ -471,6 +471,12 @@ async function start(): Promise<void> {
       if (profile().setup.finished || store.error) return;
       await store.update({ setup: { ...profile().setup, dismissed: false } });
     },
+    restartSetup: async () => {
+      if (store.error) return;
+      await store.update({
+        setup: { started: false, identityHandled: false, personaliseHandled: false, dismissed: false, finished: false },
+      });
+    },
     localPortOpen: () => profile().connectionMode === 'external' ? localPortOpen(profile().externalProxy) : false,
   });
   // What setup may change in the profile: the connection, the exit country and the identity.
@@ -500,6 +506,7 @@ async function start(): Promise<void> {
         if (name === 'addSubscription' && (args[1] !== 'direct' || gate.open)) throw new Error('forbidden');
       }
       if ((name === 'setSetup' || name === 'localPortOpen') && e.sender !== win.welcome.webContents) throw new Error('forbidden');
+      if (name === 'restartSetup' && e.sender !== win.settings.webContents) throw new Error('forbidden');
       if (name === 'continueSetup' && e.sender !== win.overlay.webContents && !win.isActiveHome(e.sender)) throw new Error('forbidden');
       if (name === 'importBookmarks' && e.sender !== win.bookmarks.webContents && e.sender !== win.welcome.webContents) return;
       if (['bookmarkChildren', 'bookmarkMove'].includes(name) && e.sender !== win.chrome.webContents && e.sender !== win.bookmarks.webContents) return;

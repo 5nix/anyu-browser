@@ -53,6 +53,11 @@ function OverviewSection({ active, state, data, act, confirm, checks, runChecks,
   return <section data-section="overview" class="entering" hidden={!active}>
     <h2>{t('set.overview.title')}</h2>
     <GateSummary st={st} title={title} reason={state.gate.reason} titleId="gate-title" reasonId="gate-reason" busy={busy.has('pause')} onToggle={() => act(() => st === 'paused' ? cave.resume() : cave.pause(), 'pause')} />
+    <div class="setup-row">
+      <Icon name="list-checks" />
+      <div class="label"><b>{t('set.overview.setupTitle')}</b><small>{t('set.overview.setupHint')}</small></div>
+      <button id="restart-setup" class="btn primary" disabled={busy.has('restart-setup') || !!data.profileError} onClick={() => act(() => cave.restartSetup(), 'restart-setup')}>{t('set.overview.setupButton')}</button>
+    </div>
     <div class="group"><div class="check-heading"><h3>{t('set.conditions.title')}</h3><button id="restart" disabled={busy.has('restart') || st === 'paused'} onClick={() => act(() => cave.restartAndCheck(), 'restart')}>{t('set.overview.recheck')}</button></div>
       <ConditionList st={st} rows={rows} />
       {failed.length > 0 && (mismatch ? exitFix() : <div class="condition-fix" id="condition-fix"><p>{state.gate.reason}</p>{fixes.map((fix, i) => <button class={i === 0 ? 'btn primary' : 'btn'} disabled={fix.key === 'recheck' && busy.has('restart')} onClick={fix.run}>{fix.label}</button>)}</div>)}

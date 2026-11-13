@@ -32,6 +32,7 @@ export const welcomeEn: Record<keyof typeof welcomeZh, string> = {
   'welcome.source.pasteLabel': 'Clash configuration',
   'welcome.source.fetch': 'Get nodes',
   'welcome.source.import': 'Import',
+  'welcome.source.keep': 'Keep current nodes',
   'welcome.source.loading': 'Fetching from {host} · {s} s',
   'welcome.source.status': '{host} returned {status}; nothing was fetched',
   'welcome.source.statusHint': 'Copy the link again from your subscription provider.',

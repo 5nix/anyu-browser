@@ -196,3 +196,7 @@ input.num { width: 96px; }
 .info-tip:hover .info-pop, .info-tip:focus-visible .info-pop { display: block; }
 .monitor-row { display: flex; align-items: center; gap: 8px; }
 .monitor-row input { flex: 1; width: 100%; }
+.setup-row { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: var(--r-card); background: var(--sunken); }
+.setup-row > svg.icon { color: var(--text-2); flex: none; }
+.setup-row .label b { font-weight: var(--fw-title); }
+.setup-row .btn { flex: none; }

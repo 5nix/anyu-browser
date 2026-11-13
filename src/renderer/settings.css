@@ -220,6 +220,9 @@ input.num { width: 96px; }
 .source-card + .source-card, .source-editor + .source-card { margin-top: 12px; }
 .source-card .source-name { width: 100%; min-width: 0; }
 .nodes.compact .delay { width: auto; min-width: 48px; }
-.conn-detail { margin: 0; padding: 0 0 12px; color: var(--text-2); line-height: 1.5; }
+.info-tip { position: relative; display: inline-flex; flex: none; color: var(--text-2); cursor: help; }
+.info-tip svg.icon { width: 16px; height: 16px; }
+.info-pop { display: none; position: absolute; right: 0; top: calc(100% + 6px); z-index: 5; width: 320px; padding: 10px 12px; border-radius: var(--r-pop); background: var(--bg); box-shadow: var(--shadow-pop); color: var(--text-2); font-size: var(--fs-sm); line-height: 1.55; white-space: normal; }
+.info-tip:hover .info-pop, .info-tip:focus-visible .info-pop { display: block; }
 .monitor-row { display: flex; align-items: center; gap: 8px; }
 .monitor-row input { flex: 1; width: 100%; }

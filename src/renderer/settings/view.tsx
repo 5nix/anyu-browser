@@ -76,9 +76,7 @@ function NodesSection({ active, state, data, act, confirm, busy }: Props) {
   const [ext, setExt] = useState(() => ({ ...data.profile.externalProxy, protocol: data.profile.externalProxy.protocol as string, port: data.profile.externalProxy.port ? String(data.profile.externalProxy.port) : '' }));
   const setExtField = (key: string, value: string) => setExt(prev => ({ ...prev, [key]: value }));
   const [monitors, setMonitors] = useState<string[]>(() => data.profile.monitorUrls.length ? [...data.profile.monitorUrls] : ['']);
-  const [info, setInfo] = useState<string | null>(null);
-  const toggleInfo = (key: string) => setInfo(prev => prev === key ? null : key);
-  const infoBtn = (key: string) => <button type="button" class="icon-btn sm" aria-label={t('set.nodes.details')} aria-expanded={info === key} onClick={e => { e.preventDefault(); e.stopPropagation(); toggleInfo(key); }}><Icon name="info" /></button>;
+  const infoTip = (detail: string) => <span class="info-tip" tabIndex={0} aria-label={t('set.nodes.details')} onClick={e => { e.preventDefault(); e.stopPropagation(); }}><Icon name="info" /><span class="info-pop">{detail}</span></span>;
   const connRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (connRef.current?.contains(document.activeElement)) return;
@@ -106,12 +104,9 @@ function NodesSection({ active, state, data, act, confirm, busy }: Props) {
     <h2>{t('set.nodes.title')}</h2>
     <div class="group"><h3>{t('set.nodes.connection')}</h3>
     <div class="card" ref={connRef}>
-      <label class="row"><div class="label"><b>{t('set.nodes.modeSystem')}</b><small>{t('set.nodes.modeSystemHint')}</small></div>{infoBtn('system')}<input type="radio" name="connection-mode" checked={mode === 'system'} disabled={busy.has('connection')} onChange={() => act(() => cave.updateProfile({ connectionMode: 'system' }), 'connection')} /></label>
-      {info === 'system' && <p class="conn-detail"><small>{t('set.nodes.modeSystemDetail')}</small></p>}
-      <label class="row"><div class="label"><b>{t('set.nodes.modeIndependent')}</b><small>{t('set.nodes.modeIndependentHint')}</small></div>{infoBtn('independent')}<input type="radio" name="connection-mode" checked={mode === 'independent'} disabled={busy.has('connection') || cave.platform !== 'win32'} onChange={() => act(() => cave.updateProfile({ connectionMode: 'independent' }), 'connection')} /></label>
-      {info === 'independent' && <p class="conn-detail"><small>{t('set.nodes.modeIndependentDetail')}</small></p>}
-      <label class="row"><div class="label"><b>{t('set.nodes.modeExternal')}</b><small>{t('set.nodes.modeExternalHint')}</small></div>{infoBtn('external')}<input type="radio" name="connection-mode" checked={mode === 'external'} disabled={busy.has('connection')} onChange={() => act(() => cave.updateProfile({ connectionMode: 'external' }), 'connection')} /></label>
-      {info === 'external' && <p class="conn-detail"><small>{t('set.nodes.modeExternalDetail')}</small></p>}
+      <label class="row"><div class="label"><b>{t('set.nodes.modeSystem')}</b><small>{t('set.nodes.modeSystemHint')}</small></div>{infoTip(t('set.nodes.modeSystemDetail'))}<input type="radio" name="connection-mode" checked={mode === 'system'} disabled={busy.has('connection')} onChange={() => act(() => cave.updateProfile({ connectionMode: 'system' }), 'connection')} /></label>
+      <label class="row"><div class="label"><b>{t('set.nodes.modeIndependent')}</b><small>{t('set.nodes.modeIndependentHint')}</small></div>{infoTip(t('set.nodes.modeIndependentDetail'))}<input type="radio" name="connection-mode" checked={mode === 'independent'} disabled={busy.has('connection') || cave.platform !== 'win32'} onChange={() => act(() => cave.updateProfile({ connectionMode: 'independent' }), 'connection')} /></label>
+      <label class="row"><div class="label"><b>{t('set.nodes.modeExternal')}</b><small>{t('set.nodes.modeExternalHint')}</small></div>{infoTip(t('set.nodes.modeExternalDetail'))}<input type="radio" name="connection-mode" checked={mode === 'external'} disabled={busy.has('connection')} onChange={() => act(() => cave.updateProfile({ connectionMode: 'external' }), 'connection')} /></label>
       {mode === 'external' && <div class="source-editor">
         <p><small>{t('set.nodes.externalActive')}</small></p>
         <label class="editor-field"><span>{t('set.nodes.extProtocol')}</span><select id="ext-protocol" value={ext.protocol} onChange={e => setExtField('protocol', e.currentTarget.value)}><option value="socks5">SOCKS5</option><option value="http">HTTP</option></select></label>
@@ -122,8 +117,7 @@ function NodesSection({ active, state, data, act, confirm, busy }: Props) {
         <div class="editor-actions"><button id="save-connection" class="btn primary" disabled={busy.has('connection')} onClick={saveConnection}>{t('set.nodes.saveConnection')}</button></div>
       </div>}
       <div class="source-editor">
-        <div class="editor-head"><div class="label"><b>{t('set.nodes.monitorUrl')}</b><small>{t('set.nodes.monitorUrlHint')}</small></div>{infoBtn('monitor')}</div>
-        {info === 'monitor' && <p><small>{t('set.nodes.monitorUrlDetail')}</small></p>}
+        <div class="editor-head"><div class="label"><b>{t('set.nodes.monitorUrl')}</b><small>{t('set.nodes.monitorUrlHint')}</small></div>{infoTip(t('set.nodes.monitorUrlDetail'))}</div>
         {monitors.map((url, i) => <div class="monitor-row"><input id={i === 0 ? 'monitor-url' : undefined} value={url} onInput={e => setMonitors(prev => prev.map((u, j) => j === i ? e.currentTarget.value : u))} placeholder="https://www.cloudflare.com/cdn-cgi/trace" spellcheck={false} /><button class="icon-btn sm" aria-label={t('set.nodes.close')} onClick={() => setMonitors(prev => prev.length > 1 ? prev.filter((_, j) => j !== i) : [''])}><Icon name="x" /></button></div>)}
         <div class="editor-actions"><button class="btn" disabled={monitors.length >= MAX_MONITOR_URLS} onClick={() => setMonitors(prev => [...prev, ''])}><Icon name="plus" />{t('set.nodes.monitorAdd')}</button><button id="save-monitor" class="btn primary" disabled={busy.has('connection')} onClick={() => act(() => cave.updateProfile({ monitorUrls: [...new Set(monitors.map(u => u.trim()).filter(Boolean))] }), 'connection')}>{t('set.nodes.saveMonitor')}</button></div>
       </div>

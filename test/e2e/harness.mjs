@@ -1,7 +1,7 @@
 // Launches a real Cave against local stand-ins only: a fixture HTTP server, a SOCKS5 "node"
 // that maps *.cave.test to it, and a throwaway profile. Nothing here reaches the internet.
 // Windows run inactive at a requested off-screen position by default (macOS may clamp it
-// onto a display). foreground:true / CAVE_E2E_FOREGROUND=1 requires the owner's agreement.
+// onto a display). Pass foreground: true only for tests that require a foreground window.
 // Input should use CDP or sendInputEvent.
 import { spawn, execFile as execFileCallback } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -31,7 +31,7 @@ export const PROFILE = {
   proxy: { subscriptionUrl: '', selectedNode: 'Test Node' },
 };
 
-export async function startWorld({ profile = PROFILE, fresh = false, wrap = [], extra = [], dir: existingDir, blank = false, keepDir = false, tls = false, downloadLog = false, bookmarkFile, foreground = process.env.CAVE_E2E_FOREGROUND === '1' } = {}) {
+export async function startWorld({ profile = PROFILE, fresh = false, wrap = [], extra = [], dir: existingDir, blank = false, keepDir = false, tls = false, downloadLog = false, bookmarkFile, foreground = false } = {}) {
   const dir = existingDir ?? await mkdtemp(join(tmpdir(), 'cave-e2e-'));
   await mkdir(dir, { recursive: true });
   const trusted = tls ? await certificate(dir, 'secure', 'secure.cave.test') : null;

@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 import { startFixtureServer } from '../server.mjs';
 import { startSocks } from '../socks.mjs';
+import { devtoolsPort, evaluate, gateState, waitFor } from './cdp.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const execFile = promisify(execFileCallback);
@@ -138,4 +139,15 @@ async function certificate(dir, name, host) {
   const [key, cert] = await Promise.all([readFile(keyPath), readFile(certPath)]);
   const publicKey = new X509Certificate(cert).publicKey.export({ type: 'spki', format: 'der' });
   return { key, cert, spki: createHash('sha256').update(publicKey).digest('base64') };
+}
+
+export async function launch(t, { extra = [], open = false, ...opts } = {}) {
+  const w = await startWorld({ ...opts, extra: ['--remote-debugging-port=0', ...extra] });
+  t.after(() => w.stop());
+  const port = await devtoolsPort(w.log);
+  const shell = (expr) => evaluate(port, (u) => u.endsWith('/shell.html'), expr);
+  const overlay = (expr) => evaluate(port, (u) => u.endsWith('/overlay.html'), expr);
+  const settings = (expr) => evaluate(port, (u) => u.endsWith('/settings.html'), expr);
+  if (open) await waitFor(async () => (await gateState(port)) === 'open', 60000);
+  return { w, port, shell, overlay, settings };
 }

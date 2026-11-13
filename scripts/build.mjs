@@ -19,9 +19,9 @@ await Promise.all([
     banner: { js: "import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);" },
   }),
   build({ ...common, entryPoints: ['src/preload.cts'], outfile: 'dist/preload.cjs', platform: 'node', format: 'cjs', external: ['electron'] }),
-  build({ ...common, entryPoints: ['src/renderer/shell.tsx', 'src/renderer/settings.tsx', 'src/renderer/home.tsx', 'src/renderer/history.tsx', 'src/renderer/bookmarks.tsx', 'src/renderer/internal-error.tsx', 'src/renderer/overlay.tsx'], outdir: 'dist/renderer', format: 'iife' }),
+  build({ ...common, entryPoints: ['src/renderer/welcome.tsx', 'src/renderer/shell.tsx', 'src/renderer/settings.tsx', 'src/renderer/home.tsx', 'src/renderer/history.tsx', 'src/renderer/bookmarks.tsx', 'src/renderer/internal-error.tsx', 'src/renderer/overlay.tsx'], outdir: 'dist/renderer', format: 'iife' }),
 ]);
 await cp('src/renderer/ui/ui.css', 'dist/renderer/ui.css');
 await cp('resources/icon.png', 'dist/renderer/app-icon.png');
-for (const f of ['shell.html', 'settings.html', 'home.html', 'history.html', 'bookmarks.html', 'history.css', 'bookmarks.css', 'home.css', 'internal-error.html', 'internal-error.css', 'overlay.html', 'shadow.html', 'shadow.css', 'style.css', 'shell.css', 'settings.css', 'overlay.css']) await cp(`src/renderer/${f}`, `dist/renderer/${f}`);
+for (const f of ['welcome.html', 'welcome.css', 'shell.html', 'settings.html', 'home.html', 'history.html', 'bookmarks.html', 'history.css', 'bookmarks.css', 'home.css', 'internal-error.html', 'internal-error.css', 'overlay.html', 'shadow.html', 'shadow.css', 'style.css', 'shell.css', 'settings.css', 'overlay.css']) await cp(`src/renderer/${f}`, `dist/renderer/${f}`);
 if (watch) console.log('built');

@@ -36,7 +36,7 @@ export function startFixtureServer({ port = 0, host = '127.0.0.1', country = 'QM
     }
     if (path === '/auth-subresources') return send(res, 200, '<!doctype html><title>Subresources</title><iframe src="/basic"></iframe><img src="/basic">', TYPES['.html']);
     if (path === '/headers') return send(res, 200, JSON.stringify(req.headers), 'application/json');
-    if (path === '/cdn-cgi/trace') return send(res, 200, `fl=1\nh=${req.headers.host}\nip=203.0.113.7\nts=0\nloc=${server.country}\n`, 'text/plain');
+    if (path === '/cdn-cgi/trace') return send(res, 200, `fl=1\nh=${req.headers.host}\nip=203.0.113.7\nts=0\nloc=${server.country}\n${server.colo ? `colo=${server.colo}\n` : ''}`, 'text/plain');
     if (path === '/report' && req.method === 'POST') {
       let body = '';
       for await (const c of req) body += c;

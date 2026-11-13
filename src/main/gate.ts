@@ -104,7 +104,8 @@ export function viewGate(f: GateFacts): GateView {
 }
 
 /** Parses an endpoint trace (key=value lines) into the egress IP and country. */
-export function parseTrace(text: string): { ip: string; country: string } {
+export function parseTrace(text: string): { ip: string; country: string; colo: string } {
   const kv = new Map(text.split('\n').map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1).trim()] as const));
-  return { ip: kv.get('ip') ?? '', country: (kv.get('loc') ?? '').toUpperCase() };
+  const colo = (kv.get('colo') ?? '').toUpperCase();
+  return { ip: kv.get('ip') ?? '', country: (kv.get('loc') ?? '').toUpperCase(), colo: /^[A-Z]{3}$/.test(colo) ? colo : '' };
 }

@@ -14,6 +14,7 @@ export class ProfileStore {
   readonly dir: string;
   current: Profile;
   private writable: boolean;
+  private listeners: (() => void)[] = [];
   private constructor(dir: string, current: Profile, writable: boolean) { this.dir = dir; this.current = current; this.writable = writable; }
 
   get file(): string {
@@ -37,7 +38,9 @@ export class ProfileStore {
       let legacyNodes: unknown = [];
       if (legacy && existsSync(legacyFile)) legacyNodes = parse(await readFile(legacyFile, 'utf8'))?.proxies ?? [];
       const store = new ProfileStore(dir, normalizeProfile(raw, fallback, legacyNodes), true);
-      if (legacy) { await store.write(); await rm(legacyFile, { force: true }); }
+      // Written back when migrated or when the setup choices had to be filled in.
+      if (legacy || JSON.stringify(raw?.setup) !== JSON.stringify(store.current.setup)) await store.write();
+      if (legacy) await rm(legacyFile, { force: true });
       return store;
     } catch (err: any) {
       const store = new ProfileStore(dir, fallback, false);
@@ -50,8 +53,12 @@ export class ProfileStore {
     const merged = { ...this.current, ...patch, proxy: { ...this.current.proxy, ...('proxy' in patch ? patch.proxy : {}) } };
     this.current = validateProfile(merged, this.current);
     if (this.writable) await this.write();
+    for (const listener of this.listeners) listener();
     return this.current;
   }
+
+  /** Called after every successful update. */
+  onChange(listener: () => void): void { this.listeners.push(listener); }
 
   private write(): Promise<void> {
     const temp = this.file + '.tmp';

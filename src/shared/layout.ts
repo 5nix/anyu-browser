@@ -7,6 +7,8 @@ import type { Rect, TabLayout } from './ipc.ts';
 export const METRICS = {
   /** Tab strip height (top layout); on Windows/Linux the caption buttons share this band. */
   strip: 40,
+  /** Setup: the band across the top of the welcome page; dragging the window, window buttons inside it. */
+  setupBand: 52,
   /** Tab height (top layout); tabs sit on the strip's bottom edge and join the toolbar below. */
   tab: 32,
   /** Toolbar height (top layout). */
@@ -51,8 +53,8 @@ export function sidebarWidth(value: unknown): number {
 
 /** Window background and caption-button colour per theme; style.css repeats them as --frame and --text. */
 export const FRAME = {
-  light: { frame: '#e5e6e8', symbol: '#1b1c1e' },
-  dark: { frame: '#121213', symbol: '#ececed' },
+  light: { frame: '#e5e6e8', symbol: '#1b1c1e', surface: '#ffffff' },
+  dark: { frame: '#121213', symbol: '#ececed', surface: '#232325' },
 } as const;
 
 /** Where the page (the active tab or the settings page) sits in a window of this content size. */
@@ -62,4 +64,12 @@ export function pageBounds(layout: TabLayout, width: number, height: number, mac
   // below the caption-button band.
   const box = layout === 'side' ? { left: sidebarWidth(sidebar), top: mac ? gap : caption, inset: gap } : { left: gap, top: strip + toolbar, inset: gap };
   return { x: box.left, y: box.top, width: Math.max(0, width - box.left - box.inset), height: Math.max(0, height - box.top - box.inset) };
+}
+
+/** Windows/Linux caption-button band during setup; it sits inside the page's own 52px band. */
+export const SETUP_CAPTION = 40;
+
+/** Top-left of the macOS close button during setup: centred in the setup band. */
+export function setupTrafficLights(): { x: number; y: number } {
+  return { x: 19, y: (METRICS.setupBand - METRICS.light) / 2 };
 }

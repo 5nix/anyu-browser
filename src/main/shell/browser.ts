@@ -48,6 +48,8 @@ export interface BrowserOptions {
   prepareTab: (wc: WebContents) => void;
   canBrowse: () => boolean;
   gate: () => ShellState['gate'];
+  /** First-run setup as derived from the profile and the gate. */
+  setup: () => ShellState['setup'];
 }
 
 export class Browser extends EventEmitter {
@@ -97,7 +99,7 @@ export class Browser extends EventEmitter {
       preload: o.preload,
       tabLayout: () => this.tabLayout,
       sidebarWidth: () => this.sidebarWidth,
-      shared: () => ({ shortcuts: o.shortcuts().map(item => ({ ...item, favicon: o.favicons.get(item.url) })), gate: o.gate(), downloads: this.downloads.all(), notice: typeof this.notice === 'function' ? this.notice() : this.notice, locale: this.locale, localePreference: this.localePreference, accent: this.accent, theme: this.theme, searchEngine: this.searchEngine, restoreSession: this.restoreSession }),
+      shared: () => ({ shortcuts: o.shortcuts().map(item => ({ ...item, favicon: o.favicons.get(item.url) })), gate: o.gate(), downloads: this.downloads.all(), notice: typeof this.notice === 'function' ? this.notice() : this.notice, locale: this.locale, localePreference: this.localePreference, accent: this.accent, theme: this.theme, searchEngine: this.searchEngine, restoreSession: this.restoreSession, setup: o.setup() }),
       canBrowse: o.canBrowse,
       run: (id, win) => this.run(id, win),
       prepareTab: o.prepareTab,
@@ -227,12 +229,20 @@ export class Browser extends EventEmitter {
   /** Runs a command by name in a window; a surface that is open there closes first. */
   run(id: CommandId, win: ShellWindow | null = this.front): void {
     if (!isCommand(id) || !win) return;
+    if (win.inSetup && id !== 'app.quit' && id !== 'window.fullscreen') return;
     win.surfaces.close();
     this.commands[id](win);
   }
 
   broadcast(): void {
     for (const w of this.windows) w.broadcast();
+  }
+
+  /** Puts every window in setup or in the normal layout, as the derived step says; then tells the pages. */
+  syncSetup(): void {
+    const setup = this.o.setup().step !== 'normal';
+    for (const w of this.windows) w.setSetup(setup);
+    this.broadcast();
   }
 
   /** Called on every gate change. */

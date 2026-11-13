@@ -106,6 +106,21 @@ export class Gatekeeper extends EventEmitter {
       await this.boot();
     });
 
+  measureExit = () => this.serial(async () => {
+    if (!this.core.running) throw new Error('Core is not running');
+    const expected = this.selectedName();
+    if (!expected) throw new Error('No selected node');
+    const egress = await measureExit({
+      selected: () => this.controller.selected(),
+      createSession: () => freshProbeSession(this.o.ports),
+      fetchTrace: ({ session }) => fetchText(session, TRACE_URL),
+    });
+    if (!this.core.running) throw new Error('Core is not running');
+    if (!egress.ip || !/^[A-Z]{2}$/.test(egress.country)) throw new Error('Invalid exit trace');
+    if (egress.node !== expected || this.selectedName() !== expected || await this.controller.selected() !== expected) throw new Error('Selected node changed');
+    return { country: egress.country, colo: 'colo' in egress && typeof egress.colo === 'string' ? egress.colo : '' };
+  });
+
   recheck = () => this.serial(() => this.dispatch({ type: 'recheck' }));
 
   setCountry = (country: string) => this.serial(() => this.dispatch({ type: 'country-changed', country }));

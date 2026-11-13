@@ -27,7 +27,9 @@ import { evaluateChecks, renderReport } from './checks.ts';
 import { CALLS, channel, type CheckItem, type Handlers, type PanelData, type TabLayout } from '../shared/ipc.ts';
 import { openStore, Favicons, Prefs, History, Sessions, Bookmarks, Downloads as DownloadRepository, Shortcuts, SiteSettings, clearBrowsingData } from './store/index.ts';
 import { t, setLocale, systemLocale, type LocalePreference } from '../shared/i18n/index.ts';
-import type { ProfilePatch } from '../shared/profile.ts';
+import { SETUP_KEYS, type ProfilePatch, type SetupChoices } from '../shared/profile.ts';
+import { deriveSetupStep } from '../shared/welcome.ts';
+import { localPortOpen } from './local-port.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const resources = app.isPackaged ? process.resourcesPath : join(root, 'resources');
@@ -96,6 +98,10 @@ async function start(): Promise<void> {
     saveProxy: async (proxy) => void (await store.update({ proxy })),
   });
 
+  // First-run setup follows from the profile and the gate. A profile that could not be read is
+  // never sent through setup: its choices could not be saved.
+  const setupState = () => store.error ? { step: 'normal' as const, pending: false } : { step: deriveSetupStep(profile(), gate.view), pending: !profile().setup.finished };
+
   const uiFile = join(profileDir, 'ui.json');
   let database;
   let databaseNotice: { key: 'databaseRecovered' | 'databaseFailed'; value: string } | null = null;
@@ -157,6 +163,7 @@ async function start(): Promise<void> {
     prepareTab: (wc) => applyFingerprint(wc, commands),
     canBrowse: () => gate.open,
     gate: () => gate.view,
+    setup: setupState,
   });
   applyPermissions(browserSession(), profile, (wc, permission, details, callback) => {
     const win = browser.windows.find(w => w.hasTab(wc));
@@ -181,7 +188,8 @@ async function start(): Promise<void> {
   if (databaseNotice) { const notice = databaseNotice; browser.setNotice(() => t(notice.key, notice.key === 'databaseRecovered' ? { path: notice.value } : { error: notice.value })); }
   app.once('will-quit', () => { browser.stopSessionSaving(); prefs.set('cleanExit', true); database.close(); });
   browser.on('closed', () => app.quit());
-  gate.on('change', () => browser.gateChanged(gate.open));
+  gate.on('change', () => { browser.gateChanged(gate.open); browser.syncSetup(); });
+  store.onChange(() => browser.syncSetup());
   gate.on('error', (message: string) => browser.setNotice(message));
   if (store.error) browser.setNotice(() => store.error!);
 
@@ -401,6 +409,7 @@ async function start(): Promise<void> {
     removeSource: (id) => gate.removeSource(id),
     selectNode: (source, name) => gate.select(source, name),
     testDelays: () => gate.delays(),
+    measureExit: () => gate.measureExit(),
     pause: () => gate.pause(),
     resume: () => gate.resume(),
     restartAndCheck: () => gate.restartAndCheck(),
@@ -447,7 +456,26 @@ async function start(): Promise<void> {
       app.relaunch();
       app.quit();
     },
+    setSetup: async (choices) => {
+      if (!choices || typeof choices !== 'object' || Array.isArray(choices)) throw new Error('invalid setup');
+      const patch: Partial<SetupChoices> = {};
+      for (const [key, value] of Object.entries(choices)) {
+        if (!(SETUP_KEYS as readonly string[]).includes(key) || typeof value !== 'boolean') throw new Error('invalid setup');
+        patch[key as keyof SetupChoices] = value;
+      }
+      // Setup can only be finished from its last screen, which exists only while the gate is open.
+      if (patch.finished && setupState().step !== 'done') throw new Error('forbidden');
+      await store.update({ setup: { ...profile().setup, ...patch } });
+    },
+    continueSetup: async () => {
+      if (profile().setup.finished || store.error) return;
+      await store.update({ setup: { ...profile().setup, dismissed: false } });
+    },
+    localPortOpen: () => profile().connectionMode === 'external' ? localPortOpen(profile().externalProxy) : false,
   });
+  // What setup may change in the profile: the connection, the exit country and the identity.
+  const WELCOME_PROFILE_KEYS = ['connectionMode', 'externalProxy', 'egressCountry', 'timezone', 'locale', 'acceptLanguages', 'geolocation'];
+  const WELCOME_CALLS = ['getState', 'panelData', 'updateProfile', 'addSubscription', 'importSubscriptionText', 'importSubscriptionFile', 'selectNode', 'testDelays', 'measureExit', 'restartAndCheck', 'localPortOpen', 'setSetup', 'importBookmarks', 'setTheme', 'setLocale', 'setTabLayout', 'setSearchEngine', 'restart'];
   const bound = new WeakMap<ShellWindow, Handlers>();
   for (const name of Object.keys(CALLS) as (keyof Handlers)[]) {
     ipcMain.handle(channel(name), (e: IpcMainInvokeEvent, ...args) => {
@@ -465,12 +493,21 @@ async function start(): Promise<void> {
       if ((name === 'historyList' || name === 'historyDelete') && e.sender !== win.history.webContents) return;
       if (e.sender === win.history.webContents && !['getState', 'historyList', 'historyDelete', 'newTab'].includes(name)) return;
       if (e.sender === win.history.webContents && name === 'newTab' && (typeof args[0] !== 'string' || args[0].length > 2048 || !/^https?:\/\//i.test(args[0]) || !URL.canParse(args[0]))) return;
-      if (name === 'importBookmarks' && e.sender !== win.bookmarks.webContents) return;
+      if (e.sender === win.welcome.webContents) {
+        if (!WELCOME_CALLS.includes(name)) throw new Error('forbidden');
+        if (name === 'updateProfile' && (!args[0] || typeof args[0] !== 'object' || Array.isArray(args[0]) || !Object.keys(args[0]).every(key => WELCOME_PROFILE_KEYS.includes(key)))) throw new Error('forbidden');
+        // The one request outside the core: the first subscription fetch, direct, while there is no route yet.
+        if (name === 'addSubscription' && (args[1] !== 'direct' || gate.open)) throw new Error('forbidden');
+      }
+      if ((name === 'setSetup' || name === 'localPortOpen') && e.sender !== win.welcome.webContents) throw new Error('forbidden');
+      if (name === 'continueSetup' && e.sender !== win.overlay.webContents && !win.isActiveHome(e.sender)) throw new Error('forbidden');
+      if (name === 'importBookmarks' && e.sender !== win.bookmarks.webContents && e.sender !== win.welcome.webContents) return;
       if (['bookmarkChildren', 'bookmarkMove'].includes(name) && e.sender !== win.chrome.webContents && e.sender !== win.bookmarks.webContents) return;
       if (['bookmarkAdd', 'bookmarkUpdate', 'bookmarkRemove'].includes(name) && e.sender !== win.chrome.webContents && e.sender !== win.overlay.webContents && e.sender !== win.bookmarks.webContents) return;
       if (e.sender === win.bookmarks.webContents && !['getState', 'bookmarkChildren', 'bookmarkMove', 'bookmarkAdd', 'bookmarkUpdate', 'bookmarkRemove', 'importBookmarks', 'newTab'].includes(name)) return;
       if (e.sender === win.bookmarks.webContents && name === 'newTab' && (typeof args[0] !== 'string' || args[0].length > 2048 || !/^https?:\/\//i.test(args[0]) || !URL.canParse(args[0]))) return;
-      if (['clearData', 'updateProfile', 'importSubscriptionFile', 'importSubscriptionText', 'addSubscription', 'updateSource', 'updateSourceFile', 'updateSourceText', 'renameSource', 'removeSource', 'selectNode', 'testDelays'].includes(name) && e.sender !== win.settings.webContents) throw new Error('forbidden');
+      if (['clearData', 'updateProfile', 'importSubscriptionFile', 'importSubscriptionText', 'addSubscription', 'updateSource', 'updateSourceFile', 'updateSourceText', 'renameSource', 'removeSource', 'selectNode', 'testDelays'].includes(name) && e.sender !== win.settings.webContents && !(e.sender === win.welcome.webContents && ['updateProfile', 'importSubscriptionFile', 'importSubscriptionText', 'addSubscription', 'selectNode', 'testDelays'].includes(name))) throw new Error('forbidden');
+      if (name === 'measureExit' && e.sender !== win.settings.webContents && e.sender !== win.welcome.webContents) throw new Error('forbidden');
       if (name === 'siteInfo' && e.sender !== win.overlay.webContents) return;
       if (name === 'removePermission' && e.sender !== win.settings.webContents) {
         const active = win.state.tabs.find(tab => tab.id === win.state.active && tab.kind === 'web');

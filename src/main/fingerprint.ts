@@ -146,40 +146,6 @@ const SPEECH_SHIM = `(() => {
       return [];
     }),
   });
-  const onDesc = Object.getOwnPropertyDescriptor(proto, 'onvoiceschanged');
-  if (onDesc && typeof onDesc.get === 'function' && typeof onDesc.set === 'function') {
-    const handlers = new WeakMap();
-    const origGet = onDesc.get;
-    const origSet = onDesc.set;
-    Object.defineProperty(proto, 'onvoiceschanged', {
-      ...onDesc,
-      get: wrap(origGet, origGet.name, (_target, thisArg) => {
-        apply(pausedGet, thisArg, []);
-        return wmGet.call(handlers, thisArg) ?? null;
-      }),
-      set: wrap(origSet, origSet.name, (_target, thisArg, args) => {
-        apply(pausedGet, thisArg, []);
-        wmSet.call(handlers, thisArg, typeof args[0] === 'function' ? args[0] : null);
-      }),
-    });
-  }
-  const etProto = typeof EventTarget === 'function' ? EventTarget.prototype : null;
-  const addDesc = etProto && Object.getOwnPropertyDescriptor(etProto, 'addEventListener');
-  if (addDesc && typeof addDesc.value === 'function') {
-    const origAdd = addDesc.value;
-    Object.defineProperty(etProto, 'addEventListener', {
-      ...addDesc,
-      value: wrap(origAdd, origAdd.name, (target, thisArg, args) => {
-        if (args.length > 0 && (args[0] === 'voiceschanged' || (thisArg instanceof SpeechSynthesis && typeof args[0] !== 'symbol' && String(args[0]) === 'voiceschanged'))) {
-          try {
-            apply(pausedGet, thisArg, []);
-            return;
-          } catch {}
-        }
-        return apply(target, thisArg, args);
-      }),
-    });
-  }
 })();`;
 
 /**

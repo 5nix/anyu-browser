@@ -22,14 +22,9 @@ export function startFixtureServer({ port = 0, host = '127.0.0.1', country = 'QM
       return send(res, 200, `<!doctype html><script>
 const has = 'speechSynthesis' in window;
 const initial = has ? speechSynthesis.getVoices().length : null;
-let changed = false;
-if (has) {
-  speechSynthesis.addEventListener('voiceschanged', () => { changed = true; });
-  speechSynthesis.onvoiceschanged = () => { changed = true; };
-}
 setTimeout(() => {
   const afterWait = has ? speechSynthesis.getVoices().length : null;
-  parent.postMessage({ type: 'speech-frame', has, initial, afterWait, changed }, '*');
+  parent.postMessage({ type: 'speech-frame', has, initial, afterWait }, '*');
 }, 800);
 </script>`, TYPES['.html']);
     }

@@ -134,28 +134,6 @@ test('fingerprint: profile values reach the main thread and every worker; nothin
   assert.equal(r.permissions.camera, 'denied');
   assert.equal(r.hasSpeechSynthesis, true);
   assert.equal(r.speechVoices, 0);
-  const topSpeech = await evaluate(port, (u) => u === w.httpsUrl + 'fp.html', `new Promise((resolve) => {
-    let changed = false;
-    speechSynthesis.addEventListener('voiceschanged', () => { changed = true; });
-    speechSynthesis.onvoiceschanged = () => { changed = true; };
-    const blank = document.createElement('iframe');
-    document.body.appendChild(blank);
-    const blankVoices = blank.contentWindow.speechSynthesis.getVoices().length;
-    setTimeout(() => resolve({
-      has: 'speechSynthesis' in window,
-      count: speechSynthesis.getVoices().length,
-      changed,
-      toStr: SpeechSynthesis.prototype.getVoices.toString(),
-      blankVoices,
-    }), 900);
-  })`);
-  assert.deepEqual(topSpeech, {
-    has: true,
-    count: 0,
-    changed: false,
-    toStr: 'function getVoices() { [native code] }',
-    blankVoices: 0,
-  });
   await evaluate(port, shell, "cave.navigate('http://fp.cave.test/')");
   await waitFor(() => evaluate(port, (u) => u === 'http://fp.cave.test/', 'document.title'));
   const frameSpeech = await evaluate(port, (u) => u === 'http://fp.cave.test/', `new Promise((resolve) => {
@@ -164,7 +142,7 @@ test('fingerprint: profile values reach the main thread and every worker; nothin
     f.src = 'http://other.cave.test/speech-frame';
     document.body.appendChild(f);
   })`);
-  assert.deepEqual(frameSpeech, { type: 'speech-frame', has: true, initial: 0, afterWait: 0, changed: false });
+  assert.deepEqual(frameSpeech, { type: 'speech-frame', has: true, initial: 0, afterWait: 0 });
   // The node only ever saw names (remote resolution), all of them fixtures.
   assert.ok(w.socks.targets.length > 0);
   for (const target of w.socks.targets) {

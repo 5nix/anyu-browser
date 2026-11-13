@@ -33,3 +33,36 @@
 .condition-row.ok .condition-mark { color: var(--ok); }
 .condition-row.failed .condition-icon, .condition-row.failed .condition-mark, .condition-row.failed .label small { color: var(--danger); }
 .condition-row.is-paused .condition-icon, .condition-row.is-paused .condition-mark, .condition-row.is-paused .label small { color: var(--text-2); }
+
+/* Shared by the settings page and setup (proxy-controls.tsx): the appearance picker and the compact node rows. */
+.theme-picker { display: flex; padding: 3px; border-radius: 9px; background: var(--frame); }
+.theme-picker label { position: relative; }
+.theme-picker input, .swatch input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; }
+.theme-picker span { display: block; padding: 4px 10px; border-radius: 6px; color: var(--text-2); white-space: nowrap; }
+.theme-picker input:checked + span { background: var(--frame-raised); box-shadow: var(--shadow-raised); color: var(--text); font-weight: 500; }
+.theme-picker input:focus-visible + span { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
+.theme-picker { height: 28px; padding: 2px; gap: 2px; border-radius: 8px; }
+.theme-picker span { display: flex; align-items: center; justify-content: center; gap: 6px; height: 24px; padding: 0 12px; }
+.theme-picker svg { width: 15px; height: 15px; }
+.theme-picker label:has(input:not(:checked)):hover span { background: var(--frame-hover); color: var(--text); }
+.theme-picker label:has(input:not(:checked)):active span { background: var(--frame-press); }
+.nodes.compact { display: grid; grid-template-columns: minmax(0, 1fr); column-gap: 28px; max-height: none; overflow: visible; }
+.nodes.compact.two { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(var(--rows), auto); grid-auto-flow: column; }
+.nodes.compact li { position: relative; z-index: 0; min-width: 0; }
+.nodes.compact li + li { border: 0; }
+.nodes.compact li:not(.top, .selected, .after-selected)::after { content: ''; position: absolute; top: 0; left: 24px; right: 0; border-top: 1px solid var(--sep); }
+.nodes.compact label { position: relative; min-height: 0; height: 38px; padding: 0; gap: 10px; background: none; }
+.nodes.compact label::before { content: ''; position: absolute; inset: 3px -8px; z-index: -1; border-radius: var(--r-ctl); transition: background var(--dur-fast) var(--ease-out); }
+.nodes.compact label:hover { background: none; }
+.nodes.compact label:hover::before { background: var(--hover); }
+.nodes.compact li.selected label { background: none; }
+.nodes.compact li.selected label::before { background: var(--accent-soft); }
+.nodes.compact label:has(input:focus-visible)::before { outline: var(--focus-ring); }
+.nodes.compact li.selected .name { font-weight: var(--fw-label); }
+.nodes.compact input[type=radio] { position: absolute; opacity: 0; pointer-events: none; }
+.nodes.compact .mark { width: 14px; flex: none; display: grid; color: var(--accent); }
+.nodes.compact .mark svg.icon { width: 14px; height: 14px; stroke-width: 2.5; }
+.nodes.compact .country { white-space: nowrap; }
+.nodes.compact .delay { width: 48px; min-width: 0; flex: none; }
+.nodes.compact li:hover::after, .nodes.compact li:hover + li::after { opacity: 0; }
+.nodes.compact .delay { width: auto; min-width: 48px; }

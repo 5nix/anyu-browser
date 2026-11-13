@@ -7,7 +7,8 @@ import { Icon } from './ui/index.tsx';
 
 export const regionName = (locale: string, code: string) => { try { return new Intl.DisplayNames([locale], { type: 'region' }).of(code) || code; } catch { return code; } };
 
-export type GateRow = { id: 'switch' | 'core' | 'node' | 'exit'; icon: string; label: string; value: string; condition: Condition };
+/** `running` and `pending` are used by setup, which shows a check while it runs. */
+export type GateRow = { id: 'switch' | 'core' | 'node' | 'exit'; icon: string; label: string; value: string; condition: Condition | 'running' | 'pending' };
 
 /** `selectedNode` and `country` are left out while they are not known yet. */
 export function gateStatus(state: ShellState, facts: { coreUp?: boolean; selectedNode?: string; country?: string }) {
@@ -34,9 +35,9 @@ export function GateSummary({ st, title, reason, titleId, reasonId, busy, onTogg
 }
 
 /** The four conditions: icon, label, value and state mark. They carry no actions. */
-export function ConditionList({ st, rows }: { st: Status; rows: GateRow[] }) {
-  return <div class="condition-list">{rows.map(row => <div class={`condition-row ${row.condition}${row.id === 'switch' && st === 'paused' ? ' is-paused' : ''}`} data-condition={row.id}>
+export function ConditionList({ st, rows, className = 'condition-list', live = false }: { st: Status; rows: GateRow[]; className?: string; live?: boolean }) {
+  return <div class={className} role={live ? 'status' : undefined} aria-live={live ? 'polite' : undefined}>{rows.map(row => <div class={`condition-row ${row.condition}${row.id === 'switch' && st === 'paused' ? ' is-paused' : ''}`} data-condition={row.id}>
     <Icon name={row.icon} className="condition-icon" /><div class="label"><b>{row.label}</b><small title={row.value}>{row.value}</small></div>
-    <span class="condition-mark">{row.condition === 'unknown' ? '—' : <Icon name={row.condition === 'ok' ? 'circle-check' : row.id === 'switch' && st === 'paused' ? 'circle-pause' : 'circle-x'} />}</span>
+    <span class="condition-mark">{row.condition === 'unknown' ? '—' : row.condition === 'running' ? <span class="dot checking" /> : <Icon name={row.condition === 'pending' ? 'circle-dashed' : row.condition === 'ok' ? 'circle-check' : row.id === 'switch' && st === 'paused' ? 'circle-pause' : 'circle-x'} />}</span>
   </div>)}</div>;
 }

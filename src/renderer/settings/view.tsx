@@ -1,4 +1,4 @@
-import { ACCENTS, type Theme } from '../../shared/appearance.ts';
+import { ACCENTS } from '../../shared/appearance.ts';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { Permission, CheckItem, PanelData, SearchEngine, SettingsSection, ShellState } from '../../shared/ipc.ts';
 import { MAX_MONITOR_URLS, type Profile, type SubscriptionVia } from '../../shared/profile.ts';
@@ -8,10 +8,8 @@ import { switchText } from '../../shared/switch.ts';
 import { cave } from '../bridge.ts';
 import { ConditionList, GateSummary, gateStatus, regionName } from '../gate-status.tsx';
 import { Icon, useCave } from '../ui/index.tsx';
+import { ExternalCredentials, ExternalEndpoint, NodeList, ThemePicker, protocol, type ExternalDraft } from '../proxy-controls.tsx';
 import type { DialogRequest } from '../ui/dialog.tsx';
-
-const PROTOCOLS: Record<string, string> = { shadowsocks: 'ss', shadowsocksr: 'ssr' };
-const protocol = (type: string) => PROTOCOLS[type.toLowerCase()] ?? type.toLowerCase();
 
 
 function SettingsDialog({ request, onClose }: { request: DialogRequest | null; onClose: () => void }) {
@@ -73,8 +71,8 @@ function NodesSection({ active, state, data, act, confirm, busy }: Props) {
   const [editingSource, setEditingSource] = useState<string | null>(null), [replacement, setReplacement] = useState('');
   const nodes = data.nodes.nodes, selected = data.nodes.selected;
   const mode = data.profile.connectionMode;
-  const [ext, setExt] = useState(() => ({ ...data.profile.externalProxy, protocol: data.profile.externalProxy.protocol as string, port: data.profile.externalProxy.port ? String(data.profile.externalProxy.port) : '' }));
-  const setExtField = (key: string, value: string) => setExt(prev => ({ ...prev, [key]: value }));
+  const [ext, setExt] = useState<ExternalDraft>(() => ({ ...data.profile.externalProxy, port: data.profile.externalProxy.port ? String(data.profile.externalProxy.port) : '' }));
+  const setExtField = (key: keyof ExternalDraft, value: string) => setExt(prev => ({ ...prev, [key]: value }));
   const [monitors, setMonitors] = useState<string[]>(() => data.profile.monitorUrls.length ? [...data.profile.monitorUrls] : ['']);
   const infoTip = (detail: string) => <span class="info-tip" tabIndex={0} aria-label={t('set.nodes.details')} onClick={e => { e.preventDefault(); e.stopPropagation(); }}><Icon name="info" /><span class="info-pop">{detail}</span></span>;
   const connRef = useRef<HTMLDivElement>(null);
@@ -109,11 +107,8 @@ function NodesSection({ active, state, data, act, confirm, busy }: Props) {
       <label class="row"><div class="label conn-label"><b>{t('set.nodes.modeExternal')}</b><small>{t('set.nodes.modeExternalHint')} {infoTip(t('set.nodes.modeExternalDetail'))}</small></div><input type="radio" name="connection-mode" checked={mode === 'external'} disabled={busy.has('connection')} onChange={() => act(() => cave.updateProfile({ connectionMode: 'external' }), 'connection')} /></label>
       {mode === 'external' && <div class="source-editor">
         <p><small>{t('set.nodes.externalActive')}</small></p>
-        <label class="editor-field"><span>{t('set.nodes.extProtocol')}</span><select id="ext-protocol" value={ext.protocol} onChange={e => setExtField('protocol', e.currentTarget.value)}><option value="socks5">SOCKS5</option><option value="http">HTTP</option></select></label>
-        <label class="editor-field"><span>{t('set.nodes.extHost')}</span><input id="ext-host" value={ext.host} onInput={e => setExtField('host', e.currentTarget.value)} spellcheck={false} /></label>
-        <label class="editor-field"><span>{t('set.nodes.extPort')}</span><input id="ext-port" type="number" min="1" max="65535" value={ext.port} onInput={e => setExtField('port', e.currentTarget.value)} spellcheck={false} /></label>
-        <label class="editor-field"><span>{t('set.nodes.extUser')}</span><input id="ext-user" value={ext.username} onInput={e => setExtField('username', e.currentTarget.value)} spellcheck={false} /></label>
-        <label class="editor-field"><span>{t('set.nodes.extPass')}</span><input id="ext-pass" type="password" value={ext.password} onInput={e => setExtField('password', e.currentTarget.value)} spellcheck={false} /></label>
+        <ExternalEndpoint value={ext} set={setExtField} fieldClass="editor-field" />
+        <ExternalCredentials value={ext} set={setExtField} fieldClass="editor-field" />
         <div class="editor-actions"><button id="save-connection" class="btn primary" disabled={busy.has('connection')} onClick={saveConnection}>{t('set.nodes.saveConnection')}</button></div>
       </div>}
       <div class="source-editor">
@@ -144,7 +139,7 @@ function NodesSection({ active, state, data, act, confirm, busy }: Props) {
           }}>{t('set.nodes.update')}</button>
           <button class="icon-btn sm source-rename" aria-label={t('set.nodes.rename')} title={t('set.nodes.rename')} onClick={() => { setName(source.name); setRenaming(source.id); }}><Icon name="pencil" /></button><button class="icon-btn sm source-remove" aria-label={t('set.nodes.remove')} title={t('set.nodes.remove')} onClick={() => void remove(source.id, source.name)}><Icon name="trash-2" /></button></>}
         </header>
-        <div class="source-body">{editingSource === source.id && <div class="editor-paste"><textarea value={replacement} onInput={e => setReplacement(e.currentTarget.value)} rows={6} placeholder={t('set.nodes.placeholder')} spellcheck={false}></textarea><div class="end"><button class="btn" onClick={() => setEditingSource(null)}>{t('set.dialog.cancel')}</button><button class="btn primary" disabled={!replacement.trim()} onClick={() => act(async () => { await cave.updateSourceText(source.id, replacement); setEditingSource(null); }, source.id)}>{t('set.nodes.update')}</button></div></div>}<ul class="nodes compact one">{rows.map((n, i) => <li key={n.name} class={[isSelected(n) && 'selected', i === 0 && 'top'].filter(Boolean).join(' ')}><label><input type="radio" name="node" checked={isSelected(n)} onClick={e => { e.preventDefault(); void select(n); }} /><span class="mark">{isSelected(n) && <Icon name="check" />}</span><span class="name" title={n.name}>{n.name}</span>{n.country && <span class="country">{t('set.nodes.exit', { country: regionName(state.locale, n.country) })}</span>}<span class="type">{protocol(n.type)}</span><span class="delay">{n.delay.status === 'measured' ? `${n.delay.ms} ms` : n.delay.status === 'timeout' ? t('set.nodes.timeout') : '—'}</span></label></li>)}</ul></div>
+        <div class="source-body">{editingSource === source.id && <div class="editor-paste"><textarea value={replacement} onInput={e => setReplacement(e.currentTarget.value)} rows={6} placeholder={t('set.nodes.placeholder')} spellcheck={false}></textarea><div class="end"><button class="btn" onClick={() => setEditingSource(null)}>{t('set.dialog.cancel')}</button><button class="btn primary" disabled={!replacement.trim()} onClick={() => act(async () => { await cave.updateSourceText(source.id, replacement); setEditingSource(null); }, source.id)}>{t('set.nodes.update')}</button></div></div>}<NodeList rows={rows} locale={state.locale} isSelected={isSelected} onSelect={n => void select(n)} /></div>
       </div>;
     })}
   </section>;
@@ -268,7 +263,7 @@ function AppearanceSection({ active, state, data, act, confirm, checks, runCheck
     <div class="group">
       <h3>{t('set.appearance.colors')}</h3>
       <div class="card">
-        <div class="row"><div class="label"><b>{t('set.appearance.mode')}</b><small>{state.theme === 'system' ? t('set.appearance.following', { mode: t(dark ? 'set.appearance.dark' : 'set.appearance.light') }) : t(state.theme === 'dark' ? 'set.appearance.alwaysDark' : 'set.appearance.alwaysLight')}</small></div><div class="theme-picker" role="radiogroup" aria-label={t('set.appearance.mode')}>{(['system', 'light', 'dark'] as Theme[]).map(mode => <label><input type="radio" name="theme" value={mode} checked={state.theme === mode} onChange={() => cave.setTheme(mode)} /><span><Icon name={mode === 'system' ? 'monitor' : mode === 'light' ? 'sun' : 'moon'} />{t(mode === 'system' ? 'set.appearance.followSystem' : mode === 'light' ? 'set.appearance.light' : 'set.appearance.dark')}</span></label>)}</div></div>
+        <div class="row"><div class="label"><b>{t('set.appearance.mode')}</b><small>{state.theme === 'system' ? t('set.appearance.following', { mode: t(dark ? 'set.appearance.dark' : 'set.appearance.light') }) : t(state.theme === 'dark' ? 'set.appearance.alwaysDark' : 'set.appearance.alwaysLight')}</small></div><ThemePicker value={state.theme} onChange={mode => cave.setTheme(mode)} label={t('set.appearance.mode')} /></div>
         <div class="row"><div class="label"><b>{t('set.appearance.accent')}</b><small>{t('set.appearance.currentAccent', { name: t(`set.accent.${state.accent}`) })}{state.accent === 'teal' ? t('set.appearance.defaultAccent') : ''}</small></div><div class="accent-picker" role="radiogroup" aria-label={t('set.appearance.accent')}>{ACCENTS.map(accent => <label class={`swatch ${accent}`} title={t(`set.accent.${accent}`)}><input type="radio" name="accent" value={accent} aria-label={t(`set.accent.${accent}`)} checked={state.accent === accent} onChange={() => cave.setAccent(accent)} /><span /></label>)}</div></div>
       </div>
     </div>

@@ -8,7 +8,7 @@ import { renderRuntimeConfig, type Ports } from './proxy/config.ts';
 import { Controller } from './proxy/controller.ts';
 import { CoreProcess } from './proxy/process.ts';
 import { extractProxies } from './proxy/subscription.ts';
-import { initialGate, isOpen, needsCheck, reduceGate, viewGate, type CheckResult, type GateEvent, type GateFacts } from './gate.ts';
+import { initialGate, isOpen, needsCheck, reduceGate, viewGate, type CheckResult, type Egress, type GateEvent, type GateFacts } from './gate.ts';
 import { browserSession, fetchSubscription, fetchText, freshProbeSession, TRACE_URL } from './network.ts';
 import { acceptExit, measureExit } from './exit-check.ts';
 import { randomUUID } from 'node:crypto';
@@ -351,18 +351,25 @@ export class Gatekeeper extends EventEmitter {
     await this.dispatch({ type: 'check-finished', generation, result, at: Date.now() });
   }
 
-  /** One request, through the selected node, to read the egress country. */
+  /** Requests through the selected node to read the egress country: one per monitor URL,
+   *  and every one of them must agree before the gate opens. */
   private async probe(): Promise<CheckResult> {
     try {
-      const egress = await measureExit({
-        selected: () => this.controller.selected(),
-        createSession: () => freshProbeSession(this.o.ports),
-        // The monitor URL is the exit-check endpoint: in external mode it is the watched URL,
-        // fetched through the local port like everything else; a direct or wrong-country exit
-        // fails this check and the gate cuts all connections.
-        fetchTrace: ({ session }) => fetchText(session, this.o.profile().monitorUrl.trim() || TRACE_URL),
-      });
-      return egress.country === this.facts.country ? { ok: true, egress } : { ok: false, kind: 'mismatch', egress };
+      // The monitor URLs are the exit-check endpoints, fetched through the selected outbound
+      // like everything else; a direct or wrong-country exit at any of them fails the check
+      // and the gate cuts all connections. An empty list uses the built-in default.
+      const urls = this.o.profile().monitorUrls.length ? this.o.profile().monitorUrls : [TRACE_URL];
+      let egress: Egress | undefined;
+      for (const url of urls) {
+        const one = await measureExit({
+          selected: () => this.controller.selected(),
+          createSession: () => freshProbeSession(this.o.ports),
+          fetchTrace: ({ session }) => fetchText(session, url),
+        });
+        if (one.country !== this.facts.country) return { ok: false, kind: 'mismatch', egress: one };
+        egress ??= one;
+      }
+      return { ok: true, egress: egress! };
     } catch (err: any) {
       return { ok: false, kind: 'failed', error: err.message };
     }

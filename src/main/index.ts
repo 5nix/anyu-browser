@@ -361,7 +361,7 @@ async function start(): Promise<void> {
       // monitor-URL-only edit just invalidates the last check and re-measures through it.
       const routeChanged = (patch.connectionMode !== undefined && patch.connectionMode !== before.connectionMode)
         || (patch.externalProxy !== undefined && JSON.stringify(patch.externalProxy) !== JSON.stringify(before.externalProxy));
-      const monitorChanged = patch.monitorUrl !== undefined && patch.monitorUrl !== before.monitorUrl;
+      const monitorChanged = patch.monitorUrls !== undefined && JSON.stringify(patch.monitorUrls) !== JSON.stringify(before.monitorUrls);
       const wasPaused = gate.view.paused;
       if (routeChanged) await gate.pause();
       let next;

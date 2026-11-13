@@ -220,3 +220,6 @@ input.num { width: 96px; }
 .source-card + .source-card, .source-editor + .source-card { margin-top: 12px; }
 .source-card .source-name { width: 100%; min-width: 0; }
 .nodes.compact .delay { width: auto; min-width: 48px; }
+.conn-detail { margin: 0; padding: 0 0 12px; color: var(--text-2); line-height: 1.5; }
+.monitor-row { display: flex; align-items: center; gap: 8px; }
+.monitor-row input { flex: 1; width: 100%; }

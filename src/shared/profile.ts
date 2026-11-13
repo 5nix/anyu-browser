@@ -37,10 +37,10 @@ export interface Profile {
    *  external: the core's only outbound is externalProxy; node selection belongs to that software. */
   connectionMode: ConnectionMode;
   externalProxy: ExternalProxy;
-  /** Exit-check endpoint override (trace format: ip=/loc= lines). Empty uses the built-in default.
-   *  In external mode this is the monitored URL: if the exit seen through it goes direct or
-   *  mismatches the configured country, the gate cuts every connection. */
-  monitorUrl: string;
+  /** Exit-check endpoints (trace format: ip=/loc= lines). The gate opens only when the exit
+   *  measured through EVERY entry matches; an empty list uses the built-in default. Capped
+   *  because each entry costs one request per check. */
+  monitorUrls: string[];
   notifications: boolean;
   /** subscriptionVia: "direct" fetches the subscription URL once over the system network; "proxy" through the selected node */
   proxy: ProxySources;
@@ -133,7 +133,7 @@ export function defaultProfile(hostLocale: string, hostTimezone: string): Profil
     allowPrivateNetwork: false,
     connectionMode: 'system',
     externalProxy: { protocol: 'socks5', host: '127.0.0.1', port: 0, username: '', password: '' },
-    monitorUrl: '',
+    monitorUrls: [],
     notifications: false,
     proxy: { sources: [], selected: null },
   };
@@ -164,10 +164,9 @@ export function validateProfile(input: unknown, fallback: Profile): Profile {
 
   const externalProxy = externalProxyValue(pick('externalProxy'));
 
-  // HTTPS only: this endpoint's answer opens the gate, and a plaintext answer could be forged
-  // by anything on the path the check is supposed to verify.
-  const monitorUrl = String(pick('monitorUrl') ?? '').trim();
-  if (monitorUrl && (monitorUrl.length > 2048 || !URL.canParse(monitorUrl) || new URL(monitorUrl).protocol !== 'https:')) fail('monitorUrl', 'profileInvalid');
+  // HTTPS only: these endpoints' answers open the gate, and a plaintext answer could be
+  // forged by anything on the path the check is supposed to verify.
+  const monitorUrls = monitorUrlsValue(pick('monitorUrls'));
 
   const proxy = normalizeProxySources(raw.proxy ?? fallback.proxy);
 
@@ -182,13 +181,28 @@ export function validateProfile(input: unknown, fallback: Profile): Profile {
     allowPrivateNetwork: pick('allowPrivateNetwork') === true,
     connectionMode,
     externalProxy,
-    monitorUrl,
+    monitorUrls,
     notifications: pick('notifications') === true,
     proxy,
   };
 }
 
 /** Strict shape for the external endpoint; a malformed one is a profile error, not a silent default. */
+export const MAX_MONITOR_URLS = 10;
+
+function monitorUrlsValue(v: unknown): string[] {
+  if (v === undefined) return [];
+  if (!Array.isArray(v) || v.length > MAX_MONITOR_URLS) fail('monitorUrls', 'profileInvalid');
+  const out: string[] = [];
+  for (const entry of v) {
+    if (typeof entry !== 'string') fail('monitorUrls', 'profileInvalid');
+    const url = entry.trim();
+    if (!url || url.length > 2048 || !URL.canParse(url) || new URL(url).protocol !== 'https:') fail('monitorUrls', 'profileInvalid');
+    if (!out.includes(url)) out.push(url);
+  }
+  return out;
+}
+
 function externalProxyValue(v: any): ExternalProxy {
   if (!v || typeof v !== 'object' || Array.isArray(v)) fail('externalProxy', 'profileInvalid');
   const host = typeof v.host === 'string' ? v.host.trim() : '';
@@ -209,9 +223,11 @@ export function normalizeProfile(input: unknown, fallback: Profile, legacyNodes:
     try { validateProfile({ ...defaults, [key]: value }, defaults); return true; } catch { return false; }
   };
   const sanitized: Record<string, unknown> = {};
-  for (const key of ['locale', 'acceptLanguages', 'timezone', 'geolocation', 'egressCountry', 'platform', 'allowPrivateNetwork', 'connectionMode', 'externalProxy', 'monitorUrl', 'notifications'] as const) {
+  for (const key of ['locale', 'acceptLanguages', 'timezone', 'geolocation', 'egressCountry', 'platform', 'allowPrivateNetwork', 'connectionMode', 'externalProxy', 'monitorUrls', 'notifications'] as const) {
     if (raw[key] !== undefined && valid(key, raw[key])) sanitized[key] = raw[key];
   }
+  // Legacy migration: the single monitorUrl string from the previous build becomes a list.
+  if (sanitized.monitorUrls === undefined && typeof raw.monitorUrl === 'string' && raw.monitorUrl.trim()) sanitized.monitorUrls = [raw.monitorUrl];
   // Legacy migration: bypassHostTun from the previous build means independent mode.
   if (sanitized.connectionMode === undefined && raw.bypassHostTun === true) sanitized.connectionMode = 'independent';
   const result = validateProfile(sanitized, defaults);

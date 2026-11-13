@@ -19,7 +19,7 @@ Anyu 是一个隔离的桌面浏览器，用来登录你自己在各个网站上
 | --- | --- | --- |
 | macOS（arm64 / x64） | `Anyu-<版本>-mac-arm64.dmg` / `-mac-x64.dmg`，也有 zip 版 | 包只有 ad-hoc 签名，没有平台开发者证书。第一次打开会被拦下：到“系统设置 → 隐私与安全性”里点“仍要打开”；或者在终端运行 `xattr -dr com.apple.quarantine /Applications/Anyu.app` 后再打开。 |
 | Windows x64 | `Anyu-<版本>-win-x64.exe`（安装器）或 zip 便携版 | 包没有签名，系统安全检查拦截时点“更多信息 → 仍要运行”。 |
-| Linux x64 | AppImage 或 tar.gz | 主要用于测试。 |
+| Linux x64（Debian / Ubuntu） | `Anyu-<版本>-linux-amd64.deb` | 用 `sudo apt install ./Anyu-<版本>-linux-amd64.deb` 安装。安装脚本会配置 Chromium 沙箱（Ubuntu 24.04 上同时装入 AppArmor 配置），应用始终在沙箱里运行。 |
 
 从源码运行需要 Node 24：
 

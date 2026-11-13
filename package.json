@@ -103,6 +103,9 @@
         }
       ]
     },
+    "deb": {
+      "packageCategory": "web"
+    },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
@@ -110,18 +113,14 @@
     "linux": {
       "target": [
         {
-          "target": "AppImage",
-          "arch": [
-            "x64"
-          ]
-        },
-        {
-          "target": "tar.gz",
+          "target": "deb",
           "arch": [
             "x64"
           ]
         }
       ],
+      "maintainer": "5nix <324848295+5nix@users.noreply.github.com>",
+      "synopsis": "Privacy-isolated browser with a bundled proxy core",
       "category": "Network",
       "extraResources": [
         {

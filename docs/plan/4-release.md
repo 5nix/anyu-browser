@@ -16,7 +16,7 @@
 
 ## R1 三平台安装器
 
-- 行为：macOS arm64/x64 DMG 和 zip，Windows x64 NSIS 和 zip，Linux x64 AppImage 和 tar.gz；安装、卸载、升级保留 profile，启动正常，包附带正确架构内核、LICENSE 和 NOTICE。Linux 支持运行与打包，不承诺平台专属体验。
+- 行为：macOS arm64/x64 DMG 和 zip，Windows x64 NSIS 和 zip，Linux x64 deb（安装时配置好 Chromium 沙箱，不用 --no-sandbox）；安装、卸载、升级保留 profile，启动正常，包附带正确架构内核、LICENSE 和 NOTICE。Linux 支持运行与打包，不承诺平台专属体验。
 - 文件：`package.json`, `scripts/build.mjs`, `scripts/fetch-core.mjs`、新增 `scripts/verify-package.mjs`、打包资源和 `docs/MANUAL_TESTS.md`；不改功能 UI。复用现有固定版本、SHA256 校验。IPC、事件、ShellState、数据库、命令、浮层均无新增。
 - 测试：单元测包内容/架构和缺失内核失败；e2e 对包设置 `CAVE_APP` 用 `startWorld`/CDP 本地 fixture 验证启动和闸门；人工在 macOS、Windows 安装/升级/卸载，Linux 启动。验收：产物可复现地包含许可及正确二进制，卸载不静默删除 profile。
 

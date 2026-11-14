@@ -1,5 +1,6 @@
 // Per-origin JSON settings.
 import type { PermissionEntry, Permission } from '../../shared/ipc.ts';
+import { isUaMode, isUaPreference, normalizeSiteOrigin, type UaMode, type UaOverrideEntry, type UaPreference } from '../../shared/ua.ts';
 import { isZoom } from '../../shared/zoom.ts';
 import type { Store } from './db.ts';
 export class SiteSettings {
@@ -11,6 +12,20 @@ export class SiteSettings {
   all(origin: string): Record<string, unknown> { const result: Record<string, unknown> = Object.create(null); for (const row of this.store.prepare('SELECT key,value FROM site_settings WHERE origin=?').all(origin)) { try { result[String(row.key)] = JSON.parse(String(row.value)); } catch { /* Ignore malformed settings. */ } } return result; }
   getZoom(origin: string): number { try { const value = this.get<unknown>(origin, 'zoom', 100); return isZoom(value) ? value : 100; } catch { return 100; } }
   setZoom(origin: string, value: number): void { if (!isZoom(value)) throw new RangeError('Invalid zoom'); if (value === 100) this.delete(origin, 'zoom'); else this.set(origin, 'zoom', value); }
+  getUa(origin: string): UaMode | null { try { const value = this.get<unknown>(origin, 'ua', null); return isUaMode(value) ? value : null; } catch { return null; } }
+  setUa(origin: string, preference: UaPreference): void {
+    const normalized = normalizeSiteOrigin(origin);
+    if (!normalized || !isUaPreference(preference)) throw new RangeError('Invalid site UA');
+    if (preference === 'default') this.delete(normalized, 'ua');
+    else this.set(normalized, 'ua', preference);
+  }
+  listUa(): UaOverrideEntry[] {
+    return this.store.prepare("SELECT origin FROM site_settings WHERE key='ua' ORDER BY origin").all().flatMap(row => {
+      const origin = normalizeSiteOrigin(String(row.origin));
+      const mode = origin ? this.getUa(origin) : null;
+      return origin && mode ? [{ origin, mode }] : [];
+    });
+  }
   listPermissions(): PermissionEntry[] {
     const valid = new Set(['media-camera', 'media-microphone', 'geolocation', 'notifications', 'clipboard-read']);
     return this.store.prepare("SELECT origin,key,value FROM site_settings WHERE key LIKE 'permission:%' ORDER BY origin,key").all().flatMap(row => {
@@ -26,6 +41,7 @@ export class SiteSettings {
     try { for (const permission of permissions) this.set(origin, `permission:${permission}`, decision); this.store.db.exec('COMMIT'); }
     catch (error) { this.store.db.exec('ROLLBACK'); throw error; }
   }
+  clearSiteData(origin: string): void { this.store.prepare("DELETE FROM site_settings WHERE origin=? AND key!='ua'").run(origin); }
   clearOrigin(origin: string): void { this.store.prepare('DELETE FROM site_settings WHERE origin=?').run(origin); }
   clearAll(): void { this.store.prepare('DELETE FROM site_settings').run(); }
 }

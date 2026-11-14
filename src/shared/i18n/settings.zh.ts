@@ -49,6 +49,7 @@ export const settingsZh = {
   "set.conditions.passed": "{count} 项通过",
   "set.nodes.count": "{count} 个节点",
   "set.permissions.title": "网站权限", "set.permissions.empty": "没有保存的决定", "set.permissions.camera": "相机", "set.permissions.microphone": "麦克风", "set.permissions.location": "位置", "set.permissions.notifications": "通知", "set.permissions.clipboard": "读取剪贴板", "set.permissions.allow": "允许", "set.permissions.deny": "拒绝", "set.permissions.remove": "移除",
+  "set.ua.title": "网站 UA", "set.ua.hint": "默认 Chromium；Google / YouTube 登录页默认 Electron", "set.ua.empty": "没有自定义设置的网站", "set.ua.defaultChromium": "默认使用 Chromium", "set.ua.builtin": "默认使用 {mode}（内置例外）", "set.ua.reset": "恢复默认",
   "set.restoreSession": "启动时恢复标签页",
   "set.search.title": "搜索引擎",
   "set.search.custom": "自定义",

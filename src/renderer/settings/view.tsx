@@ -4,6 +4,7 @@ import type { Permission, CheckItem, PanelData, SearchEngine, SettingsSection, S
 import { MAX_MONITOR_URLS, type Profile, type SubscriptionVia } from '../../shared/profile.ts';
 import { t, setLocale, type LocalePreference } from '../../shared/i18n/index.ts';
 import { SEARCH_PRESETS, isSearchEngine, subscriptionFetchBlock } from '../../shared/url.ts';
+import { builtinUa, uaModeLabel, type UaPreference } from '../../shared/ua.ts';
 import { switchText } from '../../shared/switch.ts';
 import { cave } from '../bridge.ts';
 import { ConditionList, GateSummary, gateStatus, regionName } from '../gate-status.tsx';
@@ -36,7 +37,7 @@ function OverviewSection({ active, state, data, act, confirm, checks, runChecks,
   const groups = [
     { name: t('set.conditions.network'), ids: [1, 2, 6, 10, 11], icon: 'network' },
     { name: t('set.conditions.leaks'), ids: [3, 7, 8, 9], icon: 'shield' },
-    { name: t('set.conditions.identity'), ids: [4, 5, 12, 13, 14], icon: 'fingerprint' },
+    { name: t('set.conditions.identity'), ids: [4, 5, 12, 13], icon: 'fingerprint' },
   ];
   // Option B's fix for a wrong exit: nodes already seen exiting in the right country, or changing the profile to the country observed.
   const exitFix = () => {
@@ -222,6 +223,25 @@ function PrivacySection({ active, state, data, act, confirm, checks, runChecks, 
       <div class="card" id="site-permissions">
         {!data.permissions.length && <div class="row">{t('set.permissions.empty')}</div>}
         {data.permissions.map(p => <div class="row"><Icon name="shield-check" /><div class="label"><b>{p.origin}</b><small>{t(permissionLabels[p.permission])} · {t(p.decision === 'allow' ? 'set.permissions.allow' : 'set.permissions.deny')}</small></div><button class="icon-btn" title={t('set.permissions.remove')} aria-label={t('set.permissions.remove')} onClick={() => act(() => cave.removePermission(p.origin, p.permission))}><Icon name="trash-2" /></button></div>)}
+      </div>
+    </div>
+    <div class="group">
+      <h3>{t('set.ua.title')} <span class="hint">{t('set.ua.hint')}</span></h3>
+      <div class="card" id="site-ua-list">
+        {!data.uaOverrides.length && <div class="row">{t('set.ua.empty')}</div>}
+        {data.uaOverrides.map(entry => <div class="row">
+          <Icon name="globe" />
+          <div class="label">
+            <b>{entry.origin}</b>
+            <small>{builtinUa(entry.origin) ? t('set.ua.builtin', { mode: uaModeLabel(builtinUa(entry.origin)!) }) : t('set.ua.defaultChromium')}</small>
+          </div>
+          <select aria-label={`${t('set.ua.title')} ${entry.origin}`} value={entry.mode} onChange={e => act(() => cave.setSiteUa(entry.origin, e.currentTarget.value as UaPreference))}>
+            <option value="chromium">Chromium</option>
+            <option value="chrome">Chrome</option>
+            <option value="electron">Electron</option>
+          </select>
+          <button class="icon-btn" title={t('set.ua.reset')} aria-label={t('set.ua.reset')} onClick={() => act(() => cave.setSiteUa(entry.origin, 'default'))}><Icon name="trash-2" /></button>
+        </div>)}
       </div>
     </div>
     <div class="group">

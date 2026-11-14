@@ -320,7 +320,7 @@ export class Browser extends EventEmitter {
   cancelPermissions(): void { for (const w of this.windows) w.cancelAllPermissions(); }
 
   clearOriginSettings(origin: string): void {
-    this.o.siteSettings.clearOrigin(origin);
+    this.o.siteSettings.clearSiteData(origin);
     for (const w of this.windows) w.applyOriginZoom(origin, 100);
   }
 

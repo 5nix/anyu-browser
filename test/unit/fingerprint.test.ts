@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
-import { applyFingerprint, buildIdentity, chromeBrands, emulationCommands, PRESENTED, type PlatformHints } from '../../src/main/fingerprint.ts';
+import { applyFingerprint, buildIdentity, chromeBrands, chromiumBrands, emulationCommands, PRESENTED, type PlatformHints } from '../../src/main/fingerprint.ts';
 import { evaluateChecks, type CheckFacts } from '../../src/main/checks.ts';
 import { initialGate, viewGate } from '../../src/main/gate.ts';
 import { setLocale } from '../../src/shared/i18n/index.ts';
@@ -11,23 +11,33 @@ const linux: PlatformHints = { platform: 'Linux', platformVersion: '', architect
 const mac: PlatformHints = { platform: 'macOS', platformVersion: '14.6.1', architecture: 'arm', bitness: '64', wow64: false };
 const profile = { ...defaultProfile('en-US', 'Etc/GMT+8'), acceptLanguages: ['en-US', 'en'] };
 
-test('brands and GREASE follow Chrome major versions', () => {
-  assert.deepEqual(chromeBrands(156, '156', false), [
+test('brands and GREASE follow unbranded Chromium major versions without Google Chrome', () => {
+  assert.deepEqual(chromiumBrands(156, '156', false), [
     { brand: 'Not:A-Brand', version: '8' },
     { brand: 'Chromium', version: '156' },
-    { brand: 'Google Chrome', version: '156' },
   ]);
-  assert.equal(chromeBrands(156, '156.0.8078.96', true)[0].version, '8.0.0.0');
-  assert.deepEqual(chromeBrands(131, '131', false).map((b) => b.brand), ['Google Chrome', 'Chromium', 'Not_A Brand']);
-  assert.equal(chromeBrands(131, '131', false)[2].version, '24');
+  assert.equal(chromiumBrands(156, '156.0.8078.96', true)[0].version, '8.0.0.0');
+  assert.deepEqual(chromiumBrands(131, '131', false).map((b) => b.brand), ['Chromium', 'Not_A Brand']);
+  assert.equal(chromiumBrands(131, '131', false)[1].version, '24');
 });
 
-test('identity follows the host by default and never mentions Electron or Cave', () => {
+test('chromeBrands orders GREASE, Chromium and Google Chrome by major % 6', () => {
+  assert.deepEqual(chromeBrands(144, '144', false).map((b) => b.brand), ['Not(A:Brand', 'Chromium', 'Google Chrome']);
+  assert.deepEqual(chromeBrands(146, '146', false).map((b) => b.brand), ['Chromium', 'Not-A.Brand', 'Google Chrome']);
+  const chromeId = buildIdentity(profile, '146.0.7680.178', mac, 'chrome');
+  assert.doesNotMatch(chromeId.userAgent, /Electron/);
+  assert.ok(chromeId.metadata.brands.some((b) => b.brand === 'Google Chrome'));
+  const electronId = buildIdentity(profile, '146.0.7680.178', mac, 'electron', '45.3.0');
+  assert.match(electronId.userAgent, /Electron\/45\.3\.0/);
+  assert.ok(!electronId.metadata.brands.some((b) => b.brand === 'Google Chrome' || b.brand === 'Electron'));
+});
+
+test('identity follows the host by default and never mentions Electron, Google Chrome, or Cave', () => {
   const id = buildIdentity(profile, '156.0.8078.96', mac);
   assert.equal(id.userAgent, 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36');
   assert.equal(id.navigatorPlatform, 'MacIntel');
   assert.equal(id.metadata.platformVersion, '14.6.1');
-  assert.doesNotMatch(JSON.stringify(id), /Electron|Cave|Anyu/i);
+  assert.doesNotMatch(JSON.stringify(id), /Electron|Google Chrome|Cave|Anyu/i);
 });
 
 test('a pinned platform makes UA, UA-CH and navigator.platform agree', () => {
@@ -57,28 +67,34 @@ test('emulation sets timezone, locale and UA; geolocation only when configured',
   assert.deepEqual(emulationCommands(profile, id)[1][1], { locale: 'en_US' });
 });
 
-test('applyFingerprint injects document-start speech shim on top and iframe targets only', async () => {
+test('applyFingerprint applies emulation without injecting document-start scripts and supports live updates', async () => {
   const dbg = new EventEmitter() as EventEmitter & { attach: () => void; sendCommand: (m: string, p?: object, sessionId?: string) => Promise<void> };
-  const calls: { method: string; sessionId?: string }[] = [];
+  const calls: { method: string; params?: Record<string, unknown>; sessionId?: string }[] = [];
   dbg.attach = () => undefined;
-  dbg.sendCommand = async (method, _params, sessionId) => {
-    calls.push({ method, sessionId });
+  dbg.sendCommand = async (method, params, sessionId) => {
+    calls.push({ method, params: params as Record<string, unknown> | undefined, sessionId });
   };
   const id = buildIdentity(profile, '156.0.8078.96', linux);
-  applyFingerprint({ debugger: dbg } as unknown as Electron.WebContents, emulationCommands(profile, id));
+  const handle = applyFingerprint({ debugger: dbg } as unknown as Electron.WebContents, emulationCommands(profile, id));
   await new Promise((r) => setTimeout(r, 10));
   dbg.emit('message', {}, 'Target.attachedToTarget', { sessionId: 's-iframe', targetInfo: { type: 'iframe' } });
   dbg.emit('message', {}, 'Target.attachedToTarget', { sessionId: 's-worker', targetInfo: { type: 'worker' } });
   await new Promise((r) => setTimeout(r, 10));
 
+  const chromeId = buildIdentity(profile, '156.0.8078.96', linux, 'chrome');
+  handle.update(emulationCommands(profile, chromeId));
+  await new Promise((r) => setTimeout(r, 10));
+
   const forSession = (sid?: string) => calls.filter((c) => c.sessionId === sid).map((c) => c.method);
-  assert.ok(forSession(undefined).includes('Page.addScriptToEvaluateOnNewDocument'));
-  assert.ok(forSession('s-iframe').includes('Page.addScriptToEvaluateOnNewDocument'));
-  assert.ok(!forSession('s-worker').includes('Page.addScriptToEvaluateOnNewDocument'));
+  assert.ok(!calls.some((c) => c.method === 'Page.addScriptToEvaluateOnNewDocument' || c.method === 'Page.enable'));
+  assert.ok(forSession(undefined).includes('Emulation.setUserAgentOverride'));
+  assert.ok(forSession('s-iframe').includes('Emulation.setUserAgentOverride'));
+  assert.ok(forSession('s-worker').includes('Emulation.setUserAgentOverride'));
   assert.ok(forSession('s-worker').includes('Runtime.runIfWaitingForDebugger'));
+  assert.equal(calls.filter((c) => c.sessionId === 's-worker' && c.method === 'Emulation.setUserAgentOverride').length, 2);
 });
 
-test('evaluateChecks fails the speech voice check when non-zero or unavailable', () => {
+test('evaluateChecks accepts Chromium brands and rejects Google Chrome or Electron brands', () => {
   const id = buildIdentity(profile, '156.0.8078.96', mac);
   const scope = {
     userAgent: id.userAgent,
@@ -98,17 +114,30 @@ test('evaluateChecks fails the speech voice check when non-zero or unavailable',
     switches: { hostResolverRules: 'MAP * ~NOTFOUND', quic: true, ipv6: true },
     localDnsRefused: true,
     runtimeYaml: 'ipv6: false\nMATCH,REJECT',
-    probe: { main: scope, worker: scope, webrtc: [], webrtcPolicy: 'disable_non_proxied_udp', speechVoices: 0 },
+    probe: { main: scope, worker: scope, webrtc: [], webrtcPolicy: 'disable_non_proxied_udp' },
     hostPlatform: 'macOS',
   };
   try {
     setLocale('en');
     const passItems = evaluateChecks(base);
-    assert.equal(passItems.length, 14);
-    assert.equal(passItems[13].pass, true);
-    assert.equal(evaluateChecks({ ...base, probe: { ...base.probe!, speechVoices: 3 } })[13].pass, false);
-    assert.equal(evaluateChecks({ ...base, probe: { ...base.probe!, speechVoices: null } })[13].pass, false);
-    assert.equal(evaluateChecks({ ...base, probe: null })[13].pass, false);
+    assert.equal(passItems.length, 13);
+    assert.equal(passItems[11].pass, true);
+    const withGoogle = evaluateChecks({
+      ...base,
+      probe: {
+        ...base.probe!,
+        main: { ...scope, ua: { ...scope.ua, brands: [...scope.ua.brands, { brand: 'Google Chrome', version: '156' }] } },
+      },
+    });
+    assert.equal(withGoogle[11].pass, false);
+    const withElectron = evaluateChecks({
+      ...base,
+      probe: {
+        ...base.probe!,
+        main: { ...scope, ua: { ...scope.ua, brands: [...scope.ua.brands, { brand: 'Electron', version: '45' }] } },
+      },
+    });
+    assert.equal(withElectron[11].pass, false);
   } finally {
     setLocale('zh');
   }

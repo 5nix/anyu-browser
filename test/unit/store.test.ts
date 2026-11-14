@@ -81,6 +81,28 @@ test('permission decisions are atomic, validated and cleared by origin', () => {
   } finally { store.close(); }
 });
 
+test('site UA overrides validate origins, list in order, and survive clearSiteData', () => {
+  const store = openStore(':memory:');
+  try {
+    const settings = new SiteSettings(store);
+    settings.setUa('https://b.example/path', 'chrome');
+    settings.setUa('https://a.example', 'electron');
+    settings.setZoom('https://a.example', 125);
+    settings.setPermissions('https://a.example', ['notifications'], 'allow');
+    assert.deepEqual(settings.listUa(), [
+      { origin: 'https://a.example', mode: 'electron' },
+      { origin: 'https://b.example', mode: 'chrome' },
+    ]);
+    assert.throws(() => settings.setUa('chrome://settings', 'chrome'));
+    settings.clearSiteData('https://a.example');
+    assert.equal(settings.getUa('https://a.example'), 'electron');
+    assert.equal(settings.getZoom('https://a.example'), 100);
+    assert.equal(settings.getPermission('https://a.example', 'notifications'), null);
+    settings.setUa('https://a.example', 'default');
+    assert.equal(settings.getUa('https://a.example'), null);
+  } finally { store.close(); }
+});
+
 test('session snapshots skip corruption and transaction rollback preserves earlier data', () => {
   const store = openStore(':memory:');
   try {

@@ -57,7 +57,7 @@ test('Windows: fresh profile blocks navigation before any node is imported', { s
   assert.equal(w.fixture.requests.length, 0);
   assert.equal(w.socks.targets.length, 0);
   const checks = await evaluate(port, settings, 'cave.runChecks()');
-  assert.equal(checks.length, 14);
+  assert.equal(checks.length, 13);
   assert.equal(checks[10].pass, false);
   await save('fresh-state.json', JSON.stringify({ state, text, checks }, null, 2));
   await save('fresh-shell.png', await screenshot(port, shell));
@@ -72,7 +72,7 @@ test('Windows: local node passes checks, core crash rechecks, mismatch remains c
   await evaluate(port, shell, "cave.openSettings('overview')");
   const checks = await evaluate(port, settings, 'cave.runChecks()');
   await save('checks.json', JSON.stringify(checks, null, 2));
-  assert.equal(checks.length, 14);
+  assert.equal(checks.length, 13);
   assert.deepEqual(checks.filter(check => !check.pass), []);
   await evaluate(port, settings, 'cave.copyReport()');
   // Read exactly what the application's Copy Report action put on the clipboard.

@@ -53,6 +53,7 @@ export const settingsEn: Record<keyof typeof settingsZh, string> = {
   "set.conditions.passed": "{count} passed",
   "set.nodes.count": "{count} nodes",
   "set.permissions.title": "Site permissions", "set.permissions.empty": "No saved decisions", "set.permissions.camera": "Camera", "set.permissions.microphone": "Microphone", "set.permissions.location": "Location", "set.permissions.notifications": "Notifications", "set.permissions.clipboard": "Read clipboard", "set.permissions.allow": "Allowed", "set.permissions.deny": "Denied", "set.permissions.remove": "Remove",
+  "set.ua.title": "Site User-Agent", "set.ua.hint": "Defaults to Chromium; Google / YouTube sign-in defaults to Electron", "set.ua.empty": "No site overrides", "set.ua.defaultChromium": "Defaults to Chromium", "set.ua.builtin": "Defaults to {mode} (built-in exception)", "set.ua.reset": "Reset to default",
   "set.restoreSession": "Restore tabs on startup",
   "set.search.title": "Search engine",
   "set.search.custom": "Custom",

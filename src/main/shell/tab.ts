@@ -1,6 +1,7 @@
 import { certificateFailure, failureKind } from './recovery.ts';
 import { t } from '../../shared/i18n/index.ts';
 import { isAllowedPdfViewerFrame, NavigationFailures } from '../../shared/navigation-safety.ts';
+import { GestureGate, shouldBlockMainFrameNavigation, shouldBlockPopupTarget } from '../../shared/content-blocker.ts';
 // One tab: a page in its own view, and what the chrome shows about it. A tab does not know
 // which window it is in; the window that holds it is its host and hears what happens to it.
 import { WebContentsView, type BrowserWindowConstructorOptions, type WebContents } from 'electron';
@@ -80,12 +81,19 @@ export class Tab {
     if (this.error) this.error = { ...this.error, generation: this.generation };
   }
 
+  private gesture = new GestureGate();
+
   private constructor(readonly kind: TabState['kind'], readonly view: WebContentsView) {
     this.id = view.webContents.id;
-    view.webContents.on('before-input-event', (_event, input) => { if (input.type === 'keyDown' && input.key === 'Escape') this.host?.escapeSurface(); });
+    view.webContents.on('before-input-event', (_event, input) => {
+      if (input.type === 'keyDown') {
+        if (input.key === 'Escape') this.host?.escapeSurface();
+        else if (!['Shift', 'Control', 'Alt', 'Meta', 'CapsLock'].includes(input.key)) this.gesture.mark();
+      }
+    });
     view.webContents.on('focus', () => this.host?.focused(this));
     view.webContents.on('context-menu', (_e, p) => this.host?.contextMenu(this, p));
-    view.webContents.on('before-mouse-event', (_event, mouse) => { if (mouse.type === 'mouseDown') { this.host?.outsidePress(); this.host?.focused(this); } });
+    view.webContents.on('before-mouse-event', (_event, mouse) => { if (mouse.type === 'mouseDown') { this.gesture.mark(); this.host?.outsidePress(); this.host?.focused(this); } });
   }
 
   /** A web tab in the isolated browsing session; `adopt` is the page a window.open() already made. */
@@ -191,6 +199,7 @@ export class Tab {
       if (e.isMainFrame) this.host?.navigated(this);
       // Chromium's own error document is the failure being shown, not a new attempt.
       if (!e.isMainFrame || e.isSameDocument || e.url.startsWith('chrome-error:')) return;
+      this.gesture.reset();
       this.host?.findNavigation(this);
       this.retryPending = false;
       failures.start(e.url);
@@ -221,12 +230,39 @@ export class Tab {
       changed();
     });
     wc.on('found-in-page', (_e, r) => this.host?.found(this, r));
-    wc.setWindowOpenHandler(({ disposition, url }) => ({
-      action: this.host && WEB.test(url) ? 'allow' : 'deny',
-      overrideBrowserWindowOptions: { webPreferences: { focusOnNavigation: false } },
-      createWindow: (options: BrowserWindowConstructorOptions & { webContents?: WebContents }) =>
-        this.host!.opened(options.webContents!, disposition !== 'background-tab'),
-    }));
+    wc.setWindowOpenHandler(({ disposition, url }) => {
+      if (!this.host || !WEB.test(url) || shouldBlockPopupTarget(url, wc.getURL()) || !this.gesture.consumePopup()) {
+        return { action: 'deny' };
+      }
+      return {
+        action: 'allow',
+        overrideBrowserWindowOptions: { webPreferences: { focusOnNavigation: false } },
+        createWindow: (options: BrowserWindowConstructorOptions & { webContents?: WebContents }) =>
+          this.host!.opened(options.webContents!, disposition !== 'background-tab'),
+      };
+    });
+    wc.on('will-navigate', (e) => {
+      if (!e.isMainFrame) return;
+      if (!WEB.test(e.url) || shouldBlockMainFrameNavigation({
+        url: e.url,
+        currentUrl: wc.getURL(),
+        isChildFrame: Boolean(e.initiator && (e.initiator.parent !== null || (e.frame && e.initiator !== e.frame))),
+        hasGesture: this.gesture.hasRecent(),
+      })) {
+        e.preventDefault();
+      }
+    });
+    wc.on('will-redirect', (e) => {
+      if (!e.isMainFrame) return;
+      if (!WEB.test(e.url) || shouldBlockMainFrameNavigation({
+        url: e.url,
+        currentUrl: wc.getURL(),
+        isChildFrame: false,
+        hasGesture: this.gesture.hasRecent(),
+      })) {
+        e.preventDefault();
+      }
+    });
     wc.on('will-frame-navigate', (e) => {
       if (!WEB.test(e.url) && !isAllowedPdfViewerFrame(e.url, e.isMainFrame, e.initiator?.origin, e.frame?.parent?.origin)) e.preventDefault();
     });

@@ -5,7 +5,7 @@ import { settingsZh } from './settings.zh.ts';
 import { welcomeZh } from './welcome.zh.ts';
 
 export const zh = {
-  siteInfo_details: '证书详情', siteInfo_subject: '使用者', siteInfo_issuer: '颁发者', siteInfo_validFrom: '生效日期', siteInfo_validTo: '到期日期', siteInfo_title: '网站信息', siteInfo_secure: '连接安全', siteInfo_insecure: '连接不安全', siteInfo_certificate: '证书存在问题', siteInfo_internal: '这是 Anyu 页面', siteInfo_unknown: '连接状态未知', siteInfo_cookies: 'Cookie', siteInfo_cookieCount: '{count} 个', siteInfo_settings: '网站设置',
+  siteInfo_details: '证书详情', siteInfo_subject: '使用者', siteInfo_issuer: '颁发者', siteInfo_validFrom: '生效日期', siteInfo_validTo: '到期日期', siteInfo_title: '网站信息', siteInfo_secure: '连接安全', siteInfo_insecure: '连接不安全', siteInfo_certificate: '证书存在问题', siteInfo_internal: '这是 Anyu 页面', siteInfo_unknown: '连接状态未知', siteInfo_cookies: 'Cookie', siteInfo_cookieCount: '{count} 个', siteInfo_ua: 'UA', siteInfo_uaDefault: '默认（{mode}）', siteInfo_uaNotice: '切换后需刷新页面才能生效，部分网站还需清除 Cookie。', siteInfo_settings: '网站设置',
   bookmark_title: '标题', bookmark_remove: '移除', bookmark_done: '完成', bookmark_count: '移除此页面的全部 {count} 个书签', bookmark_error: '保存失败，请重试。',
   command_bookmark_toggle: '添加或编辑书签',
   bookmarks_import: '导入', bookmarks_imported: '已导入', bookmarks_import_result: '已添加 {added}，已跳过 {skipped}',
@@ -113,8 +113,6 @@ export const zh = {
   checkText29: "正在核对",
   checkText30: "外网已关闭",
   checkText31: "无",
-  checkText32: "语音列表为空",
-  checkText33: "speechSynthesis 不可用",
   checkSemicolon: "；",
   checkComma: "，",
   checkTemplate0: "{proxy}，回环地址也不绕过",
@@ -129,7 +127,6 @@ export const zh = {
   checkTemplate9: "配置：时区 {timezone}，语言 {languages}，出口国家 {country}，平台 {platform}，连接方式 {connection}",
   checkTemplate10: "最近出口：{exit}",
   checkTemplate11: "通过 {passed}/{total}",
-  checkTemplate12: "语音数：{count}",
   settings: '设置',
   language: '语言',
   system: '跟随系统',

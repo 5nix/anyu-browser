@@ -8,6 +8,7 @@ import type { Locale, LocalePreference } from './i18n/index.ts';
 import type { CommandId } from './commands.ts';
 import type { Profile, ProfilePatch, SubscriptionVia, NodeSelection, SetupChoices } from './profile.ts';
 import type { SetupStep } from './welcome.ts';
+import type { UaMode, UaOverrideEntry, UaPreference } from './ua.ts';
 
 export interface Shortcut { id: number; name: string; url: string; favicon?: string | null }
 
@@ -97,9 +98,11 @@ export interface ShellState {
 }
 
 export interface PermissionEntry { origin: string; permission: Permission; decision: 'allow' | 'deny' }
+export interface SiteUaInfo { origin: string; preference: UaPreference; effective: UaMode; builtin: UaMode | null }
 
 export interface PanelData {
   permissions: PermissionEntry[];
+  uaOverrides: UaOverrideEntry[];
   profile: Profile;
   profileError: string | null;
   profileDir: string;
@@ -171,9 +174,10 @@ export interface CaveCalls {
   setSearchEngine(engine: SearchEngine): boolean;
   listDownloads(): DownloadState[];
   downloadAction(id: number, action: 'pause' | 'resume' | 'cancel' | 'open' | 'reveal' | 'remove'): void;
-  siteInfo(): { permissions: PermissionEntry[]; cookies: number; certificate: CertificateDetails | null };
+  siteInfo(): { permissions: PermissionEntry[]; cookies: number; certificate: CertificateDetails | null; ua: SiteUaInfo | null };
   panelData(): PanelData;
   removePermission(origin: string, permission: Permission): void;
+  setSiteUa(origin: string, preference: UaPreference): void;
   updateProfile(patch: ProfilePatch): PanelData;
   importSubscriptionFile(): boolean;
   importSubscriptionText(text: string): void;
@@ -226,7 +230,7 @@ export const CALLS: Record<keyof CaveCalls, true> = {
   clearData: true, historyDelete: true, historyList: true, shortcuts: true, saveShortcut: true, removeShortcut: true, getState: true, newTab: true, closeTab: true, reopenClosedTab: true, pinTab: true, moveTab: true, duplicateTab: true, setTabMuted: true, activate: true, navigate: true, run: true, find: true, stopFind: true, focusPage: true,
   setSurfaceBounds: true, openAddressMenu: true, openTabMenu: true, openShortcutMenu: true, contextAction: true, openSettings: true, toggleSurface: true, closeSurface: true, setAnchors: true, setTabLayout: true, setSidebarWidth: true, setAccent: true, setTheme: true, setLocale: true, restoreSession: true, discardSession: true, setRestoreSession: true, setSearchEngine: true, listDownloads: true, downloadAction: true,
 
-  siteInfo: true, removePermission: true, panelData: true, updateProfile: true, importSubscriptionFile: true, importSubscriptionText: true, addSubscription: true, updateSource: true, updateSourceFile: true, updateSourceText: true, renameSource: true, removeSource: true,
+  siteInfo: true, removePermission: true, setSiteUa: true, panelData: true, updateProfile: true, importSubscriptionFile: true, importSubscriptionText: true, addSubscription: true, updateSource: true, updateSourceFile: true, updateSourceText: true, renameSource: true, removeSource: true,
   selectNode: true, testDelays: true, measureExit: true, pause: true, resume: true, restartAndCheck: true, runChecks: true, copyReport: true,
   clearSite: true, resetEnvironment: true, revealProfile: true, restart: true, setSetup: true, continueSetup: true, restartSetup: true, localPortOpen: true,
 };

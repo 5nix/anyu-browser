@@ -90,6 +90,9 @@ body { user-select: none; }
 .site-info-heading b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .site-info-row { display: flex; align-items: center; gap: 8px; min-height: 44px; border-top: 1px solid var(--sep); }
 .site-info-value { margin-left: auto; color: var(--text-2); }
+.site-info-select { margin-left: auto; min-width: 0; max-width: 185px; }
+.site-info-notice { display: flex; align-items: center; gap: 8px; padding: 8px 0 10px; border-top: 1px solid var(--sep); color: var(--text-2); font-size: var(--fs-sm); }
+.site-info-notice small { flex: 1; font-size: inherit; line-height: 1.45; }
 .site-info-settings { margin-left: auto; }
 .site-info-confirm { border-top: 1px solid var(--sep); padding: 12px 0; }
 .site-info-confirm p { color: var(--text-2); }

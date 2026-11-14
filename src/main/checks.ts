@@ -34,18 +34,15 @@ export function evaluateChecks(f: CheckFacts): CheckItem[] {
   const major = main?.userAgent.match(/Chrome\/(\d+)/)?.[1];
   const uaOk =
     !!main &&
-    !/Electron|cave/i.test(main.userAgent) &&
-    brands.includes('Google Chrome') &&
+    !/Electron|Cave|Anyu/i.test(main.userAgent) &&
     brands.includes('Chromium') &&
-    !brands.some((b) => /electron/i.test(b)) &&
+    !brands.some((b) => /electron|google chrome/i.test(b)) &&
     main.ua!.brands.every((b) => b.brand.startsWith('Not') || b.version === major) &&
     main.ua!.platform === f.identity.metadata.platform &&
     main.platform === f.identity.navigatorPlatform &&
     main.userAgent === f.identity.userAgent;
   const candidates = f.probe?.webrtc ?? [];
   const leakingCandidates = candidates.filter((c) => IP.test(c.split(' ')[4] ?? ''));
-
-  const speechVoices = f.probe?.speechVoices;
 
   const items = [
     item(t('checkText0'), f.coreUp, f.coreUp ? t('checkText1') : t('checkText2')),
@@ -90,11 +87,6 @@ export function evaluateChecks(f: CheckFacts): CheckItem[] {
       f.identity.metadata.platform === f.hostPlatform
         ? `${f.hostPlatform}`
         : t('checkTemplate6', { presented: f.identity.metadata.platform, host: f.hostPlatform }),
-    ),
-    item(
-      t('checkText32'),
-      speechVoices === 0,
-      f.probe ? (speechVoices === null ? t('checkText33') : t('checkTemplate12', { count: speechVoices! })) : t('checkText10'),
     ),
   ];
   return items.map((it, i) => ({ id: i + 1, ...it }));

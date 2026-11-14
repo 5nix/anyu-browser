@@ -29,7 +29,6 @@ window.report = async () => ({
   main: await scope(),
   worker: await new Promise((r) => { const w = new Worker(workerSrc); w.onmessage = (e) => r(e.data); setTimeout(() => r(null), 3000); }),
   webrtc: await webrtc(),
-  speechVoices: 'speechSynthesis' in window ? speechSynthesis.getVoices().length : null,
 });
 </script>`;
 
@@ -55,7 +54,7 @@ export interface ScopeReport {
   locale: string;
   ua: { brands: { brand: string; version: string }[]; platform: string; high: Record<string, any> } | null;
 }
-export interface ProbeReport { main: ScopeReport; worker: ScopeReport | null; webrtc: string[]; webrtcPolicy: string; speechVoices: number | null }
+export interface ProbeReport { main: ScopeReport; worker: ScopeReport | null; webrtc: string[]; webrtcPolicy: string }
 
 /** Loads the probe in a hidden window; `prepare` may attach overrides first. */
 export async function runProbe(prepare?: (wc: Electron.WebContents) => void): Promise<ProbeReport> {

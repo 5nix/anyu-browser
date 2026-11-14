@@ -107,7 +107,7 @@ input.num { width: 96px; }
 
 .search-error { margin: 0; padding: 0 16px 12px; color: var(--danger); }
 
-#site-permissions .icon-btn:hover:not(:disabled) { color: var(--danger); }
+#site-permissions .icon-btn:hover:not(:disabled), #site-ua-list .icon-btn:hover:not(:disabled) { color: var(--danger); }
 
 .downloads .icon-btn:last-child:hover:not(:disabled) { color: var(--danger); }
 

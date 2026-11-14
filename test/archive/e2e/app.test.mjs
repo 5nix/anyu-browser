@@ -66,13 +66,14 @@ test('fingerprint: profile values reach the main thread and every worker; nothin
     assert.equal(s.intlLocale, PROFILE.locale, `${name} Intl locale`);
     assert.deepEqual(s.languages, PROFILE.acceptLanguages, `${name} languages`);
     assert.doesNotMatch(s.userAgent, /Electron|Cave|Anyu|HeadlessChrome/, `${name} UA`);
-    assert.match(s.userAgent, /Chrome\/\d+\.0\.0\.0 Safari\/537\.36$/, `${name} UA is reduced Chrome`);
-    assert.deepEqual(s.uaData.brands.map((b) => b.brand).sort(), ['Chromium', 'Google Chrome', 'Not:A-Brand'], `${name} brands`);
-    assert.equal(s.uaData.high.fullVersionList.find((b) => b.brand === 'Google Chrome').version.split('.').length, 4);
+    assert.match(s.userAgent, /Chrome\/\d+\.0\.0\.0 Safari\/537\.36$/, `${name} UA is reduced Chromium`);
+    assert.deepEqual(s.uaData.brands.map((b) => b.brand).sort(), ['Chromium', 'Not:A-Brand'], `${name} brands`);
+    assert.equal(s.uaData.high.fullVersionList.find((b) => b.brand === 'Chromium').version.split('.').length, 4);
   }
   assert.equal(r.main.userAgent, r.headers['user-agent']);
   assert.equal(r.headers['accept-language'], 'de-DE,de;q=0.9,en;q=0.8');
-  assert.match(r.headers['sec-ch-ua'], /"Google Chrome";v="\d+"/);
+  assert.match(r.headers['sec-ch-ua'], /"Chromium";v="\d+"/);
+  assert.doesNotMatch(r.headers['sec-ch-ua'], /Google Chrome/);
   assert.deepEqual(r.geolocation, PROFILE.geolocation);
   assert.equal(r.main.webdriver, false);
   // WebRTC: only mDNS host candidates, never an address.
@@ -80,16 +81,6 @@ test('fingerprint: profile values reach the main thread and every worker; nothin
   assert.equal(r.permissions.notifications, 'denied');
   assert.equal(r.permissions.camera, 'denied');
   assert.equal(r.hasSpeechSynthesis, true);
-  assert.equal(r.speechVoices, 0);
-  await evaluate(port, shell, "cave.navigate('http://fp.cave.test/')");
-  await waitFor(() => evaluate(port, (u) => u === 'http://fp.cave.test/', 'document.title'));
-  const frameSpeech = await evaluate(port, (u) => u === 'http://fp.cave.test/', `new Promise((resolve) => {
-    window.addEventListener('message', (e) => { if (e.data?.type === 'speech-frame') resolve(e.data); });
-    const f = document.createElement('iframe');
-    f.src = 'http://other.cave.test/speech-frame';
-    document.body.appendChild(f);
-  })`);
-  assert.deepEqual(frameSpeech, { type: 'speech-frame', has: true, initial: 0, afterWait: 0 });
   // The node only ever saw names (remote resolution), all of them fixtures.
   assert.ok(w.socks.targets.length > 0);
   for (const target of w.socks.targets) {
@@ -186,7 +177,7 @@ test('settings: all self-checks pass when open; pause stops the core and resume 
   const settings = (expr) => evaluate(port, (u) => u.endsWith('/settings.html'), expr);
 
   const checks = await settings('cave.runChecks()');
-  assert.equal(checks.length, 14);
+  assert.equal(checks.length, 13);
   assert.deepEqual(checks.filter((c) => !c.pass).map((c) => `${c.title}: ${c.detail}`), []);
 
   const corePids = () => execFileSync('pgrep', ['-f', `^[^ ]*cave-core -d ${w.dir}`], { encoding: 'utf8' }).trim();

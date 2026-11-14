@@ -5,7 +5,7 @@ import { settingsEn } from './settings.en.ts';
 import { welcomeEn } from './welcome.en.ts';
 
 export const en: Record<keyof typeof zh, string> = {
-  siteInfo_details: 'Certificate details', siteInfo_subject: 'Subject', siteInfo_issuer: 'Issuer', siteInfo_validFrom: 'Valid from', siteInfo_validTo: 'Valid until', siteInfo_title: 'Site information', siteInfo_secure: 'Connection is secure', siteInfo_insecure: 'Connection is not secure', siteInfo_certificate: 'Certificate problem', siteInfo_internal: 'This is a Anyu page', siteInfo_unknown: 'Connection status unknown', siteInfo_cookies: 'Cookies', siteInfo_cookieCount: '{count}', siteInfo_settings: 'Site settings',
+  siteInfo_details: 'Certificate details', siteInfo_subject: 'Subject', siteInfo_issuer: 'Issuer', siteInfo_validFrom: 'Valid from', siteInfo_validTo: 'Valid until', siteInfo_title: 'Site information', siteInfo_secure: 'Connection is secure', siteInfo_insecure: 'Connection is not secure', siteInfo_certificate: 'Certificate problem', siteInfo_internal: 'This is a Anyu page', siteInfo_unknown: 'Connection status unknown', siteInfo_cookies: 'Cookies', siteInfo_cookieCount: '{count}', siteInfo_ua: 'User-Agent', siteInfo_uaDefault: 'Default ({mode})', siteInfo_uaNotice: 'Reload the page to apply; some sites also require clearing cookies.', siteInfo_settings: 'Site settings',
   bookmark_title: 'Title', bookmark_remove: 'Remove', bookmark_done: 'Done', bookmark_count: 'Remove all {count} bookmarks for this page', bookmark_error: 'Could not save. Try again.',
   command_bookmark_toggle: 'Bookmark This Page',
   bookmarks_import: 'Import', bookmarks_imported: 'Imported', bookmarks_import_result: 'Added {added}, skipped {skipped}',
@@ -113,8 +113,6 @@ export const en: Record<keyof typeof zh, string> = {
   checkText29: "Checking",
   checkText30: "Internet access closed",
   checkText31: "None",
-  checkText32: "Speech voice list is empty",
-  checkText33: "speechSynthesis unavailable",
   checkSemicolon: "; ",
   checkComma: ", ",
   checkTemplate0: "{proxy}; loopback addresses do not bypass it",
@@ -129,7 +127,6 @@ export const en: Record<keyof typeof zh, string> = {
   checkTemplate9: "Profile: time zone {timezone}, languages {languages}, exit country {country}, platform {platform}, connection {connection}",
   checkTemplate10: "Last exit: {exit}",
   checkTemplate11: "Passed {passed}/{total}",
-  checkTemplate12: "Speech voices: {count}",
   settings: 'Settings',
   language: 'Language',
   system: 'System default',

@@ -17,6 +17,9 @@ import { ProfileStore } from './profile.ts';
 import { browserSession, pinNetwork, pinSessions, reservePorts } from './network.ts';
 import { applyFingerprint, buildIdentity, emulationCommands, type Identity, type PlatformHints } from './fingerprint.ts';
 import { applyPermissions } from './permissions.ts';
+import { applyContentBlocker } from './content-blocker.ts';
+import { createSiteUaController } from './site-ua.ts';
+import { builtinUa, effectiveUa, isUaPreference, normalizeSiteOrigin, type UaMode } from '../shared/ua.ts';
 import { Gatekeeper } from './gatekeeper.ts';
 import { resolveWindowsEgress } from './windows-egress.ts';
 import { FaviconFetcher } from './shell/favicons.ts';
@@ -79,8 +82,18 @@ async function start(): Promise<void> {
     bitness: r.main.ua!.high.bitness,
     wow64: r.main.ua!.high.wow64,
   }));
-  const identity: Identity = buildIdentity(startupProfile, process.versions.chrome, hostHints);
-  const commands = emulationCommands(startupProfile, identity);
+  const identities: Record<UaMode, Identity> = {
+    chromium: buildIdentity(startupProfile, process.versions.chrome, hostHints, 'chromium'),
+    chrome: buildIdentity(startupProfile, process.versions.chrome, hostHints, 'chrome'),
+    electron: buildIdentity(startupProfile, process.versions.chrome, hostHints, 'electron', process.versions.electron),
+  };
+  const identity: Identity = identities.chromium;
+  const commandsByMode: Record<UaMode, [string, object][]> = {
+    chromium: emulationCommands(startupProfile, identities.chromium),
+    chrome: emulationCommands(startupProfile, identities.chrome),
+    electron: emulationCommands(startupProfile, identities.electron),
+  };
+  const commands = commandsByMode.chromium;
   app.userAgentFallback = identity.userAgent;
   for (const ses of [browserSession(), selfCheckSession()]) ses.setUserAgent(identity.userAgent, identity.acceptLanguages);
 
@@ -125,6 +138,11 @@ async function start(): Promise<void> {
   try { savedSearch = prefs.get('searchEngine', DEFAULT_SEARCH_ENGINE); } catch { savedSearch = DEFAULT_SEARCH_ENGINE; }
   const shortcuts = new Shortcuts(database);
   const siteSettings = new SiteSettings(database);
+  const siteUa = createSiteUaController({
+    identities,
+    commandsFor: (mode) => commandsByMode[mode],
+    overrideOf: (origin) => siteSettings.getUa(origin),
+  });
   const sessions = new Sessions(database);
   const startup = sessionStartup(sessions.latest(validSession), prefs.get<boolean>('restoreSession', false) === true, prefs.get<boolean>('cleanExit', true) === true);
   prefs.set('cleanExit', false);
@@ -160,7 +178,7 @@ async function start(): Promise<void> {
     saveSidebarWidth: (width) => prefs.set('sidebarWidth', width),
     locale: (['zh', 'en'].includes(prefs.get<string>('locale', 'system')) ? prefs.get<LocalePreference>('locale', 'system') : 'system'),
     saveLocale: (locale) => prefs.set('locale', locale),
-    prepareTab: (wc) => applyFingerprint(wc, commands),
+    prepareTab: (wc) => siteUa.prepareTab(wc),
     canBrowse: () => gate.open,
     gate: () => gate.view,
     setup: setupState,
@@ -173,6 +191,8 @@ async function start(): Promise<void> {
     const win = wc && browser.windows.find(w => w.hasTab(wc));
     return !!win && win.checkPermission(wc!, permission, origin, details, profile, startupProfile);
   });
+  applyContentBlocker(browserSession());
+  siteUa.applySession(browserSession());
   app.on('login', (event, wc, details, info, callback) => {
     // Preserve Electron's existing default handling for proxy authentication.
     if (info.isProxy) return;
@@ -231,6 +251,7 @@ async function start(): Promise<void> {
   async function panelData(): Promise<PanelData> {
     return {
       permissions: siteSettings.listPermissions(),
+      uaOverrides: siteSettings.listUa(),
       profile: profile(),
       profileError: store.error,
       profileDir,
@@ -350,16 +371,33 @@ async function start(): Promise<void> {
     siteInfo: async () => {
       const active = win.state.tabs.find(tab => tab.id === win.state.active && tab.kind === 'web');
       const origin = active && allowedSiteOrigin(active.url, [active.url]);
-      if (!origin) return { permissions: [], cookies: 0, certificate: null };
+      if (!origin) return { permissions: [], cookies: 0, certificate: null, ua: null };
       const certificate = origin.startsWith('https:') && !active?.error ? win.currentCertificate : null;
       const cookies = await browserSession().cookies.get({ url: origin });
-      return { permissions: siteSettings.listPermissions().filter(p => p.origin === origin), cookies: cookies.length, certificate };
+      const override = siteSettings.getUa(origin);
+      return {
+        permissions: siteSettings.listPermissions().filter(p => p.origin === origin),
+        cookies: cookies.length,
+        certificate,
+        ua: {
+          origin,
+          preference: override ?? 'default',
+          effective: effectiveUa(origin, override),
+          builtin: builtinUa(origin),
+        },
+      };
     },
     panelData,
     removePermission: (origin, permission) => {
       if (!siteSettings.listPermissions().some(p => p.origin === origin && p.permission === permission)) return;
       browser.cancelPermissions();
       siteSettings.delete(origin, `permission:${permission}`);
+    },
+    setSiteUa: (origin, preference) => {
+      const normalized = normalizeSiteOrigin(origin);
+      if (!normalized || !isUaPreference(preference)) return;
+      siteSettings.setUa(normalized, preference);
+      browser.broadcast();
     },
     updateProfile: async (patch) => {
       browser.cancelPermissions();
@@ -516,7 +554,7 @@ async function start(): Promise<void> {
       if (['clearData', 'updateProfile', 'importSubscriptionFile', 'importSubscriptionText', 'addSubscription', 'updateSource', 'updateSourceFile', 'updateSourceText', 'renameSource', 'removeSource', 'selectNode', 'testDelays'].includes(name) && e.sender !== win.settings.webContents && !(e.sender === win.welcome.webContents && ['updateProfile', 'importSubscriptionFile', 'importSubscriptionText', 'addSubscription', 'selectNode', 'testDelays'].includes(name))) throw new Error('forbidden');
       if (name === 'measureExit' && e.sender !== win.settings.webContents && e.sender !== win.welcome.webContents) throw new Error('forbidden');
       if (name === 'siteInfo' && e.sender !== win.overlay.webContents) return;
-      if (name === 'removePermission' && e.sender !== win.settings.webContents) {
+      if ((name === 'removePermission' || name === 'setSiteUa') && e.sender !== win.settings.webContents) {
         const active = win.state.tabs.find(tab => tab.id === win.state.active && tab.kind === 'web');
         if (e.sender !== win.overlay.webContents || !active || args[0] !== allowedSiteOrigin(active.url, [active.url])) return;
       }

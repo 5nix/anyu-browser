@@ -2,7 +2,7 @@
   "name": "anyu-browser",
   "productName": "Anyu",
   "private": true,
-  "version": "0.1.0-beta.1",
+  "version": "0.1.0-beta.2",
   "description": "A privacy-isolated desktop browser whose only route out is a bundled proxy core.",
   "license": "MPL-2.0",
   "desktopName": "anyu-browser.desktop",

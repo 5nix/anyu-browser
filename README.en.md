@@ -4,6 +4,8 @@
 
 # Anyu
 
+[![LINUX DO](https://img.shields.io/badge/LINUX_DO-Community-1b6ef3?style=flat-square)](https://linux.do/)
+
 Anyu is a desktop browser whose network traffic only goes through a bundled proxy core, with no direct connection under any failure. Unlike a normal browser pointed at a proxy, browsing stays closed until Anyu verifies that the exit country in use right now matches your configuration, and it presents a consistent time zone, language, and optional location matching that exit to websites.
 
 ## Download and install
@@ -87,6 +89,10 @@ npm start
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for building and contributing, and [Architecture](docs/ARCHITECTURE.md) for the design.
+
+## Community
+
+This project recognizes and links to the [LINUX DO](https://linux.do/) community. Feedback and suggestions are welcome there.
 
 ## License
 

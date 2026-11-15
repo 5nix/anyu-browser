@@ -4,6 +4,8 @@
 
 # Anyu
 
+[![LINUX DO](https://img.shields.io/badge/LINUX_DO-社区认可-1b6ef3?style=flat-square)](https://linux.do/)
+
 Anyu 是一个桌面浏览器，所有网页请求都必须经过内置代理内核，在任何故障下都不会直连。与普通浏览器挂代理不同，Anyu 只会在确认当前出口国家与你的配置一致后才放行浏览（不一致或内核异常时保持关闭），并向网站呈现与出口匹配的时区、语言和可选位置。
 
 ## 下载与安装
@@ -87,6 +89,10 @@ npm start
 ```
 
 构建与贡献请参阅 [贡献指南](CONTRIBUTING.md)，设计说明见 [架构文档](docs/ARCHITECTURE.md)。
+
+## 社区
+
+本项目已链接认可 [LINUX DO](https://linux.do/) 社区，欢迎前往社区交流使用体验与反馈建议。
 
 ## 许可
 

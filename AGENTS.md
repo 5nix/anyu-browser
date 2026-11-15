@@ -47,7 +47,7 @@ below apply to any such launch.
    processes, including children and process groups. Match the full checkout path, not just
    the process name; terminate only processes started by your run, including their groups.
    An orphan from an abandoned run is what puts an error dialog on the desktop minutes later; this check is not optional, also when your run failed or was interrupted.
-8. Never quit, kill or reinstall an existing `/Applications/Cave.app` installation unless the task
+8. Never quit, kill or reinstall an existing `/Applications/Anyu.app` installation unless the task
    says to install.
 
 ## Proportion

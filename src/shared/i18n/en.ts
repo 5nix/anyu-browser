@@ -217,6 +217,7 @@ export const en: Record<keyof typeof zh, string> = {
   copyImage: "Copy Image",
   saveImage: "Save Image As…",
   inspect: "Inspect",
+  extensionsUnsupported: "Anyu does not support extensions.",
   navigationNotice: "{host} will open automatically when network access is allowed",
   importSubscription: "Import Clash YAML Subscription",
   databaseRecovered: "Browsing data was damaged and backed up to {path}",

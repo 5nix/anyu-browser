@@ -36,6 +36,7 @@ export interface WindowHost {
   fetchFavicon(tab: Tab, url: string, icons: string[]): Promise<string | null>;
   historyVisit(url: string, title: string): void;
   historyTitle(url: string, title: string): void;
+  visited(win: ShellWindow, url: string): void;
   rendererDir: string;
   preload: string;
   tabLayout(): TabLayout;
@@ -741,6 +742,7 @@ export class ShellWindow implements TabHost {
   }
 
   committed(tab: Tab, url: string): void {
+    this.host.visited(this, url);
     const origin = zoomOrigin(url);
     tab.wc.setZoomFactor((origin ? this.host.getZoom(origin) : 100) / 100);
     this.broadcast();

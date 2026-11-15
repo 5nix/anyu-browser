@@ -5,6 +5,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import type { AddressQueryResult, ShellState, SurfaceName } from '../shared/ipc.ts';
 import { cave } from './bridge.ts';
 import { status } from './gate.ts';
+import { clockTime, useMinute } from './clock.ts';
 import { ConditionList, GateSummary, gateStatus } from './gate-status.tsx';
 import { SiteInfo } from './surfaces/site-info.tsx';
 import { BookmarkEdit } from './surfaces/bookmark-edit.tsx';
@@ -19,6 +20,7 @@ function Status({ state, open }: { state: ShellState; open: boolean }) {
   // Pausing stops the core on purpose, and the gate view keeps no node; the selected node is in the profile.
   const [facts, setFacts] = useState<{ selectedNode?: string; country?: string }>({});
   const [busy, setBusy] = useState(false);
+  const now = useMinute();
   useEffect(() => { let live = true; cave.panelData().then(d => { if (live) setFacts({ selectedNode: d.profile.proxy.selected?.node || undefined, country: d.profile.egressCountry }); }, () => {}); return () => { live = false; }; }, [state.gate.state, state.gate.paused, state.gate.egress?.node]);
   const { st, e, conditions, rows, title } = gateStatus(state, facts);
   const toggle = () => { setBusy(true); void (st === 'paused' ? cave.resume() : cave.pause()).finally(() => setBusy(false)); };
@@ -28,6 +30,7 @@ function Status({ state, open }: { state: ShellState; open: boolean }) {
   return <Surface name="status" anchor={state.surface!.anchor} open={open} prefer={state.tabLayout === 'side' ? 'top' : 'bottom'}>
     <GateSummary st={st} title={title} reason={state.gate.reason} titleId="title" reasonId="detail" busy={busy} onToggle={toggle} />
     <ConditionList st={st} rows={rows} />
+    <div class="status-clock"><span>{clockTime(now, state.locale, state.timezone, state.clock24Hour, true)}</span><span>{state.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone}</span></div>
     <p id="notice" hidden={!state.notice} title={state.notice ?? ''}>{state.notice ?? ''}</p>
     <div class="status-actions">
       {setup && <button id="continue-setup" class="btn primary" onClick={() => cave.continueSetup()}>{t('welcome.home.continue')}</button>}

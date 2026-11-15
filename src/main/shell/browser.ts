@@ -39,6 +39,11 @@ export interface BrowserOptions {
   theme: Theme;
   saveAccent: (accent: Accent) => void;
   saveTheme: (theme: Theme) => void;
+  showTime: boolean;
+  clock24Hour: boolean;
+  saveShowTime: (enabled: boolean) => void;
+  saveClock24Hour: (enabled: boolean) => void;
+  timezone: () => string;
   tabLayout: TabLayout;
   saveTabLayout: (layout: TabLayout) => void;
   sidebarWidth: number;
@@ -64,6 +69,8 @@ export class Browser extends EventEmitter {
   private searchEngine: SearchEngine;
   private accent: Accent;
   private theme: Theme;
+  private showTime: boolean;
+  private clock24Hour: boolean;
   private tabLayout: TabLayout;
   private sidebarWidth: number;
   private localePreference: LocalePreference;
@@ -82,6 +89,8 @@ export class Browser extends EventEmitter {
     this.accent = accentValue(o.accent);
     this.theme = themeValue(o.theme);
     nativeTheme.themeSource = this.theme;
+    this.showTime = o.showTime;
+    this.clock24Hour = o.clock24Hour;
     this.tabLayout = o.tabLayout;
     this.sidebarWidth = sidebarWidth(o.sidebarWidth);
     this.localePreference = o.locale;
@@ -99,7 +108,7 @@ export class Browser extends EventEmitter {
       preload: o.preload,
       tabLayout: () => this.tabLayout,
       sidebarWidth: () => this.sidebarWidth,
-      shared: () => ({ shortcuts: o.shortcuts().map(item => ({ ...item, favicon: o.favicons.get(item.url) })), gate: o.gate(), downloads: this.downloads.all(), notice: typeof this.notice === 'function' ? this.notice() : this.notice, locale: this.locale, localePreference: this.localePreference, accent: this.accent, theme: this.theme, searchEngine: this.searchEngine, restoreSession: this.restoreSession, setup: o.setup() }),
+      shared: () => ({ shortcuts: o.shortcuts().map(item => ({ ...item, favicon: o.favicons.get(item.url) })), gate: o.gate(), downloads: this.downloads.all(), notice: typeof this.notice === 'function' ? this.notice() : this.notice, locale: this.locale, localePreference: this.localePreference, accent: this.accent, theme: this.theme, showTime: this.showTime, clock24Hour: this.clock24Hour, timezone: o.timezone(), searchEngine: this.searchEngine, restoreSession: this.restoreSession, setup: o.setup() }),
       canBrowse: o.canBrowse,
       run: (id, win) => this.run(id, win),
       prepareTab: o.prepareTab,
@@ -307,6 +316,20 @@ export class Browser extends EventEmitter {
     this.sidebarWidth = sidebarWidth(value);
     this.o.saveSidebarWidth(this.sidebarWidth);
     for (const w of this.windows) w.layout();
+    this.broadcast();
+  }
+
+  setShowTime(enabled: boolean): void {
+    if (typeof enabled !== 'boolean') return;
+    this.o.saveShowTime(enabled);
+    this.showTime = enabled;
+    this.broadcast();
+  }
+
+  setClock24Hour(enabled: boolean): void {
+    if (typeof enabled !== 'boolean') return;
+    this.o.saveClock24Hour(enabled);
+    this.clock24Hour = enabled;
     this.broadcast();
   }
 

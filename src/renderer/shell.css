@@ -170,10 +170,9 @@ body.side #address-form:has(#address:focus) { background: var(--field-focus); ou
 #download-count { position: absolute; right: 1px; top: 1px; min-width: 14px; height: 14px; padding: 0 3px; border-radius: 7px; background: var(--accent); color: #fff; font-size: 10px; line-height: 14px; }
 #download-count:empty { display: none; }
 #status { position: relative; }
-#status .status-icon { display: contents; }
-body.side #status:has(.country) { display: flex; width: auto; gap: 4px; padding: 0 8px 0 0; }
-#status .country { color: var(--text-2); font-size: 12px; font-weight: 600; letter-spacing: .02em; font-variant-numeric: tabular-nums; }
-body.side #status:has(.country) .status-icon { position: relative; display: grid; place-items: center; width: 30px; height: 30px; }
+#status .status-icon { position: relative; display: grid; place-items: center; flex: none; width: 30px; height: 30px; }
+body.top #tools #status:has(.status-time), body.side #status:has(.status-time) { display: flex; width: auto; gap: 4px; padding: 0 9px 0 0; border-radius: 999px; }
+#status .status-time { color: var(--text-2); font-size: 12px; font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
 #status .dot { position: absolute; right: 4px; bottom: 5px; width: 7px; height: 7px; box-shadow: 0 0 0 1.5px var(--frame); }
 body.side #status .dot { box-shadow: 0 0 0 1.5px var(--frame); }
 #status.on { background: var(--frame-press); color: var(--text); }

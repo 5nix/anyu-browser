@@ -9,6 +9,7 @@ import { STATUS_TITLE, status } from './gate.ts';
 import { Icon } from './ui/index.tsx';
 import { addressDisplay, addressSecurity } from './address-display.ts';
 import { completion } from './address-completion.ts';
+import { clockTime, useMinute } from './clock.ts';
 
 document.body.classList.add(cave.platform === 'darwin' ? 'mac' : 'win');
 for (const [name, px] of Object.entries({ strip: METRICS.strip, tab: METRICS.tab, toolbar: METRICS.toolbar, button: METRICS.button, caption: METRICS.caption, 'side-top': METRICS.sideTop, side: METRICS.side, gap: METRICS.gap, lights: LIGHTS_WIDTH }))
@@ -207,6 +208,7 @@ function App() {
     addEventListener('resize', reportAnchors);
     return () => { document.removeEventListener('pointerdown', pointer, true); observer.disconnect(); removeEventListener('resize', reportAnchors); };
   }, []);
+  const now = useMinute();
   const active = state?.tabs.find((t) => t.id === state.active);
   useLayoutEffect(() => {
     if (!state) return;
@@ -283,7 +285,7 @@ function App() {
       <button id="find-close" class="icon-btn" title={t('closeFind')} onClick={closeFind}><Icon name="x" /></button></div>
     <div id="tools">
       <button id="downloads" class="icon-btn" title={t('downloads')} aria-label={t('downloads')} data-anchor="downloads" hidden={!state?.downloads.length} onClick={() => cave.toggleSurface('downloads')}><Icon name="download" /><span id="download-count">{running || ''}</span></button>
-      <button id="status" class={`icon-btn${st ? ` ${st}` : ''}${state?.surface?.name === 'status' ? ' on' : ''}`} title={st && state ? state.gate.egress?.node ? `${STATUS_TITLE[st]} · ${state.gate.egress.node}` : STATUS_TITLE[st] : t('networkStatus')} data-anchor="status" onClick={() => cave.toggleSurface('status')}><span class="status-icon">{st && <Icon name={STATUS_ICON[st]} />}<span class="dot" /></span>{state?.tabLayout === 'side' && !state.gate.paused && state.gate.state !== 'closed' && state.gate.egress?.country && <span class="country">{state.gate.egress.country}</span>}</button>
+      <button id="status" class={`icon-btn${st ? ` ${st}` : ''}${state?.surface?.name === 'status' ? ' on' : ''}`} title={st && state ? state.gate.egress?.node ? `${STATUS_TITLE[st]} · ${state.gate.egress.node}` : STATUS_TITLE[st] : t('networkStatus')} data-anchor="status" onClick={() => cave.toggleSurface('status')}><span class="status-icon">{st && <Icon name={STATUS_ICON[st]} />}<span class="dot" /></span>{state?.showTime && <span class="status-time">{clockTime(now, state.locale, state.timezone, state.clock24Hour)}</span>}</button>
       <button id="menu-button" class="icon-btn" title={t('menu')} aria-label={t('menu')} data-anchor="menu" onClick={() => cave.toggleSurface('menu')}><Icon name="ellipsis" /></button>
     </div>
     {state && <Tabs state={state} />}

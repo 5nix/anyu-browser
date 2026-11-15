@@ -311,6 +311,10 @@ function AppearanceSection({ active, state, data, act, confirm, checks, runCheck
       </div>
       <div class="card"><label class="row"><span class="label"><b>{t('set.restoreSession')}</b></span><input id="restore-session" type="checkbox" class="switch" checked={state.restoreSession} onChange={e => cave.setRestoreSession(e.currentTarget.checked)} /></label></div>
     </div>
+    <div class="group"><div class="card">
+      <label class="row"><div class="label"><b>{t('set.appearance.showTime')}</b></div><input type="checkbox" class="switch" checked={state.showTime} onChange={e => cave.setShowTime(e.currentTarget.checked)} /></label>
+      <label class="row"><div class="label"><b>{t('set.appearance.clock24Hour')}</b></div><input type="checkbox" class="switch" checked={state.clock24Hour} onChange={e => cave.setClock24Hour(e.currentTarget.checked)} /></label>
+    </div></div>
     <div class="group"><h3>{t('set.appearance.language')}</h3><div class="card"><label class="row"><div class="label"><b>{t('set.appearance.language')}</b></div><select id="ui-locale" value={state.localePreference} onChange={e => cave.setLocale(e.currentTarget.value as LocalePreference)}><option value="system">{t('set.appearance.system')}</option><option value="zh">{t('set.appearance.chinese')}</option><option value="en">English</option></select></label></div></div>
     <div class="group" ref={form} onFocusOut={() => {
       setTimeout(() => { if (!form.current?.contains(document.activeElement) && !dirty.current) sync(latest.current); }, 0);

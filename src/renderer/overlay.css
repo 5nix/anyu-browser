@@ -27,6 +27,7 @@ body { user-select: none; }
 #status .condition-mark svg.icon { width: 16px; height: 16px; }
 #status .condition-row.failed { padding: 6px 0; }
 #status .condition-row.failed .label small { white-space: normal; }
+.status-clock { display: flex; justify-content: space-between; gap: 8px; padding: 8px 0; border-top: 1px solid var(--sep); color: var(--text-2); font-size: var(--fs-sm); }
 #notice { margin: 0 0 8px; color: var(--text-2); font-size: var(--fs-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .status-actions { display: flex; align-items: center; gap: 8px; margin: 0 -16px; padding: 8px 16px; border-top: 1px solid var(--sep); }
 .status-actions button:not(.primary) { padding: 0 4px; height: 28px; color: var(--text-2); white-space: nowrap; }

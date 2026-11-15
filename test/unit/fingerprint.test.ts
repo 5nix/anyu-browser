@@ -67,7 +67,7 @@ test('emulation sets timezone, locale and UA; geolocation only when configured',
   assert.deepEqual(emulationCommands(profile, id)[1][1], { locale: 'en_US' });
 });
 
-test('applyFingerprint applies emulation without injecting document-start scripts and supports live updates', async () => {
+test('applyFingerprint configures windows and workers before resuming and supports live updates', async () => {
   const dbg = new EventEmitter() as EventEmitter & { attach: () => void; sendCommand: (m: string, p?: object, sessionId?: string) => Promise<void> };
   const calls: { method: string; params?: Record<string, unknown>; sessionId?: string }[] = [];
   dbg.attach = () => undefined;
@@ -86,7 +86,9 @@ test('applyFingerprint applies emulation without injecting document-start script
   await new Promise((r) => setTimeout(r, 10));
 
   const forSession = (sid?: string) => calls.filter((c) => c.sessionId === sid).map((c) => c.method);
-  assert.ok(!calls.some((c) => c.method === 'Page.addScriptToEvaluateOnNewDocument' || c.method === 'Page.enable'));
+  assert.ok(forSession(undefined).includes('Page.addScriptToEvaluateOnNewDocument'));
+  assert.ok(forSession('s-worker').indexOf('Runtime.evaluate') < forSession('s-worker').indexOf('Runtime.runIfWaitingForDebugger'));
+  assert.match(String(calls.find((c) => c.sessionId === 's-worker' && c.method === 'Runtime.evaluate')?.params?.expression), /Linux x86_64/);
   assert.ok(forSession(undefined).includes('Emulation.setUserAgentOverride'));
   assert.ok(forSession('s-iframe').includes('Emulation.setUserAgentOverride'));
   assert.ok(forSession('s-worker').includes('Emulation.setUserAgentOverride'));

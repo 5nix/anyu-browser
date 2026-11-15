@@ -126,7 +126,7 @@ sudo apt install ./Anyu-<版本>-linux-amd64.deb
 - `geolocation` 仅使用配置文件中填写的数值，Anyu 不探测本机真实位置；未设置时定位请求直接被拒绝。
 - USB / HID / 串口 / 蓝牙、屏幕捕获、空闲检测、文件系统和本地字体访问等权限一律拒绝；相机、麦克风、定位（已配置坐标时）、通知（开关打开时）和读取剪贴板（`clipboard-read`）由用户在权限浮层中决定。
 - 修改 `locale`、`acceptLanguages`、`timezone`、`geolocation`、`platform` 或 `notifications` 后需重启 Anyu 才会生效，设置页顶部会提示立即重启。
-- **`platform` 说明**：`host`（默认）如实呈现本机系统，UA、UA-CH、`navigator.platform`、字体与 GPU 完全匹配。选择 `macos` 或 `windows` 时，页面 UA、UA-CH 的 `platform` / `platformVersion` 及主线程 `navigator.platform` 会统一为该平台常见值，但 Worker 内 `navigator.platform`、字体与 WebGL 仍暴露真实宿主机，自检第 13 项会标出与本机不一致。
+- **`platform` 说明**：`host`（默认）如实呈现本机系统，UA、UA-CH、`navigator.platform`、字体与 GPU 来自本机。选择 `macos` 或 `windows` 时，页面 UA、UA-CH 的 `platform` / `platformVersion` 及页面和 Worker 的 `navigator.platform` 会统一为该平台常见值，但字体与 WebGL 仍暴露真实宿主机，自检第 13 项会标出与本机不一致。
 
 ### 宿主机 TUN 嗅探与 Reality 节点说明
 
@@ -137,9 +137,11 @@ sudo apt install ./Anyu-<版本>-linux-amd64.deb
 
 ## 已知限制的技术原因
 
-- **字体（尚未实现白名单隔离）**：Chromium 156 没有内置字体白名单开关，字体枚举位于 Blink `FontCache`（macOS 走 CoreText，Windows 走 DirectWrite 系统字体集合），会包含用户额外安装的字体。出于“不向页面注入可被检测的 JS 垫片”的原则，Anyu 仅拒绝了 Local Font Access API，不通过 JS 覆盖测量接口；干净的解法是给 Electron 维护 Blink `FontCache` 层的平台白名单补丁（已列入后续计划）。
-- **固定平台时的 Worker 差异**：Dedicated Worker 和 Service Worker 的 `navigator.platform` 在 Chromium 中为编译期常量，CDP `Emulation.setUserAgentOverride` 无法修改，因此只有主线程一致；字体、WebGL/GPU 渲染器、emoji 字形、滚动条/控件样式和系统颜色也均来自真实操作系统。
-- **SharedWorker 附着时机**：Chromium 不会自动将调试器附着到 `SharedWorker`。Anyu 通过 `Target.setDiscoverTargets` 在 `SharedWorker` 创建时主动附着并下发覆盖设置（[`src/main/fingerprint.ts`](../src/main/fingerprint.ts)），在极端启动竞争时序下，其第一行代码仍可能以会话默认 UA 执行。
+- **字体（尚未实现白名单隔离）**：Chromium 156 没有内置字体白名单开关，字体枚举位于 Blink `FontCache`（macOS 走 CoreText，Windows 走 DirectWrite 系统字体集合），会包含用户额外安装的字体。Anyu 拒绝 Local Font Access API，但不通过 JS 覆盖字体测量接口；干净的解法是给 Electron 维护 Blink `FontCache` 层的平台白名单补丁（已列入后续计划）。
+- **固定平台时的差异**：Worker 的 `navigator.platform` 通过调试器注入覆盖（CDP UA 覆盖本身对它无效）；字体、WebGL/GPU 渲染器、emoji 字形、滚动条/控件样式和系统颜色仍来自真实操作系统。
+- **屏幕色深**：页面的 `screen.colorDepth` 和 `screen.pixelDepth` 固定为 24，采用 [CSSOM View 的兼容值](https://drafts.csswg.org/cssom-view/#dom-screen-colordepth)，而非模拟具体显示器；Windows 的 32 位或 HDR 配置及某些 Chrome 版本可能报告其他值。Worker 不提供 `screen`。
+- **字体复测基线**：一次 Windows 测试中，安装前为 215 个字体、147 个唯一度量，指纹 `60c1557fc855754d55140e20fac6ad07`；安装静态 Open Sans 后为 217 个，指纹 `80ffdf4395fc3b903fec26d8db381ffa`。用户安装的字体可被检测并改变指纹。复测时在同一信号页记录安装前结果，安装一个静态字体后重新启动浏览器并比较。
+- **SharedWorker 附着时机**：Chromium 不会自动将调试器附着到 `SharedWorker`。Anyu 通过 `Target.setDiscoverTargets` 在 `SharedWorker` 创建时主动附着并下发覆盖设置（[`src/main/fingerprint.ts`](../src/main/fingerprint.ts)），在极端启动竞争时序下，其第一行代码仍可能以会话默认 UA 和宿主平台执行。
 - **`window.chrome`**：仅包含 Electron 自带部分，与 Google Chrome 存在差异（例如缺少 `chrome.app` 和 `chrome.runtime`）。
 
 ## 代理内核与许可说明

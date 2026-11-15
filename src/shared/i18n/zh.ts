@@ -121,7 +121,7 @@ export const zh = {
   checkTemplate3: "disable_non_proxied_udp，本地候选 {count} 个、无 IP 地址",
   checkTemplate4: "最近一次：{country}（{ip}，节点 {node}），配置 {configured}",
   checkTemplate5: "{ua}；品牌 {brands}；平台 {platform} / {navigator}",
-  checkTemplate6: "配置呈现 {presented}，本机是 {host}：Worker 的 navigator.platform、字体、WebGL 渲染器仍会显示本机",
+  checkTemplate6: "配置呈现 {presented}，本机是 {host}：已知限制：字体、WebGL 渲染器仍会显示本机",
   checkTemplate7: "Anyu 自检报告  {date}",
   checkTemplate8: "闸门：{state}（{reason}）",
   checkTemplate9: "配置：时区 {timezone}，语言 {languages}，出口国家 {country}，平台 {platform}，连接方式 {connection}",

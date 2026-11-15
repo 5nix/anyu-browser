@@ -40,7 +40,8 @@ export function evaluateChecks(f: CheckFacts): CheckItem[] {
     main.ua!.brands.every((b) => b.brand.startsWith('Not') || b.version === major) &&
     main.ua!.platform === f.identity.metadata.platform &&
     main.platform === f.identity.navigatorPlatform &&
-    main.userAgent === f.identity.userAgent;
+    main.userAgent === f.identity.userAgent &&
+    !!f.probe?.worker && f.probe.worker.platform === f.identity.navigatorPlatform;
   const candidates = f.probe?.webrtc ?? [];
   const leakingCandidates = candidates.filter((c) => IP.test(c.split(' ')[4] ?? ''));
 

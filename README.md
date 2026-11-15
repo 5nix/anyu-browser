@@ -65,8 +65,8 @@ SmartScreen 弹出 **“Windows 已保护你的电脑”** 时，点击 **更多
 
 - **预发布状态**：当前为 0.1.0 预发布版本，可能存在不完善之处；安装包无代码签名、无自动更新；未签名的 macOS 包无法使用系统生物识别或钥匙串通行密钥。
 - **指纹一致性是部分的**：
-  - 在 Web Worker（Dedicated Worker 与 Service Worker）中，当“呈现的平台”设为非本机系统时，`navigator.platform` 仍为真实宿主机系统；字体和 WebGL/GPU 信息也仍为真实机器的值。
-  - 屏幕色深（`screen.colorDepth`）、屏幕尺寸、CPU 核数和设备内存不做伪装，反映真实机器。
+  - 字体和 WebGL/GPU 信息仍为真实机器的值。
+  - 屏幕色深固定为 24；屏幕尺寸、CPU 核数和设备内存反映真实机器。
   - 本地字体访问接口（`queryLocalFonts`）已拒绝，但网页仍可通过测量字体渲染宽度或 `document.fonts` 检测到本机已安装的字体，包括新安装的字体。
   - `window.chrome` 仅包含 Electron 自带字段，与 Google Chrome 不完全相同。
   - 在极端启动时序下，`SharedWorker` 的首批代码可能在调试器覆盖下发前执行。

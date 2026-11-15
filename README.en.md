@@ -65,8 +65,8 @@ An honest caveat for **Advanced mode** (`external`): Anyu hands traffic to your 
 
 - **Pre-release**: Version 0.1.0 is a pre-release; expect rough edges. Installers are unsigned and have no automatic updater. Unsigned macOS builds cannot use platform biometric or keychain passkeys.
 - **Partial fingerprint consistency**:
-  - Inside Web Workers (Dedicated Workers and Service Workers), `navigator.platform` when spoofing a non-host OS, fonts, and WebGL/GPU information still reflect the real machine.
-  - Screen colour depth (`screen.colorDepth`), screen dimensions, hardware concurrency, and device memory are not overridden and reflect the real machine.
+  - Fonts and WebGL/GPU information still reflect the real machine.
+  - Screen colour depth is fixed at 24; screen dimensions, hardware concurrency, and device memory reflect the real machine.
   - The Local Font Access API (`queryLocalFonts`) is denied, but websites can still detect installed fonts—including newly installed fonts—by measuring rendered text or checking `document.fonts`.
   - `window.chrome` only includes what Electron ships and differs from Google Chrome.
   - Under an extreme startup race, a `SharedWorker` can execute initial code before debugger overrides attach.

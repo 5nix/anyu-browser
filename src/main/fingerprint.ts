@@ -1,6 +1,6 @@
 // What pages see: Chromium of exactly the engine's version, on the presented platform.
 // Identity overrides go through engine interfaces (CDP Emulation, session UA, command line)
-// with zero document-start JS injection. Only this module uses the debugger.
+// with small JS overrides for APIs CDP cannot emulate. Only this module uses the debugger.
 import type { WebContents } from 'electron';
 import type { Profile } from '../shared/profile.ts';
 import type { UaMode } from '../shared/ua.ts';
@@ -158,11 +158,20 @@ export function applyFingerprint(wc: WebContents, commands: [string, object][]):
   dbg.attach('1.3');
   let current = commands;
   const sessions = new Set<string | undefined>([undefined]);
+  const workerSessions = new Set<string>();
+  const platformScript = () => {
+    const ua = current.find(([m]) => m === 'Emulation.setUserAgentOverride')?.[1] as { platform?: string } | undefined;
+    return `Object.defineProperty(WorkerNavigator.prototype, "platform", { get: () => ${JSON.stringify(ua?.platform ?? '')}, configurable: true, enumerable: true })`;
+  };
+  const screenScript = `for (const key of ["colorDepth", "pixelDepth"]) Object.defineProperty(Screen.prototype, key, { get: () => 24, configurable: true, enumerable: true });`;
   // A command a target type does not implement may never answer; never let that keep a worker paused.
   const send = (m: string, p: object, sessionId?: string) =>
     Promise.race([dbg.sendCommand(m, p, sessionId).catch(() => undefined), new Promise((r) => setTimeout(r, 1000))]);
-  const configure = (sessionId?: string) =>
+  const configure = (sessionId?: string, worker = false) =>
     Promise.all([
+      worker
+        ? send('Runtime.evaluate', { expression: platformScript() }, sessionId)
+        : send('Page.addScriptToEvaluateOnNewDocument', { source: screenScript }, sessionId),
       ...current.map(([m, p]) => send(m, p, sessionId)),
       send('Target.setAutoAttach', { autoAttach: true, waitForDebuggerOnStart: true, flatten: true }, sessionId),
     ]);
@@ -170,11 +179,14 @@ export function applyFingerprint(wc: WebContents, commands: [string, object][]):
     if (method === 'Target.attachedToTarget') {
       const id = params.sessionId as string;
       sessions.add(id);
-      void configure(id).finally(() =>
+      const worker = ['worker', 'shared_worker', 'service_worker'].includes(params.targetInfo.type);
+      if (worker) workerSessions.add(id);
+      void configure(id, worker).finally(() =>
         dbg.sendCommand('Runtime.runIfWaitingForDebugger', {}, id).catch(() => undefined),
       );
     } else if (method === 'Target.detachedFromTarget') {
       sessions.delete(params.sessionId as string);
+      workerSessions.delete(params.sessionId as string);
     } else if (method === 'Target.targetCreated' && params.targetInfo.type === 'shared_worker' && !params.targetInfo.attached) {
       void dbg.sendCommand('Target.attachToTarget', { targetId: params.targetInfo.targetId, flatten: true }).catch(() => undefined);
     }
@@ -190,6 +202,7 @@ export function applyFingerprint(wc: WebContents, commands: [string, object][]):
       if (!uaCommand) return;
       for (const sessionId of sessions) {
         void send(uaCommand[0], uaCommand[1], sessionId);
+        if (sessionId && workerSessions.has(sessionId)) void send('Runtime.evaluate', { expression: platformScript() }, sessionId);
       }
     },
   };

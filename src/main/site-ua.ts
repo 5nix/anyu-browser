@@ -45,6 +45,8 @@ export function resolveRequestUaMode(
 export interface SiteUaController {
   prepareTab(wc: WebContents): void;
   applySession(ses: Session): void;
+  locationReady(wc: WebContents): Promise<boolean>;
+  locationAvailable(wc: WebContents): boolean;
 }
 
 export function createSiteUaController(options: {
@@ -91,6 +93,8 @@ export function createSiteUaController(options: {
         tabs.delete(wcId);
       });
     },
+    locationReady(wc) { return tabs.get(wc.id)?.handle.locationReady ?? Promise.resolve(false); },
+    locationAvailable(wc) { return tabs.get(wc.id)?.handle.locationAvailable() ?? false; },
     applySession(ses) {
       ses.webRequest.onBeforeSendHeaders((details, callback) => {
         const mode = resolveRequestUaMode(details, overrideOf, (id) => tabModes.get(id));

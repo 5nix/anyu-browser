@@ -36,6 +36,7 @@ export interface WindowHost {
   fetchFavicon(tab: Tab, url: string, icons: string[]): Promise<string | null>;
   historyVisit(url: string, title: string): void;
   historyTitle(url: string, title: string): void;
+  visited(win: ShellWindow, url: string): void;
   rendererDir: string;
   preload: string;
   tabLayout(): TabLayout;
@@ -116,6 +117,7 @@ export class ShellWindow implements TabHost {
   private get permission() { const p = this.permissionQueue.head; return p?.kind === 'permission' ? p : null; }
   private get auth() { const p = this.permissionQueue.head; return p?.kind === 'auth' ? p : null; }
   private suppressed = new Map<WebContents, Set<string>>();
+  private grantedOnce = new Map<WebContents, Set<string>>();
   private bookmarkTarget: { tab: number | null; url: string } | null = null;
   private closing = false;
   private resetting = false;
@@ -376,7 +378,7 @@ export class ShellWindow implements TabHost {
     };
     if (!permissions.length || permissions.some(p => this.suppressed.get(wc)?.has(`${origin}:${p}`))) return callback(false);
     if (!valid()) return callback(false);
-    const decisions = permissions.map(p => this.host.permissionDecision(origin, p));
+    const decisions = permissions.map(p => { const saved = this.host.permissionDecision(origin, p); return saved === 'deny' ? saved : this.grantedOnce.get(wc)?.has(`${origin}:${p}`) ? 'allow' : saved; });
     if (decisions.includes('deny')) return callback(false);
     if (decisions.every(d => d === 'allow')) return callback(true);
     const item = { kind: 'permission' as const, error: false, id: randomUUID(), wc, key: `${origin}:${[...permissions].sort().join(',')}`, origin, permissions, valid };
@@ -392,6 +394,7 @@ export class ShellWindow implements TabHost {
     if (!p.valid() || p.permissions.some(item => this.host.permissionDecision(p.origin, item) === 'deny')) { this.finishPermission(false); this.closePermissionSurface(); this.showPermission(); return; }
     if (decision !== 'once') { try { this.host.savePermissions(p.origin, p.permissions, decision); } catch { p.error = true; this.broadcast(); return; } }
     const allow = decision !== 'deny';
+    if (decision === 'once') { const set = this.grantedOnce.get(p.wc) ?? new Set<string>(); for (const item of p.permissions) set.add(`${p.origin}:${item}`); this.grantedOnce.set(p.wc, set); }
     this.finishPermission(allow);
     this.closePermissionSurface(true);
     this.showPermission();
@@ -419,7 +422,8 @@ export class ShellWindow implements TabHost {
     const current = profile();
     if (p === 'notifications' && !current.notifications) return false;
     if (p === 'geolocation' && (!startup.geolocation || !current.geolocation || JSON.stringify(startup.geolocation) !== JSON.stringify(current.geolocation))) return false;
-    return this.host.permissionDecision(origin, p) === 'allow';
+    const decision = this.host.permissionDecision(origin, p);
+    return decision !== 'deny' && !this.suppressed.get(wc)?.has(`${origin}:${p}`) && (this.grantedOnce.get(wc)?.has(`${origin}:${p}`) || decision === 'allow');
   }
 
   private dropTabPermissions(wc: WebContents): void {
@@ -427,9 +431,10 @@ export class ShellWindow implements TabHost {
     this.permissionQueue.removeTab(wc);
     if (visible) { this.closePermissionSurface(); queueMicrotask(() => this.showPermission()); }
     this.suppressed.delete(wc);
+    this.grantedOnce.delete(wc);
   }
 
-  cancelAllPermissions(): void { this.permissionQueue.clear(); if (this.surfaces.state?.name === 'permission' || this.surfaces.state?.name === 'httpAuth') this.closePermissionSurface(); this.suppressed.clear(); }
+  cancelAllPermissions(): void { this.permissionQueue.clear(); if (this.surfaces.state?.name === 'permission' || this.surfaces.state?.name === 'httpAuth') this.closePermissionSurface(); this.suppressed.clear(); this.grantedOnce.clear(); }
 
   private closePermissionSurface(restore = false): void {
     this.closingPermission = true;
@@ -589,6 +594,7 @@ export class ShellWindow implements TabHost {
     if (adopt) this.committed(tab, tab.wc.getURL());
     if (!saved && (foreground || this.active === null)) this.activate(tab.id);
     if (url) this.host.load(tab.wc, url);
+    else if (!saved && !adopt && foreground && !this.setup) this.focusAddress();
     this.broadcast();
     return tab.wc;
   }
@@ -740,6 +746,7 @@ export class ShellWindow implements TabHost {
   }
 
   committed(tab: Tab, url: string): void {
+    this.host.visited(this, url);
     const origin = zoomOrigin(url);
     tab.wc.setZoomFactor((origin ? this.host.getZoom(origin) : 100) / 100);
     this.broadcast();

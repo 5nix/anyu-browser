@@ -191,9 +191,15 @@ async function start(): Promise<void> {
   applyPermissions(browserSession(), profile, (wc, permission, details, callback) => {
     const win = browser.windows.find(w => w.hasTab(wc));
     if (!win) return callback(false);
-    win.requestPermission(wc, permission, details, callback, profile, startupProfile);
+    if (permission === 'geolocation') {
+      void siteUa.locationReady(wc).then(ready => {
+        if (!ready || !siteUa.locationAvailable(wc)) return callback(false);
+        win.requestPermission(wc, permission, details, allow => callback(allow && siteUa.locationAvailable(wc)), profile, startupProfile);
+      });
+    } else win.requestPermission(wc, permission, details, callback, profile, startupProfile);
   }, (wc, permission, origin, details) => {
     const win = wc && browser.windows.find(w => w.hasTab(wc));
+    if (permission === 'geolocation' && (!wc || !siteUa.locationAvailable(wc))) return false;
     return !!win && win.checkPermission(wc!, permission, origin, details, profile, startupProfile);
   });
   applyContentBlocker(browserSession());
@@ -474,7 +480,16 @@ async function start(): Promise<void> {
         browser.certificates.clearHost(host);
         browser.invalidateCertificates(host);
         await browserSession().closeAllConnections();
-        await browserSession().clearData({ origins: [origin] });
+        const ses = browserSession();
+        const cookies = await ses.cookies.get({});
+        for (const cookie of cookies) {
+          const domain = cookie.domain?.replace(/^\./, '').toLowerCase();
+          if (!domain || (host !== domain && (cookie.hostOnly || !host.endsWith(`.${domain}`)))) continue;
+          const cookieUrl = `${cookie.secure ? 'https' : 'http'}://${domain}${cookie.path || '/'}`;
+          await ses.cookies.remove(cookieUrl, cookie.name);
+        }
+        await ses.clearData({ origins: [origin], dataTypes: ['cookies', 'fileSystems', 'indexedDB', 'localStorage', 'serviceWorkers', 'webSQL', 'backgroundFetch', 'cache'] });
+        await ses.clearStorageData({ origin, storages: ['cachestorage'] });
         await browserSession().clearAuthCache();
         favicons.clear(origin);
         browser.clearFavicons(origin);

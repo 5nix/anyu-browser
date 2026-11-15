@@ -31,7 +31,7 @@ export const COMMANDS = {
   'page.back': { label: 'command_page_back', key: 'Alt+Left', macKey: 'Cmd+[' },
   'page.forward': { label: 'command_page_forward', key: 'Alt+Right', macKey: 'Cmd+]' },
   'page.reload': { label: 'command_page_reload', key: 'CmdOrCtrl+R', alternatives: ['F5'] },
-  'page.reloadHard': { label: 'command_page_reloadHard', key: 'CmdOrCtrl+Shift+R' },
+  'page.reloadHard': { label: 'command_page_reloadHard', key: 'CmdOrCtrl+Shift+R', alternatives: ['Ctrl+F5'] },
   'page.stop': { label: 'command_page_stop' },
   'page.find': { label: 'command_page_find', key: 'CmdOrCtrl+F' },
   'page.print': { label: 'command_page_print', key: 'CmdOrCtrl+P' },

@@ -217,6 +217,7 @@ export const zh = {
   copyImage: "复制图片",
   saveImage: "图片另存为…",
   inspect: "检查",
+  extensionsUnsupported: "Anyu 不支持扩展。",
   navigationNotice: "外网放行后会自动打开 {host}",
   importSubscription: "导入 Clash YAML 订阅",
   databaseRecovered: "浏览数据损坏，已备份至 {path}",

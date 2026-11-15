@@ -34,6 +34,8 @@ export interface Identity {
 
 export interface FingerprintHandle {
   update(commands: [string, object][]): void;
+  locationReady: Promise<boolean>;
+  locationAvailable(): boolean;
 }
 
 /** The engine's own platform hints, read once from a page without overrides. */
@@ -157,6 +159,14 @@ export function applyFingerprint(wc: WebContents, commands: [string, object][]):
   const dbg = wc.debugger;
   dbg.attach('1.3');
   let current = commands;
+  let locationAvailable = false;
+  const location = commands.find(([method]) => method === 'Emulation.setGeolocationOverride');
+  const locationReady = location ? Promise.race([
+    dbg.sendCommand(location[0], location[1]).then(() => { locationAvailable = dbg.isAttached(); return locationAvailable; }, () => false),
+    new Promise<false>(resolve => setTimeout(() => resolve(false), 1000)),
+  ]) : Promise.resolve(false);
+  // Losing the override after a grant must not expose the device location.
+  dbg.on('detach', () => { locationAvailable = false; if (location && !wc.isDestroyed()) wc.close(); });
   const sessions = new Set<string | undefined>([undefined]);
   const workerSessions = new Set<string>();
   const platformScript = () => {
@@ -172,7 +182,7 @@ export function applyFingerprint(wc: WebContents, commands: [string, object][]):
       worker
         ? send('Runtime.evaluate', { expression: platformScript() }, sessionId)
         : send('Page.addScriptToEvaluateOnNewDocument', { source: screenScript }, sessionId),
-      ...current.map(([m, p]) => send(m, p, sessionId)),
+      ...current.filter(([m]) => m !== 'Emulation.setGeolocationOverride' || sessionId !== undefined).map(([m, p]) => send(m, p, sessionId)),
       send('Target.setAutoAttach', { autoAttach: true, waitForDebuggerOnStart: true, flatten: true }, sessionId),
     ]);
   dbg.on('message', (_e, method, params: any) => {
@@ -196,6 +206,8 @@ export function applyFingerprint(wc: WebContents, commands: [string, object][]):
   void configure();
   void dbg.sendCommand('Target.setDiscoverTargets', { discover: true, filter: [{ type: 'shared_worker' }] }).catch(() => undefined);
   return {
+    locationReady,
+    locationAvailable: () => locationAvailable && dbg.isAttached(),
     update(next) {
       current = next;
       const uaCommand = next.find(([m]) => m === 'Emulation.setUserAgentOverride');

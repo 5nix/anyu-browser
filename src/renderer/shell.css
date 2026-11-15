@@ -200,3 +200,5 @@ body.top #sheet { left: var(--gap); top: calc(var(--strip) + var(--toolbar)); }
 #side-resize:hover { background: var(--frame-hover); }
 
 .tab .fav img, #site-icon img { width: 16px; height: 16px; object-fit: contain; }
+#status .dot.unchecked { background: var(--frame); box-shadow: inset 0 0 0 1.5px var(--idle), 0 0 0 1.5px var(--frame); }
+body.top #status .dot.unchecked { background: var(--band); box-shadow: inset 0 0 0 1.5px var(--idle), 0 0 0 1.5px var(--band); }

@@ -109,3 +109,30 @@ body { user-select: none; }
 .site-info-certificate dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; margin: 12px 0 0; font-size: var(--fs-sm); }
 .site-info-certificate dt { color: var(--text-2); }
 .site-info-certificate dd { margin: 0; overflow-wrap: anywhere; }
+
+/* The compact card keeps its switch in the condition it controls. */
+#status .status-heading { display: flex; align-items: flex-start; gap: 12px; padding: 2px 0 14px; }
+#status .status-heading .label { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+#status .status-heading b { font-size: 16px; font-weight: 650; }
+#status .status-heading .overview-badge { flex: none; }
+#status .status-heading.checking .overview-badge { color: var(--warn); background: color-mix(in srgb, var(--warn) 13%, transparent); }
+#status .status-heading.failed .overview-badge { color: var(--danger); background: color-mix(in srgb, var(--danger) 13%, transparent); }
+#status .status-heading.open .overview-badge { color: var(--ok); background: color-mix(in srgb, var(--ok) 14%, transparent); }
+#status .status-reason { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; margin-top: 2px; color: var(--text-2); font-size: var(--fs-sm); }
+#status .failed .status-reason { color: var(--danger); }
+#status .status-reason .btn { height: 24px; padding: 0 10px; font-size: var(--fs-sm); }
+#status .status-reason .icon { width: 13px; height: 13px; }
+#status .condition-row.failed { padding: 0; }
+#status .condition-row.failed .label small { white-space: nowrap; }
+#status .condition-row[data-condition="switch"] .condition-icon, #status .condition-row[data-condition="switch"] .label small { color: var(--text-2); }
+#status .condition-mark:has(.switch) { width: 30px; }
+#status input.switch { width: 30px; height: 18px; background: var(--line-strong); }
+#status input.switch::after { width: 14px; height: 14px; background: var(--pop); }
+#status input.switch:checked { background: var(--text); }
+#status input.switch:checked::after { transform: translateX(12px); }
+#status .condition-row.running .condition-mark { color: var(--warn); }
+#status .status-actions { display: grid; grid-template-columns: 1fr 1fr; padding: 10px 16px 14px; }
+#status .status-actions button:not(.primary) { display: flex; justify-content: center; height: 32px; padding: 0 8px; color: var(--text); }
+#status .status-actions .icon { color: var(--text-2); }
+#status .status-actions #open-settings { margin: 0; }
+#status .status-heading .overview-badge { width: 34px; height: 34px; border-radius: 10px; }

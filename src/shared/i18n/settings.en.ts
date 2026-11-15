@@ -3,6 +3,11 @@ import type { settingsZh } from './settings.zh.ts';
 
 
 export const settingsEn: Record<keyof typeof settingsZh, string> = {
+  'set.nodes.noUsable': 'No usable nodes yet',
+  'set.nodes.addOrImport': 'Add a subscription or import a configuration',
+  'set.nodes.urlPlaceholder': 'Paste subscription URL https://…',
+  'set.nodes.newSource': 'New source',
+  'set.nodes.nodeHeading': 'Nodes',
   'set.nodes.connection': 'Connection',
   'set.nodes.details': 'Details',
   'set.nodes.modeSystem': 'Default mode',

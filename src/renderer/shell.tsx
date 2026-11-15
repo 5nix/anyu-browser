@@ -1,3 +1,4 @@
+import { gateReason } from '../shared/gate-conditions.ts';
 import { render } from 'preact';
 import { useLayoutEffect, useRef, useState } from 'preact/hooks';
 import type { Rect, ShellState, SurfaceName, TabState } from '../shared/ipc.ts';
@@ -285,7 +286,7 @@ function App() {
       <button id="find-close" class="icon-btn" title={t('closeFind')} onClick={closeFind}><Icon name="x" /></button></div>
     <div id="tools">
       <button id="downloads" class="icon-btn" title={t('downloads')} aria-label={t('downloads')} data-anchor="downloads" hidden={!state?.downloads.length} onClick={() => cave.toggleSurface('downloads')}><Icon name="download" /><span id="download-count">{running || ''}</span></button>
-      <button id="status" class={`icon-btn${st ? ` ${st}` : ''}${state?.surface?.name === 'status' ? ' on' : ''}`} title={st && state ? state.gate.egress?.node ? `${STATUS_TITLE[st]} · ${state.gate.egress.node}` : STATUS_TITLE[st] : t('networkStatus')} data-anchor="status" onClick={() => cave.toggleSurface('status')}><span class="status-icon">{st && <Icon name={STATUS_ICON[st]} />}<span class="dot" /></span>{state?.showTime && <span class="status-time">{clockTime(now, state.locale, state.timezone, state.clock24Hour)}</span>}</button>
+      <button id="status" class={`icon-btn${st ? ` ${st}` : ''}${state?.surface?.name === 'status' ? ' on' : ''}`} title={st && state ? state.gate.egress?.node ? `${STATUS_TITLE[st]} · ${state.gate.egress.node}` : STATUS_TITLE[st] : t('networkStatus')} data-anchor="status" onClick={() => cave.toggleSurface('status')}><span class="status-icon">{st && <Icon name={STATUS_ICON[st]} />}<span class={`dot${st === 'closed' && state && !['checkFailed', 'mismatch'].includes(gateReason(state.gate)) ? ' unchecked' : ''}`} /></span>{state?.showTime && <span class="status-time">{clockTime(now, state.locale, state.timezone, state.clock24Hour)}</span>}</button>
       <button id="menu-button" class="icon-btn" title={t('menu')} aria-label={t('menu')} data-anchor="menu" onClick={() => cave.toggleSurface('menu')}><Icon name="ellipsis" /></button>
     </div>
     {state && <Tabs state={state} />}

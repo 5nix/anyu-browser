@@ -1,4 +1,9 @@
 export const settingsZh = {
+  'set.nodes.noUsable': '还没有可用节点',
+  'set.nodes.addOrImport': '添加订阅或导入配置',
+  'set.nodes.urlPlaceholder': '粘贴订阅链接 https://…',
+  'set.nodes.newSource': '新来源',
+  'set.nodes.nodeHeading': '节点',
   'set.nodes.connection': '连接方式',
   'set.nodes.details': '详细信息',
   'set.nodes.modeSystem': '默认模式',

@@ -338,7 +338,9 @@ export class Gatekeeper extends EventEmitter {
     this.emit('change', this.view);
     void this.serial(async () => {
       await this.dropConnections();
-      await new Promise((r) => setTimeout(r, this.backoff));
+      const testDelay = process.env.CAVE_TEST_CORE_RESPAWN_DELAY_MS;
+      const delay = testDelay && /^\d+$/.test(testDelay) ? Number(testDelay) : 0;
+      await new Promise((r) => setTimeout(r, Number.isSafeInteger(delay) && delay > 0 && delay <= 2_147_483_647 ? Math.max(this.backoff, delay) : this.backoff));
       this.backoff = Math.min(this.backoff * 2, 30_000);
       if (!this.core.running && !this.facts.paused && !this.quitting) await this.boot();
     });

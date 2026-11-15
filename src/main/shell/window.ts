@@ -589,6 +589,7 @@ export class ShellWindow implements TabHost {
     if (adopt) this.committed(tab, tab.wc.getURL());
     if (!saved && (foreground || this.active === null)) this.activate(tab.id);
     if (url) this.host.load(tab.wc, url);
+    else if (!saved && !adopt && foreground && !this.setup) this.focusAddress();
     this.broadcast();
     return tab.wc;
   }

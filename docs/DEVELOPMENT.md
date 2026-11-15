@@ -123,7 +123,7 @@ sudo apt install ./Anyu-<版本>-linux-amd64.deb
 }
 ```
 
-- `geolocation` 仅使用配置文件中填写的数值，Anyu 不探测本机真实位置；未设置时定位请求直接被拒绝。
+- `geolocation` 仅使用配置文件中填写的数值，Anyu 不探测本机真实位置；未设置时定位请求直接被拒绝；设置坐标并重启后，网站仍须获得应用内权限，保存的授权不能覆盖无坐标的拒绝。
 - USB / HID / 串口 / 蓝牙、屏幕捕获、空闲检测、文件系统和本地字体访问等权限一律拒绝；相机、麦克风、定位（已配置坐标时）、通知（开关打开时）和读取剪贴板（`clipboard-read`）由用户在权限浮层中决定。
 - 修改 `locale`、`acceptLanguages`、`timezone`、`geolocation`、`platform` 或 `notifications` 后需重启 Anyu 才会生效，设置页顶部会提示立即重启。
 - **`platform` 说明**：`host`（默认）如实呈现本机系统，UA、UA-CH、`navigator.platform`、字体与 GPU 完全匹配。选择 `macos` 或 `windows` 时，页面 UA、UA-CH 的 `platform` / `platformVersion` 及主线程 `navigator.platform` 会统一为该平台常见值，但 Worker 内 `navigator.platform`、字体与 WebGL 仍暴露真实宿主机，自检第 13 项会标出与本机不一致。

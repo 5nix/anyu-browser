@@ -45,6 +45,8 @@ On first launch, Anyu opens the setup guide in this order:
 3. **Node and exit country**: If using a subscription or configuration, select a node (you can click **Test speed**), choose the expected **Exit country or region**, and click **Check exit**.
 4. **Check exit**: Anyu checks the proxy core, node or local port, and the current exit country. Browsing opens only after the exit matches and shows **Internet allowed**; otherwise it stays closed so you can switch nodes or change the configured country.
 5. **Identity**: Based on the verified exit country, Anyu proposes a matching **Time zone**, **Languages for websites** (without changing Anyu's own interface language), and **Location** (deny location requests, or report near the measured city centre within about 5 km). Accept them, click **Adjust**, or keep your current values.
+   Without configured coordinates, location requests are denied. After configuring coordinates and restarting, sites must still receive in-app permission and can only receive those coordinates.
+
 6. **Personalise**: Choose appearance (follow system, light, or dark), tab position (top or side), search engine (DuckDuckGo, Google, Bing, or a custom HTTPS template), and optionally import HTML bookmarks, then click **Start browsing** (Anyu restarts automatically if time zone, language, or location changed).
 
 You can run the setup guide again at any time from **Settings → Status and checks → Start setup guide** without losing your settings or nodes.

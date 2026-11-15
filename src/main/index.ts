@@ -191,9 +191,15 @@ async function start(): Promise<void> {
   applyPermissions(browserSession(), profile, (wc, permission, details, callback) => {
     const win = browser.windows.find(w => w.hasTab(wc));
     if (!win) return callback(false);
-    win.requestPermission(wc, permission, details, callback, profile, startupProfile);
+    if (permission === 'geolocation') {
+      void siteUa.locationReady(wc).then(ready => {
+        if (!ready || !siteUa.locationAvailable(wc)) return callback(false);
+        win.requestPermission(wc, permission, details, allow => callback(allow && siteUa.locationAvailable(wc)), profile, startupProfile);
+      });
+    } else win.requestPermission(wc, permission, details, callback, profile, startupProfile);
   }, (wc, permission, origin, details) => {
     const win = wc && browser.windows.find(w => w.hasTab(wc));
+    if (permission === 'geolocation' && (!wc || !siteUa.locationAvailable(wc))) return false;
     return !!win && win.checkPermission(wc!, permission, origin, details, profile, startupProfile);
   });
   applyContentBlocker(browserSession());

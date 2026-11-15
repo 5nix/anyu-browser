@@ -134,7 +134,7 @@ function Tabs({ state }: { state: ShellState }) {
     next.splice(Math.min(index, next.length), 0, item);
   }
   list.current = next;
-  return <div id="tabs">
+  return <div id="tabs" onContextMenu={e => { if ((e.target as HTMLElement).closest('.tab, button')) return; e.preventDefault(); void cave.openTabStripMenu({ x: e.clientX, y: e.clientY, width: 0, height: 0 }); }}>
     <div id="tablist" ref={tablist} role="tablist" onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={e => { if (drag.current?.pointer === e.pointerId) { moveDrag(e); paint(false); finish(true); } }} onPointerCancel={() => finish(false)} onLostPointerCapture={() => finish(false)} onClickCapture={e => { if (suppressClick.current) { e.preventDefault(); e.stopPropagation(); } }} onContextMenuCapture={e => { if (suppressClick.current) { e.preventDefault(); e.stopPropagation(); } }}>{next.map(({ tab, leaving }) => <Tab key={tab.id} tab={tab} active={tab.id === state.active} leaving={leaving} remove={() => {
       list.current = list.current.filter((item) => item.tab.id !== tab.id);
       update((n) => n + 1);

@@ -363,6 +363,7 @@ async function start(): Promise<void> {
     toggleSurface: (name) => { if (name === 'menu') win.toggleMenu(); else if (name === 'bookmarkEdit') win.toggleBookmark(); else if (name === 'siteInfo' || name === 'status' || name === 'downloads') win.surfaces.toggle(name); },
     openAddressMenu: (anchor) => win.openAddressMenu(anchor),
     openTabMenu: (id, anchor) => win.openTabMenu(id, anchor),
+    openTabStripMenu: (anchor) => win.openTabStripMenu(anchor),
     openShortcutMenu: (id, anchor) => win.openShortcutMenu(id, anchor),
     contextAction: (token, id) => win.contextAction(token, id),
     closeSurface: () => { if (win.surfaces.state?.name === 'restoreSession') browser.discardSession(); else win.surfaces.close(); },
@@ -552,7 +553,7 @@ async function start(): Promise<void> {
       if (['testSuggestionMouse', 'testSuggestionBounds'].includes(name) && (process.env.CAVE_TEST_HARNESS !== '1' || e.sender !== win.chrome.webContents)) return;
       if (['beginAddress', 'suggestAddress', 'submitAddress'].includes(name) && e.sender !== win.chrome.webContents) return;
       if (['selectAddress', 'chooseAddress', 'cancelAddress'].includes(name) && e.sender !== win.chrome.webContents && e.sender !== win.overlay.webContents) return;
-      if ((name === 'openTabMenu' || name === 'openAddressMenu' || name === 'setAnchors') && e.sender !== win.chrome.webContents) return;
+      if ((name === 'openTabMenu' || name === 'openTabStripMenu' || name === 'openAddressMenu' || name === 'setAnchors') && e.sender !== win.chrome.webContents) return;
       if (name === 'openShortcutMenu' && !win.isActiveHome(e.sender)) return;
       if (name === 'toggleSurface' && e.sender !== win.chrome.webContents && e.sender !== win.overlay.webContents) return;
       if (name === 'setSurfaceBounds' && e.sender !== win.overlay.webContents) return;

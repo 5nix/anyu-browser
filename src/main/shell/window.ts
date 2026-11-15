@@ -14,7 +14,7 @@ import { canBookmarkTab, toUrl } from '../../shared/url.ts';
 import { FRAME, METRICS, SETUP_CAPTION, captionHeight, pageBounds, setupTrafficLights } from '../../shared/layout.ts';
 import { channel, type CaveEvents, type SettingsSection, type ShellState, type TabLayout, type MenuEntry, type Rect, type SurfaceName, type Permission } from '../../shared/ipc.ts';
 import { mac, titleBar, trafficLightPosition } from '../platform.ts';
-import { addressMenu, pageMenu, tabMenu, toolbarMenu, validWeb } from './context-menu.ts';
+import { addressMenu, pageMenu, tabMenu, tabStripMenu, toolbarMenu, validWeb } from './context-menu.ts';
 import { type CommandId } from '../../shared/commands.ts';
 import type { LocalSuggestion, LocalTab } from './suggestions.ts';
 import type { AddressQueryResult } from '../../shared/ipc.ts';
@@ -36,10 +36,10 @@ export interface WindowHost {
   fetchFavicon(tab: Tab, url: string, icons: string[]): Promise<string | null>;
   historyVisit(url: string, title: string): void;
   historyTitle(url: string, title: string): void;
-  visited(win: ShellWindow, url: string): void;
   rendererDir: string;
   preload: string;
   tabLayout(): TabLayout;
+  setTabLayout(layout: TabLayout): void;
   sidebarWidth(): number;
   /** The part of the state that is the same in every window. */
   shared(): Pick<ShellState, 'shortcuts' | 'gate' | 'downloads' | 'notice' | 'locale' | 'localePreference' | 'accent' | 'theme' | 'showTime' | 'clock24Hour' | 'timezone' | 'searchEngine' | 'restoreSession' | 'setup'>;
@@ -123,7 +123,7 @@ export class ShellWindow implements TabHost {
   private resetting = false;
   /** Height of the Windows/Linux caption-button band; it follows the tab layout. */
   private caption = 0;
-  private menu: { token: string; items: MenuEntry[]; kind: 'toolbar' | 'tab' | 'page' | 'address' | 'shortcut'; tab?: Tab; params?: Electron.ContextMenuParams; shortcutId?: number; pageContents?: WebContents } | null = null;
+  private menu: { token: string; items: MenuEntry[]; kind: 'toolbar' | 'tab' | 'tabStrip' | 'page' | 'address' | 'shortcut'; tab?: Tab; params?: Electron.ContextMenuParams; shortcutId?: number; pageContents?: WebContents } | null = null;
 
   constructor(private host: WindowHost) {
     const t = theme();
@@ -746,7 +746,6 @@ export class ShellWindow implements TabHost {
   }
 
   committed(tab: Tab, url: string): void {
-    this.host.visited(this, url);
     const origin = zoomOrigin(url);
     tab.wc.setZoomFactor((origin ? this.host.getZoom(origin) : 100) / 100);
     this.broadcast();
@@ -920,7 +919,7 @@ export class ShellWindow implements TabHost {
 
   navigated(tab: Tab): void { this.dropTabPermissions(tab.wc); this.generations.set(tab.id, (this.generations.get(tab.id) ?? 0) + 1); if (this.menu?.tab === tab || this.addressSession?.tab === tab.id) { this.addressSession = null; this.surfaces.close(false); } }
 
-  private showMenu(kind: 'toolbar' | 'tab' | 'page' | 'address' | 'shortcut', items: MenuEntry[], anchor?: Rect, tab?: Tab, params?: Electron.ContextMenuParams): void {
+  private showMenu(kind: 'toolbar' | 'tab' | 'tabStrip' | 'page' | 'address' | 'shortcut', items: MenuEntry[], anchor?: Rect, tab?: Tab, params?: Electron.ContextMenuParams): void {
     this.surfaces.close();
     this.menu = { token: randomUUID(), items, kind, tab, params };
     this.surfaces.open(kind === 'toolbar' ? 'menu' : 'contextMenu', anchor);
@@ -938,6 +937,13 @@ export class ShellWindow implements TabHost {
     if (![x, y, width, height].every(Number.isFinite) || width < 0 || height < 0 || x < 0 || y < 0 || x + width > bounds.width || y + height > bounds.height) return;
     const tab = this.tabs.find(t => t.id === id);
     if (tab) this.showMenu('tab', tabMenu(tab.kind === 'web', tab.pinned, tab.state.muted, this.canReopenTab), anchor, tab);
+  }
+
+  openTabStripMenu(anchor: Rect): void {
+    if (!anchor || typeof anchor !== 'object') return;
+    const { x, y, width, height } = anchor, bounds = this.win.getContentBounds();
+    if (![x, y, width, height].every(Number.isFinite) || x < 0 || y < 0 || width < 0 || height < 0 || x + width > bounds.width || y + height > bounds.height) return;
+    this.showMenu('tabStrip', tabStripMenu(this.host.tabLayout()), anchor);
   }
 
   isActiveHome(wc: WebContents): boolean { return this.visibleHome !== null && this.homes.get(this.visibleHome)?.webContents === wc; }
@@ -994,6 +1000,12 @@ export class ShellWindow implements TabHost {
         const wc = this.chrome.webContents;
         if (!wc.isDestroyed()) { wc.focus(); if (id === 'cut') wc.cut(); else if (id === 'copy') wc.copy(); else if (id === 'paste') wc.paste(); else if (id === 'selectAll') wc.selectAll(); }
       }
+      return;
+    }
+    if (menu.kind === 'tabStrip') {
+      if (id === 'tab.new') this.host.run('tab.new', this);
+      else if (id === 'tabs.side') this.host.setTabLayout('side');
+      else if (id === 'tabs.top') this.host.setTabLayout('top');
       return;
     }
     if (menu.kind === 'toolbar') {

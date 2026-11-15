@@ -74,7 +74,7 @@ An honest caveat for **Advanced mode** (`external`): Anyu hands traffic to your 
   - Under an extreme startup race, a `SharedWorker` can execute initial code before debugger overrides attach.
 - **Host TUN sniffing and Reality nodes**: In default mode alongside host TUN clients that enable TLS sniffing with `override-destination` (such as FlClash), Reality node handshakes can fail unless you switch to Alternative mode on Windows or add the node IP to `sniffer.skip-dst-address` in the host client.
 - **Subscriptions and exit check**: Subscriptions only parse Clash YAML `proxies:` lists (share links and `proxy-providers` are not supported). Exit checks depend on reaching the built-in trace endpoint (and configured monitor URLs); if unreachable, browsing stays closed. If a node uses a hostname instead of an IP, the core resolves it via `1.1.1.1` / `https://1.1.1.1/dns-query` before connecting.
-- **Sessions and profiles**: All tabs share one browser session (per-tab container isolation is not implemented yet). Cookies are encrypted with the OS keychain or DPAPI, so copying a profile folder across different operating systems may not keep signed-in sessions. Extensions and account sync are not supported. Changing time zone, language, geolocation, platform, or notifications requires restarting Anyu.
+- **Sessions and profiles**: All tabs share one browser session (per-tab container isolation is not implemented yet). Cookies are encrypted with the OS keychain or DPAPI, so copying a profile folder across different operating systems may not keep signed-in sessions. Account sync is not supported. Changing time zone, language, geolocation, platform, or notifications requires restarting Anyu.
 
 ## Build from source and contribute
 

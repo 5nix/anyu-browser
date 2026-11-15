@@ -65,7 +65,6 @@ export class Browser extends EventEmitter {
   /** The window that last had the user's attention: where a menu command or a second launch goes. */
   private front: ShellWindow | null = null;
   private notice: string | (() => string) | null = null;
-  private extensionNoticeShown = false;
   private restoreSession: boolean;
   private searchEngine: SearchEngine;
   private accent: Accent;
@@ -108,6 +107,7 @@ export class Browser extends EventEmitter {
       rendererDir: o.rendererDir,
       preload: o.preload,
       tabLayout: () => this.tabLayout,
+      setTabLayout: (layout) => this.setTabLayout(layout),
       sidebarWidth: () => this.sidebarWidth,
       shared: () => ({ shortcuts: o.shortcuts().map(item => ({ ...item, favicon: o.favicons.get(item.url) })), gate: o.gate(), downloads: this.downloads.all(), notice: typeof this.notice === 'function' ? this.notice() : this.notice, locale: this.locale, localePreference: this.localePreference, accent: this.accent, theme: this.theme, showTime: this.showTime, clock24Hour: this.clock24Hour, timezone: o.timezone(), searchEngine: this.searchEngine, restoreSession: this.restoreSession, setup: o.setup() }),
       canBrowse: o.canBrowse,
@@ -131,16 +131,6 @@ export class Browser extends EventEmitter {
       fetchFavicon: (tab, url, icons) => o.favicons.load(tab.wc.session, url, icons),
       historyVisit: (url, title) => o.history.visit(url, title, false),
       historyTitle: (url, title) => o.history.setTitle(url, title),
-      visited: (win, url) => {
-        if (this.extensionNoticeShown) return;
-        try {
-          const u = new URL(url);
-          if (u.protocol !== 'https:' || !(u.hostname === 'chromewebstore.google.com' || (u.hostname === 'chrome.google.com' && (u.pathname === '/webstore' || u.pathname.startsWith('/webstore/'))))) return;
-          this.extensionNoticeShown = true;
-          this.setNotice(() => t('extensionsUnsupported'));
-          win.surfaces.open('status');
-        } catch {}
-      },
       load: (wc, url) => this.navigator.load(wc, url),
       forget: (wc) => this.navigator.forget(wc),
       back: (wc) => this.navigator.back(wc),

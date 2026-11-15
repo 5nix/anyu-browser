@@ -1,6 +1,6 @@
 import { accelerator, label, type CommandId } from '../../shared/commands.ts';
 import { t, type TranslationKey } from '../../shared/i18n/index.ts';
-import type { MenuEntry } from '../../shared/ipc.ts';
+import type { MenuEntry, TabLayout } from '../../shared/ipc.ts';
 const WEB = /^(https?|about|blob|data):/i;
 
 export const validWeb = (url: unknown): url is string => typeof url === 'string' && url.length <= 8192 && URL.canParse(url) && WEB.test(url);
@@ -13,6 +13,7 @@ export function toolbarMenu(web: boolean, zoomable = web): MenuEntry[] {
 }
 export function addressMenu(): MenuEntry[] { return [item('cut', 'cut'), item('copy', 'copy'), item('paste', 'paste'), command('address.pasteAndGo'), item('selectAll', 'selectAll')]; }
 export function tabMenu(web: boolean, pinned = false, muted = false, canReopen = false): MenuEntry[] { return [command('page.reload', web), item('tab.pin', pinned ? 'tab_unpin' : 'tab_pin', web), command('tab.duplicate', web), item('tab.mute', muted ? 'tab_unmute' : 'tab_mute_menu', web), command('tab.close'), command('tab.reopen', canReopen)]; }
+export function tabStripMenu(layout: TabLayout): MenuEntry[] { return [item('tab.new', 'newTab'), item(layout === 'top' ? 'tabs.side' : 'tabs.top', layout === 'top' ? 'switchToSideTabs' : 'switchToTopTabs')]; }
 export function pageMenu(p: Electron.ContextMenuParams, back: boolean, forward: boolean, gate: boolean): MenuEntry[] {
   const flags = p.editFlags;
   return groups(

@@ -216,6 +216,13 @@ export class ShellWindow implements TabHost {
     this.win.on('move', () => this.castShadow(this.shadowCard));
     this.win.on('focus', () => host.focused(this));
     this.win.on('blur', () => { const hadAddress = !!this.addressSession; this.addressSession = null; if (hadAddress && !this.surfaces.state) this.broadcast(); if (this.surfaces.state?.name !== 'httpAuth' && this.surfaces.state?.name !== 'restoreSession') this.surfaces.close(false); });
+    // Windows routes right-clicks on drag regions to the system menu, never to the page.
+    this.win.on('system-context-menu', (event, point) => {
+      if (this.setup) return;
+      event.preventDefault();
+      const b = this.win.getContentBounds();
+      this.openTabStripMenu({ x: Math.max(0, point.x - b.x), y: Math.max(0, point.y - b.y), width: 0, height: 0 });
+    });
     this.win.on('close', () => { host.windowClosing(); this.closing = true; this.permissionQueue.clear(); });
     this.win.on('closed', () => {
       nativeTheme.off('updated', this.paint);

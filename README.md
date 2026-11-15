@@ -86,13 +86,7 @@ node scripts/fetch-core.mjs
 npm start
 ```
 
-更多工程与内部文档见 `docs/`：
-
-- [开发与内部说明](docs/DEVELOPMENT.md)（测试与打包、网络隔离与闸门实现、`profile.json` 格式、代理内核与许可说明）
-- [架构设计](docs/ARCHITECTURE.md)
-- [连接方式（出口）设计](docs/egress-modes.md)
-- [真机手工测试清单](docs/MANUAL_TESTS.md)
-- [Windows 真机验收记录（2026-11-13）](docs/windows-validation-2026-11-13.md)
+构建与贡献请参阅 [贡献指南](CONTRIBUTING.md)，设计说明见 [架构文档](docs/ARCHITECTURE.md)。
 
 ## 许可
 

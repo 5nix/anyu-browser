@@ -1,17 +1,14 @@
-# Rules for agents working on Cave
+# Contributor and agent guidelines
 
-The owner works on this Mac while agents run. These rules exist because test runs used to
-take the mouse, pull windows to the front, and leave error dialogs on the desktop.
-
-**Not disturbing the owner is the precondition for any test, not a preference.** A check
-that would take the mouse, the keyboard focus or the frontmost window, or could leave a
-dialog or a stray window behind, is not run at all: skip it, say so in your report, and
-let the owner decide. A verified result never justifies an interruption.
+**Non-disruptive execution is a precondition for every test.** Do not run a check that
+would take the mouse, keyboard focus or frontmost window, or could leave a dialog or a
+stray window behind. Skip it and report what was left unverified. A verified result never
+justifies an interruption.
 
 ## Launching the app is the exception
 
 **The end-to-end tests are archived in `test/archive/e2e/` and are not part of any routine
-run.** Even in background mode their windows flash on the owner's screen. The default
+run.** Even in background mode their windows can flash on screen. The default
 verification is `npm test` (typecheck and unit tests, no window) and `npm run build`.
 
 When a change touches one specific behaviour that an archived test covers and that cannot
@@ -30,8 +27,7 @@ below apply to any such launch.
    On macOS the app uses the `accessory` activation policy. Only use `startWorld()` for
    app launches; if a test cannot meet these constraints, do not run it.
 2. **Never pass `foreground: true`** and never bring a window to the front (`osascript
-   activate`, `open -a`, `win.focus()`, `app.focus()`) unless the owner has agreed in this
-   conversation.
+   activate`, `open -a`, `win.focus()`, `app.focus()`) unless the maintainer has explicitly approved it.
 3. **All input is synthetic**: CDP `Input.dispatch*` (helpers in `test/archive/e2e/cdp.mjs`) or
    `webContents.sendInputEvent`. Never use the real pointer or keyboard: no `cliclick`,
    `osascript` / System Events clicks or keystrokes, CGEvent, or computer-use tools.
@@ -50,9 +46,8 @@ below apply to any such launch.
    inspect `ps -axo pid,ppid,pgid,command` for this checkout’s Electron and `cave-core`
    processes, including children and process groups. Match the full checkout path, not just
    the process name; terminate only processes started by your run, including their groups.
-   An orphan from an abandoned run is what puts an error dialog in front of the owner
-   minutes later; this check is not optional, also when your run failed or was interrupted.
-8. Never quit, kill or reinstall the owner's own `/Applications/Cave.app` unless the task
+   An orphan from an abandoned run is what puts an error dialog on the desktop minutes later; this check is not optional, also when your run failed or was interrupted.
+8. Never quit, kill or reinstall an existing `/Applications/Cave.app` installation unless the task
    says to install.
 
 ## Proportion
@@ -76,7 +71,7 @@ below apply to any such launch.
 ## Code boundaries
 
 11. Do not change `src/main/gate.ts`, `src/main/gatekeeper.ts`, `src/main/network.ts` or
-    `src/main/proxy/*` except display text, unless your task brief says the owner has
+    `src/main/proxy/*` except display text, unless your task brief says the maintainer has
     authorised a specific change there.
 12. Whatever the brief says, the operating premise never changes: every request goes
     through the proxy, there is no direct connection under any failure, and the gate stays

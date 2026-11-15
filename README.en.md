@@ -86,13 +86,7 @@ node scripts/fetch-core.mjs
 npm start
 ```
 
-Engineering and internal documentation lives under `docs/`:
-
-- [Development and internals](docs/DEVELOPMENT.md) (tests and packaging, network isolation and gate internals, `profile.json` format, proxy core and licensing notes)
-- [Architecture](docs/ARCHITECTURE.md)
-- [Connection (egress) modes design](docs/egress-modes.md)
-- [Manual test checklist](docs/MANUAL_TESTS.md)
-- [Windows validation record (2026-11-13)](docs/windows-validation-2026-11-13.md)
+See [CONTRIBUTING.md](CONTRIBUTING.md) for building and contributing, and [Architecture](docs/ARCHITECTURE.md) for the design.
 
 ## License
 

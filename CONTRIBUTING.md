@@ -1,14 +1,12 @@
-# Anyu 开发与内部说明
+# Anyu 贡献指南
 
-本文档保留项目工程背景、配置格式、网络隔离实现、内置代理内核许可及构建测试说明，供开发者与贡献者参考。用户向介绍见 [README.md](../README.md)。
+本文档保留项目工程背景、配置格式、网络隔离实现、内置代理内核许可及构建测试说明，供开发者与贡献者参考。用户向介绍见 [README.md](README.md)。
 
 - 公开项目名：`anyu-browser`
 - 当前状态：0.1.0 预发布（安装包暂无代码签名与自动更新）
 - 相关文档：
-  - [架构设计](ARCHITECTURE.md)
-  - [连接方式（出口）设计](egress-modes.md)
-  - [真机手工测试清单（macOS / Windows）](MANUAL_TESTS.md)
-  - [Windows 真机验收记录（2026-11-13）](windows-validation-2026-11-13.md)
+  - [架构设计](docs/ARCHITECTURE.md)
+  - [手工测试 / Manual testing](docs/TESTING.md)
 
 ## 构建、测试与打包
 
@@ -23,9 +21,12 @@ npm start                        # 编译并启动 Electron 应用
 常用测试与打包命令：
 
 ```bash
-npm test                         # TypeScript 类型检查与单元测试（profile、内核配置、订阅、闸门、UA/UA-CH、地址栏等）
+npm test                         # TypeScript 类型检查与单元测试
+npm run build                    # 构建应用
 npm run dist                     # 在当前平台生成安装包（需先运行 scripts/fetch-core.mjs）
 ```
+
+归档的端到端测试及无干扰运行要求见 [AGENTS.md](AGENTS.md)。
 
 自动测试只访问本机测试服务器，主机名使用 `*.cave.test`，由测试用 SOCKS 节点映射到本机，不连接任何外部网站。
 
@@ -39,20 +40,24 @@ sudo apt install ./Anyu-<版本>-linux-amd64.deb
 
 安装脚本会配置 Chromium 沙箱（在 Ubuntu 24.04 上同时装入 AppArmor 配置），应用始终在沙箱内运行。
 
+### 测试环境变量
+
+`CAVE_TEST_CORE_RESPAWN_DELAY_MS` 可设为正整数毫秒（最大 2147483647），延长内核退出后看门狗重拉的等待；未设置、无效或为零时使用正常退避时间。仅用于测试，完成后移除。其他 `CAVE_TEST_*` 变量供归档测试工具使用，不应在日常运行中设置。
+
 ## 网络隔离与闸门实现
 
-- **Chromium 启动参数与会话代理**（[`src/main/network.ts`](../src/main/network.ts)）：启动时固定使用 `socks5://127.0.0.1:<随机端口>`，设置 `proxy-bypass-list=<-loopback>`（不绕过回环地址），禁用本地 DNS 解析（`MAP * ~NOTFOUND , EXCLUDE 127.0.0.1`）并将主机名交给远端 SOCKS 解析。关闭 QUIC（`--disable-quic`）、IPv6（`--disable-ipv6`），WebRTC 策略设为 `disable_non_proxied_udp`，同时关闭后台网络、组件更新、崩溃上报、Domain Reliability、DoH 升级和拼写字典下载。
-- **内置内核运行配置与闸门**（[`src/main/proxy/config.ts`](../src/main/proxy/config.ts)、[`src/main/gate.ts`](../src/main/gate.ts)、[`src/main/gatekeeper.ts`](../src/main/gatekeeper.ts)）：
+- **Chromium 启动参数与会话代理**（[`src/main/network.ts`](src/main/network.ts)）：启动时固定使用 `socks5://127.0.0.1:<随机端口>`，设置 `proxy-bypass-list=<-loopback>`（不绕过回环地址），禁用本地 DNS 解析（`MAP * ~NOTFOUND , EXCLUDE 127.0.0.1`）并将主机名交给远端 SOCKS 解析。关闭 QUIC（`--disable-quic`）、IPv6（`--disable-ipv6`），WebRTC 策略设为 `disable_non_proxied_udp`，同时关闭后台网络、组件更新、崩溃上报、Domain Reliability、DoH 升级和拼写字典下载。
+- **内置内核运行配置与闸门**（[`src/main/proxy/config.ts`](src/main/proxy/config.ts)、[`src/main/gate.ts`](src/main/gate.ts)、[`src/main/gatekeeper.ts`](src/main/gatekeeper.ts)）：
   - 闸门状态写入 `runtime.yaml`。关闭时，浏览器入站只剩 `MATCH,REJECT`，已打开的页面也无法发出流量；出口核对使用仅限探测的本机入站（`IN-NAME,probe,PROXY`）。
   - 放行时，回环和链路本地地址被 `REJECT`，除非开启 `allowPrivateNetwork` 否则私网段同样被 `REJECT`；其余流量全部经选中节点出去（`MATCH,PROXY`），DNS 通过节点使用 DoH（`https://1.1.1.1/dns-query#PROXY`）解析。运行配置中不出现 `DIRECT`。
   - 启动后自动核对出口国家，运行期间每 5 分钟复测一次；任何会影响出口的操作（切节点、改国家、内核退出、暂停/恢复、重检）都会递增代际并立即作废旧结果，回到关闭状态并断开现有连接。
 - **订阅拉取例外**：在用户主动点击拉取订阅且“更新方式”为 **直连**（默认）时，主进程直接通过系统网络请求该订阅 URL 一次，不经过浏览器会话；网页流量仍然只走内核。
-- **非 TUN 随机端口与进程绑定**（[`src/main/proxy/tied.ts`](../src/main/proxy/tied.ts)）：内核禁用 TUN，仅监听 `127.0.0.1` 上的随机端口（避开 `7890`–`7893`、`7897`、`9090`、`9097`），控制器带随机密钥。无论 Anyu 如何退出（包括崩溃或被强制结束），内核进程都会随之退出，不会残留；它可以与宿主机上的 TUN 客户端共存。如果内核上游连接被宿主机 TUN 接管，出口核对测量的是最终出口，国家不符时闸门关闭。
+- **非 TUN 随机端口与进程绑定**（[`src/main/proxy/tied.ts`](src/main/proxy/tied.ts)）：内核禁用 TUN，仅监听 `127.0.0.1` 上的随机端口（避开 `7890`–`7893`、`7897`、`9090`、`9097`），控制器带随机密钥。无论 Anyu 如何退出（包括崩溃或被强制结束），内核进程都会随之退出，不会残留；它可以与宿主机上的 TUN 客户端共存。如果内核上游连接被宿主机 TUN 接管，出口核对测量的是最终出口，国家不符时闸门关闭。
 - 不使用系统防火墙规则，也不在请求层用拦截器替代网络层隔离。
 
 ## 订阅、测速与节点切换
 
-- **订阅解析**（[`src/main/proxy/subscription.ts`](../src/main/proxy/subscription.ts)）：仅读取 Clash YAML 中 `proxies:` 列表里的有效代理节点。订阅附带的 `rules`、`dns`、`tun`、`port`、`mode` 等全部丢弃；`DIRECT`、`REJECT`、`GLOBAL`、`COMPATIBLE` 等保留名、直连类节点及 `dialer-proxy` 链式出站都会被剔除。
+- **订阅解析**（[`src/main/proxy/subscription.ts`](src/main/proxy/subscription.ts)）：仅读取 Clash YAML 中 `proxies:` 列表里的有效代理节点。订阅附带的 `rules`、`dns`、`tun`、`port`、`mode` 等全部丢弃；`DIRECT`、`REJECT`、`GLOBAL`、`COMPATIBLE` 等保留名、直连类节点及 `dialer-proxy` 链式出站都会被剔除。
 - **订阅拉取**：请求时 `User-Agent` 为 `clash.meta`，使按客户端区分格式的订阅服务返回 Clash YAML。支持“直连”和“经代理”（经当前已放行节点）两种方式，也可从本地文件导入或直接粘贴（不发网络请求）。
 - **测速与切换**：只有用户主动选择的节点会被使用。“测速”通过控制器对各节点访问固定健康检查端点。已有选中节点时再切换节点，会弹出确认对话框，写明从哪个节点换到哪个、当前连接都会断开、出口 IP 会变，并标注已核对的出口国家变化或提示切换后重新核对。
 
@@ -90,7 +95,7 @@ sudo apt install ./Anyu-<版本>-linux-amd64.deb
 
 （旧版 `subscription.yaml` 和 `ui.json` 会在打开时自动迁移并清理。）
 
-`profile.json` 字段示例（[`src/shared/profile.ts`](../src/shared/profile.ts)）：
+`profile.json` 字段示例（[`src/shared/profile.ts`](src/shared/profile.ts)）：
 
 ```jsonc
 {
@@ -141,11 +146,11 @@ sudo apt install ./Anyu-<版本>-linux-amd64.deb
 - **固定平台时的差异**：Worker 的 `navigator.platform` 通过调试器注入覆盖（CDP UA 覆盖本身对它无效）；字体、WebGL/GPU 渲染器、emoji 字形、滚动条/控件样式和系统颜色仍来自真实操作系统。
 - **屏幕色深**：页面的 `screen.colorDepth` 和 `screen.pixelDepth` 固定为 24，采用 [CSSOM View 的兼容值](https://drafts.csswg.org/cssom-view/#dom-screen-colordepth)，而非模拟具体显示器；Windows 的 32 位或 HDR 配置及某些 Chrome 版本可能报告其他值。Worker 不提供 `screen`。
 - **字体复测基线**：一次 Windows 测试中，安装前为 215 个字体、147 个唯一度量，指纹 `60c1557fc855754d55140e20fac6ad07`；安装静态 Open Sans 后为 217 个，指纹 `80ffdf4395fc3b903fec26d8db381ffa`。用户安装的字体可被检测并改变指纹。复测时在同一信号页记录安装前结果，安装一个静态字体后重新启动浏览器并比较。
-- **SharedWorker 附着时机**：Chromium 不会自动将调试器附着到 `SharedWorker`。Anyu 通过 `Target.setDiscoverTargets` 在 `SharedWorker` 创建时主动附着并下发覆盖设置（[`src/main/fingerprint.ts`](../src/main/fingerprint.ts)），在极端启动竞争时序下，其第一行代码仍可能以会话默认 UA 和宿主平台执行。
+- **SharedWorker 附着时机**：Chromium 不会自动将调试器附着到 `SharedWorker`。Anyu 通过 `Target.setDiscoverTargets` 在 `SharedWorker` 创建时主动附着并下发覆盖设置（[`src/main/fingerprint.ts`](src/main/fingerprint.ts)），在极端启动竞争时序下，其第一行代码仍可能以会话默认 UA 和宿主平台执行。
 - **`window.chrome`**：仅包含 Electron 自带部分，与 Google Chrome 存在差异（例如缺少 `chrome.app` 和 `chrome.runtime`）。
 
 ## 代理内核与许可说明
 
-- Anyu 自有代码按 [MPL-2.0](../LICENSE) 许可。
+- Anyu 自有代码按 [MPL-2.0](LICENSE) 许可。
 - 安装包随附未经修改的 [MetaCubeX/mihomo](https://github.com/MetaCubeX/mihomo) v1.19.34（GPL-3.0 许可）。因上游要求非 MetaCubeX 下游项目名称不得包含 `mihomo`，分发二进制重命名为 `cave-core`（Windows 下为 `cave-core.exe`），由 Anyu 作为独立子进程运行并通过命令行参数和本机 HTTP 控制器通信。
-- 许可全文、版权声明与对应源码地址随包放在 `proxy-core/LICENSE` 与 `proxy-core/NOTICE`（仓库中位于 [`resources/proxy-core/`](../resources/proxy-core/)）；下载与构建时依据 [`resources/proxy-core/SHA256SUMS`](../resources/proxy-core/SHA256SUMS) 校验文件哈希。
+- 许可全文、版权声明与对应源码地址随包放在 `proxy-core/LICENSE` 与 `proxy-core/NOTICE`（仓库中位于 [`resources/proxy-core/`](resources/proxy-core/)）；下载与构建时依据 [`resources/proxy-core/SHA256SUMS`](resources/proxy-core/SHA256SUMS) 校验文件哈希。

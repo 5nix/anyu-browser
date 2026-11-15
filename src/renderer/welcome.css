@@ -1,4 +1,4 @@
-/* First-run setup (design/welcome/option-a2.html). Tokens and base controls come from style.css,
+/* First-run setup. Tokens and base controls come from style.css,
    the condition rows, node rows and appearance picker from ui.css. */
 html, body { height: 100%; }
 body { overflow: hidden; background: var(--surface); }

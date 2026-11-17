@@ -24,3 +24,15 @@ test('surface bounds acknowledge only the current open', () => {
   assert.equal(surfaces.setBounds(rect, 'menu', second), true);
   assert.deepEqual(bounds.at(-1), rect);
 });
+
+test('disposing a surface cancels layout after its window closes', async () => {
+  let destroyed = false;
+  const overlay = { setBounds() { assert.equal(destroyed, false); }, webContents: { focus() {}, isFocused: () => false } };
+  const surfaces = new Surfaces({ getBounds() { assert.equal(destroyed, false); return { width: 800, height: 600 }; } } as never, overlay as never, () => null, () => {});
+  surfaces.open('menu');
+  surfaces.close(false);
+  surfaces.dispose();
+  destroyed = true;
+  await new Promise(resolve => setTimeout(resolve, 180));
+  assert.equal(surfaces.state, null);
+});

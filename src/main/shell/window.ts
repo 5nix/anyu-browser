@@ -223,16 +223,24 @@ export class ShellWindow implements TabHost {
       const b = this.win.getContentBounds();
       this.openTabStripMenu({ x: Math.max(0, point.x - b.x), y: Math.max(0, point.y - b.y), width: 0, height: 0 });
     });
-    this.win.on('close', () => { host.windowClosing(); this.closing = true; this.permissionQueue.clear(); });
+    this.win.on('close', () => { host.windowClosing(); this.closing = true; this.surfaces.dispose(); this.clearPendingAddressCancel(); this.permissionQueue.clear(); });
     this.win.on('closed', () => {
       nativeTheme.off('updated', this.paint);
       if (this.shadowHide) clearTimeout(this.shadowHide);
       if (!this.shadow.isDestroyed()) this.shadow.destroy();
-      for (const wc of [...this.tabs.map((tab) => tab.wc), ...this.ui.map((v) => v.webContents)]) {
+      const contents = [...new Set([...this.tabs.map((tab) => tab.wc), ...this.ui.map((v) => v.webContents)])];
+      // BaseWindow does not own its WebContents. Retain this window and its views until
+      // every page has finished closing, then leave the native destroyed callback before
+      // removing the owner (and potentially quitting the app).
+      const destroyed = contents.map((wc) => new Promise<void>((resolve) => {
+        if (wc.isDestroyed()) resolve();
+        else wc.once('destroyed', () => resolve());
+      }));
+      void Promise.all(destroyed).then(() => { setImmediate(() => host.closed(this)); });
+      for (const wc of contents) {
         host.forget(wc);
         if (!wc.isDestroyed()) wc.close();
       }
-      host.closed(this);
     });
     this.chrome.webContents.once('did-finish-load', () => { if (backgroundE2e) this.win.showInactive(); else this.win.show(); });
     this.layout();
@@ -872,7 +880,13 @@ export class ShellWindow implements TabHost {
     this.root.removeChildView(tab.view);
     if (this.lastWeb === tab.id) this.lastWeb = null;
     if (this.active === tab.id) this.active = null;
-    if (this.tabs.length === 0) { this.host.lastTabClosed(); this.win.close(); return; }
+    if (this.tabs.length === 0) {
+      this.host.lastTabClosed();
+      // This runs inside WebContents' native destroyed notification. Close its owner
+      // only after that notification has unwound. A new tab may arrive in the meantime.
+      setImmediate(() => { if (this.alive && this.tabs.length === 0) this.win.close(); });
+      return;
+    }
     else if (this.active === null) this.activate(this.tabs[Math.min(i, this.tabs.length - 1)].id);
     this.broadcast();
   }

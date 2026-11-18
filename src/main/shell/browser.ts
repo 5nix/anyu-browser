@@ -38,6 +38,9 @@ export interface BrowserOptions {
   accent: Accent;
   theme: Theme;
   saveAccent: (accent: Accent) => void;
+  currentProfile: () => ShellState['currentProfile'];
+  profiles: () => ShellState['profiles'];
+  refreshProfiles: () => void;
   saveTheme: (theme: Theme) => void;
   showTime: boolean;
   clock24Hour: boolean;
@@ -109,7 +112,16 @@ export class Browser extends EventEmitter {
       tabLayout: () => this.tabLayout,
       setTabLayout: (layout) => this.setTabLayout(layout),
       sidebarWidth: () => this.sidebarWidth,
-      shared: () => ({ shortcuts: o.shortcuts().map(item => ({ ...item, favicon: o.favicons.get(item.url) })), gate: o.gate(), downloads: this.downloads.all(), notice: typeof this.notice === 'function' ? this.notice() : this.notice, locale: this.locale, localePreference: this.localePreference, accent: this.accent, theme: this.theme, showTime: this.showTime, clock24Hour: this.clock24Hour, timezone: o.timezone(), searchEngine: this.searchEngine, restoreSession: this.restoreSession, setup: o.setup() }),
+      refreshProfiles: o.refreshProfiles,
+      shared: () => ({
+        shortcuts: o.shortcuts().map(item => ({ ...item, favicon: o.favicons.get(item.url) })),
+        gate: o.gate(), downloads: this.downloads.all(), notice: typeof this.notice === 'function' ? this.notice() : this.notice,
+        locale: this.locale, localePreference: this.localePreference, accent: this.accent, theme: this.theme,
+        showTime: this.showTime, clock24Hour: this.clock24Hour, timezone: o.timezone(),
+        searchEngine: this.searchEngine, restoreSession: this.restoreSession, setup: o.setup(),
+        currentProfile: { ...o.currentProfile(), accent: this.accent },
+        profiles: o.profiles().map(p => p.current ? { ...p, accent: this.accent } : p),
+      }),
       canBrowse: o.canBrowse,
       run: (id, win) => this.run(id, win),
       prepareTab: o.prepareTab,

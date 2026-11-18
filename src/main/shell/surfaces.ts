@@ -50,7 +50,7 @@ export class Surfaces {
     this.generation++;
     this.open_ = name;
     if (name === 'permission' || name === 'httpAuth' || name === 'restoreSession') this.fullBounds();
-    if (['siteInfo', 'menu', 'contextMenu', 'bookmarkEdit', 'permission', 'httpAuth', 'restoreSession'].includes(name)) this.overlay.webContents.focus();
+    if (['siteInfo', 'profiles', 'menu', 'contextMenu', 'bookmarkEdit', 'permission', 'httpAuth', 'restoreSession'].includes(name)) this.overlay.webContents.focus();
     this.changed();
   }
 
@@ -121,7 +121,7 @@ export class Surfaces {
   setAnchors(anchors: Partial<Record<SurfaceName, Rect>>): void {
     if (!anchors || typeof anchors !== 'object') return;
     const safe: Partial<Record<SurfaceName, Rect>> = { contextMenu: this.anchors.contextMenu };
-    for (const name of ['siteInfo', 'status', 'menu', 'suggestions', 'downloads', 'bookmarkEdit'] as const) {
+    for (const name of ['siteInfo', 'status', 'profiles', 'menu', 'suggestions', 'downloads', 'bookmarkEdit'] as const) {
       const r = anchors[name];
       if (r && [r.x, r.y, r.width, r.height].every(Number.isFinite) && r.x >= 0 && r.y >= 0 && r.width > 0 && r.height > 0) safe[name] = r;
     }

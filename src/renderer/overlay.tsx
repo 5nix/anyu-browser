@@ -14,6 +14,7 @@ import { Downloads } from './surfaces/downloads.tsx';
 import { Suggestions } from './surfaces/suggestions.tsx';
 import { HttpAuthPrompt } from './surfaces/http-auth.tsx';
 import { PermissionPrompt } from './surfaces/permission.tsx';
+import { Profiles } from './surfaces/profiles.tsx';
 import { ContextMenu } from './surfaces/context-menu.tsx';
 import { Icon, Surface, useCave, setSurfaceViewport } from './ui/index.tsx';
 
@@ -48,7 +49,7 @@ function RestoreSession({ state, open }: { state: ShellState; open: boolean }) {
   </Surface>;
 }
 
-const surfaces: Record<SurfaceName, (props: { state: ShellState; open: boolean }) => preact.ComponentChildren> = { siteInfo: SiteInfo, bookmarkEdit: BookmarkEdit, downloads: Downloads, status: Status, menu: ContextMenu, contextMenu: ContextMenu, suggestions: Suggestions, permission: PermissionPrompt, httpAuth: HttpAuthPrompt, restoreSession: RestoreSession };
+const surfaces: Record<SurfaceName, (props: { state: ShellState; open: boolean }) => preact.ComponentChildren> = { siteInfo: SiteInfo, bookmarkEdit: BookmarkEdit, downloads: Downloads, status: Status, profiles: Profiles, menu: ContextMenu, contextMenu: ContextMenu, suggestions: Suggestions, permission: PermissionPrompt, httpAuth: HttpAuthPrompt, restoreSession: RestoreSession };
 function App() {
   const state = useCave();
   const [results, setResults] = useState<(AddressQueryResult & { active: number }) | null>(null);

@@ -16,6 +16,7 @@ import { channel, type CaveEvents, type SettingsSection, type ShellState, type T
 import { mac, titleBar, trafficLightPosition } from '../platform.ts';
 import { addressMenu, pageMenu, tabMenu, tabStripMenu, toolbarMenu, validWeb } from './context-menu.ts';
 import { type CommandId } from '../../shared/commands.ts';
+import { DEFAULT_PROFILE_ID } from '../../shared/profiles.ts';
 import type { LocalSuggestion, LocalTab } from './suggestions.ts';
 import type { AddressQueryResult } from '../../shared/ipc.ts';
 import { PermissionQueue } from '../permission-queue.ts';
@@ -42,7 +43,8 @@ export interface WindowHost {
   setTabLayout(layout: TabLayout): void;
   sidebarWidth(): number;
   /** The part of the state that is the same in every window. */
-  shared(): Pick<ShellState, 'shortcuts' | 'gate' | 'downloads' | 'notice' | 'locale' | 'localePreference' | 'accent' | 'theme' | 'showTime' | 'clock24Hour' | 'timezone' | 'searchEngine' | 'restoreSession' | 'setup'>;
+  shared(): Pick<ShellState, 'shortcuts' | 'gate' | 'downloads' | 'notice' | 'locale' | 'localePreference' | 'accent' | 'theme' | 'showTime' | 'clock24Hour' | 'timezone' | 'searchEngine' | 'restoreSession' | 'setup' | 'currentProfile' | 'profiles'>;
+  refreshProfiles(): void;
   canBrowse(): boolean;
   run(id: CommandId, win: ShellWindow): void;
   prepareTab(wc: WebContents): void;
@@ -480,6 +482,8 @@ export class ShellWindow implements TabHost {
     if (!this.alive) return;
     if (this.surfaces.state?.name === 'bookmarkEdit' && (!this.canBookmark || this.bookmarkTarget?.tab !== this.active || this.bookmarkTarget?.url !== this.current?.getURL())) { this.bookmarkTarget = null; this.surfaces.close(false); return; }
     const s = this.state;
+    const title = s.profiles.length > 1 || s.currentProfile.id !== DEFAULT_PROFILE_ID ? `Anyu · ${s.currentProfile.name}` : 'Anyu';
+    if (this.win.getTitle() !== title) this.win.setTitle(title);
     this.host.sessionChanged();
     this.host.activeStateChanged();
     for (const v of this.ui) this.send(v, 'state', s);
@@ -530,7 +534,7 @@ export class ShellWindow implements TabHost {
 
   setSuggestionBounds(session: string, sequence: number, bounds: Rect, generation: number): boolean {
     if (this.addressSession?.session === session && this.addressSession.sequence === sequence) return this.surfaces.setBounds(bounds, 'suggestions', generation);
-    else if (sequence === -1 && ['siteInfo', 'status', 'downloads', 'menu', 'bookmarkEdit', 'contextMenu'].includes(session)) return this.surfaces.setBounds(bounds, session as SurfaceName, generation);
+    else if (sequence === -1 && ['siteInfo', 'status', 'profiles', 'downloads', 'menu', 'bookmarkEdit', 'contextMenu'].includes(session)) return this.surfaces.setBounds(bounds, session as SurfaceName, generation);
     return false;
   }
 
@@ -767,6 +771,12 @@ export class ShellWindow implements TabHost {
     }
     this.activate(this.settingsTab.id);
     if (section) this.send(this.settings, 'section', section);
+  }
+
+  openProfiles(): void {
+    this.host.refreshProfiles();
+    if (this.surfaces.hasAnchor('profiles')) this.surfaces.toggle('profiles');
+    else this.openSettings('env');
   }
 
   openBookmarks(): void {
@@ -1016,7 +1026,7 @@ export class ShellWindow implements TabHost {
       return;
     }
     if (menu.kind === 'toolbar') {
-      if (['tab.new', 'window.new', 'history.open', 'bookmarks.open', 'downloads.open', 'zoom.out', 'zoom.reset', 'zoom.in', 'page.print', 'settings.open'].includes(id) && (!['zoom.out', 'zoom.reset', 'zoom.in', 'page.print'].includes(id) || this.current)) this.host.run(id as CommandId, this);
+      if (['tab.new', 'window.new', 'profiles.open', 'history.open', 'bookmarks.open', 'downloads.open', 'zoom.out', 'zoom.reset', 'zoom.in', 'page.print', 'settings.open'].includes(id) && (!['zoom.out', 'zoom.reset', 'zoom.in', 'page.print'].includes(id) || this.current)) this.host.run(id as CommandId, this);
       return;
     }
     if (!tab || !this.tabs.includes(tab) || tab.wc.isDestroyed()) return;

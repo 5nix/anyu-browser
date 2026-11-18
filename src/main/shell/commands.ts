@@ -46,6 +46,7 @@ export function bindCommands(newWindow: () => void): Commands {
     'bookmarks.open': (win) => win.openBookmarks(),
     'history.open': (win) => win.openHistory(),
     'downloads.open': (win) => win.openSettings('downloads'),
+    'profiles.open': (win) => win.openProfiles(),
     'settings.open': (win) => win.openSettings(),
     'settings.status': (win) => win.openSettings('overview'),
   };
@@ -74,7 +75,7 @@ export function appMenu(run: (id: CommandId) => void, canReopen = false, canBook
       ],
     },
     { label: t('menuNavigation'), submenu: [item('page.back'), item('page.forward'), item('tab.next'), item('tab.previous')] },
-    { label: 'Cave', submenu: [item('bookmark.toggle'), item('bookmarks.open'), item('history.open'), item('downloads.open'), item('settings.open'), item('settings.status'), ...alternatives] },
+    { label: 'Cave', submenu: [item('bookmark.toggle'), item('bookmarks.open'), item('history.open'), item('downloads.open'), item('profiles.open'), item('settings.open'), item('settings.status'), ...alternatives] },
     ...(mac ? [{ label: t('menuWindow'), submenu: [{ role: 'minimize' as const, label: t('minimize') }, { role: 'zoom' as const, label: t('zoomWindow') }, sep, { role: 'front' as const, label: t('front') }] }] : []),
   ]);
 }

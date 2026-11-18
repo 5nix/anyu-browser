@@ -286,6 +286,10 @@ function App() {
       <button id="find-close" class="icon-btn" title={t('closeFind')} onClick={closeFind}><Icon name="x" /></button></div>
     <div id="tools">
       <button id="downloads" class="icon-btn" title={t('downloads')} aria-label={t('downloads')} data-anchor="downloads" hidden={!state?.downloads.length} onClick={() => cave.toggleSurface('downloads')}><Icon name="download" /><span id="download-count">{running || ''}</span></button>
+      <button id="profiles-button" class={`icon-btn${state?.surface?.name === 'profiles' ? ' on' : ''}${(state?.profiles?.length ?? 0) > 1 ? ' multi' : ''}`} title={state?.currentProfile ? `${t('profiles_title')} · ${state.currentProfile.name}` : t('profiles_title')} aria-label={t('profiles_title')} data-anchor="profiles" onClick={() => cave.toggleSurface('profiles')}>
+        <span class={`profile-dot ${state?.currentProfile?.accent ?? state?.accent ?? 'teal'}`} />
+        {(state?.profiles?.length ?? 0) > 1 && <span class="profile-label">{state?.currentProfile?.name}</span>}
+      </button>
       <button id="status" class={`icon-btn${st ? ` ${st}` : ''}${state?.surface?.name === 'status' ? ' on' : ''}`} title={st && state ? state.gate.egress?.node ? `${STATUS_TITLE[st]} · ${state.gate.egress.node}` : STATUS_TITLE[st] : t('networkStatus')} data-anchor="status" onClick={() => cave.toggleSurface('status')}><span class="status-icon">{st && <Icon name={STATUS_ICON[st]} />}<span class={`dot${st === 'closed' && state && !['checkFailed', 'mismatch'].includes(gateReason(state.gate)) ? ' unchecked' : ''}`} /></span>{state?.showTime && <span class="status-time">{clockTime(now, state.locale, state.timezone, state.clock24Hour)}</span>}</button>
       <button id="menu-button" class="icon-btn" title={t('menu')} aria-label={t('menu')} data-anchor="menu" onClick={() => cave.toggleSurface('menu')}><Icon name="ellipsis" /></button>
     </div>

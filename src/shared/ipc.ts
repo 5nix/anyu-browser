@@ -7,6 +7,7 @@ import type { GateView } from '../main/gate.ts';
 import type { Locale, LocalePreference } from './i18n/index.ts';
 import type { CommandId } from './commands.ts';
 import type { Profile, ProfilePatch, SubscriptionVia, NodeSelection, SetupChoices } from './profile.ts';
+import type { CreateProfileInput, ProfileSummary } from './profiles.ts';
 import type { SetupStep } from './welcome.ts';
 import type { UaMode, UaOverrideEntry, UaPreference } from './ua.ts';
 
@@ -52,7 +53,7 @@ export type SettingsSection = 'overview' | 'nodes' | 'env' | 'privacy' | 'downlo
 export interface Rect { x: number; y: number; width: number; height: number }
 /** What can float above the page: each is an element of the overlay page, anchored to an element of the chrome. */
 export type Permission = 'media-camera' | 'media-microphone' | 'geolocation' | 'notifications' | 'clipboard-read';
-export type SurfaceName = 'siteInfo' | 'status' | 'menu' | 'contextMenu' | 'suggestions' | 'permission' | 'httpAuth' | 'restoreSession' | 'downloads' | 'bookmarkEdit';
+export type SurfaceName = 'siteInfo' | 'status' | 'profiles' | 'menu' | 'contextMenu' | 'suggestions' | 'permission' | 'httpAuth' | 'restoreSession' | 'downloads' | 'bookmarkEdit';
 export type MenuEntry = { separator: true } | { id: string; label: string; enabled: boolean; checked?: boolean; shortcut?: string };
 
 export interface AddressSuggestion { id: string; kind: 'tab' | 'bookmark' | 'history' | 'search'; title: string; url: string; favicon?: string | null }
@@ -98,6 +99,9 @@ export interface ShellState {
   settingsSection: SettingsSection;
   /** First-run setup: the derived step ('normal' outside setup), and whether setup is still unfinished. */
   setup: { step: SetupStep; pending: boolean };
+  /** Current profile summary and total profile count for the toolbar badge. */
+  currentProfile: { id: string; name: string; accent: Accent; egressCountry: string };
+  profiles: ProfileSummary[];
 }
 
 export interface PermissionEntry { origin: string; permission: Permission; decision: 'allow' | 'deny' }
@@ -112,6 +116,7 @@ export interface PanelData {
   hostPlatform: string;
   nodes: NodeState;
   restartNeeded: boolean;
+  profiles: ProfileSummary[];
 }
 
 /** Every call a shell page can make, as the main process sees it. Each acts on the caller's own window. */
@@ -213,6 +218,14 @@ export interface CaveCalls {
   restartSetup(): void;
   /** Whether something accepts connections at the configured local proxy port (loopback only). */
   localPortOpen(): boolean;
+  listProfiles(): ProfileSummary[];
+  createProfile(input: CreateProfileInput): ProfileSummary;
+  renameProfile(id: string, name: string): ProfileSummary[];
+  deleteProfile(id: string): ProfileSummary[];
+  launchProfile(id: string): void;
+  switchProfile(id: string): void;
+  importProfileDirectory(): ProfileSummary | null;
+  revealProfileDir(id?: string): void;
 }
 
 /** Every event the main process sends to a shell page, with its payload. */
@@ -239,6 +252,7 @@ export const CALLS: Record<keyof CaveCalls, true> = {
   siteInfo: true, removePermission: true, setSiteUa: true, panelData: true, updateProfile: true, importSubscriptionFile: true, importSubscriptionText: true, addSubscription: true, updateSource: true, updateSourceFile: true, updateSourceText: true, renameSource: true, removeSource: true,
   selectNode: true, testDelays: true, measureExit: true, pause: true, resume: true, restartAndCheck: true, runChecks: true, copyReport: true,
   clearSite: true, resetEnvironment: true, revealProfile: true, restart: true, setSetup: true, continueSetup: true, restartSetup: true, localPortOpen: true,
+  listProfiles: true, createProfile: true, renameProfile: true, deleteProfile: true, launchProfile: true, switchProfile: true, importProfileDirectory: true, revealProfileDir: true,
 };
 export const EVENTS: Record<keyof CaveEvents, true> = { state: true, addressResults: true, found: true, resetFind: true, focusAddress: true, cancelAddressEdit: true, openFind: true, section: true, shortcutAction: true };
 
@@ -257,4 +271,4 @@ export type CaveApi = {
   on<E extends keyof CaveEvents>(event: E, listener: (data: CaveEvents[E]) => void): void;
 };
 
-export type { Profile, ProfilePatch, GateView };
+export type { Profile, ProfilePatch, GateView, CreateProfileInput, ProfileSummary };

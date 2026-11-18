@@ -45,6 +45,7 @@ export const COMMANDS = {
   'downloads.open': { label: 'command_downloads_open', key: 'Ctrl+J', macKey: 'Cmd+Shift+J' },
   'settings.open': { label: 'command_settings_open', key: 'CmdOrCtrl+,' },
   'settings.status': { label: 'command_settings_status', key: 'CmdOrCtrl+Shift+K' },
+  'profiles.open': { label: 'command_profiles_open', key: 'CmdOrCtrl+Shift+M' },
 } as const satisfies Record<string, CommandSpec>;
 
 export type CommandId = keyof typeof COMMANDS;

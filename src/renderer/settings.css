@@ -215,3 +215,34 @@ input.num { width: 96px; }
 .new-source > .icon { color: var(--text-2); margin-right: 4px; }
 .new-source > b, .nodes-toolbar h3 { flex: 1; margin: 0; }
 .sources-group .nodes-toolbar { margin: 0 0 10px; }
+
+#profiles-group .nodes-toolbar { margin: 0 0 4px; }
+.profiles-subhint { margin: 0 0 10px; color: var(--text-2); }
+.profiles-subhint small { font-size: var(--fs-sm); line-height: 1.5; }
+#profile-creator { margin: 0 0 12px; }
+#profile-creator .editor-actions { justify-content: flex-end; gap: 8px; }
+#profile-creator .editor-actions .btn.primary { margin-left: 0; }
+.profile-clone-label { display: flex; align-items: flex-start; gap: 8px; color: var(--text-2); line-height: 1.45; }
+.profile-clone-label input { margin-top: 2px; }
+.profile-row { gap: 12px; }
+.swatch-dot { width: 12px; height: 12px; border-radius: 50%; flex: none; background: var(--swatch, var(--accent)); box-shadow: inset 0 0 0 1px rgb(0 0 0 / .08); }
+.swatch-dot.teal { --swatch: #0b7479; } .swatch-dot.blue { --swatch: #1d5fd0; } .swatch-dot.indigo { --swatch: #4a46cf; } .swatch-dot.violet { --swatch: #7b3fc2; } .swatch-dot.berry { --swatch: #b02f68; } .swatch-dot.ochre { --swatch: #9c4f0c; } .swatch-dot.moss { --swatch: #3b7629; }
+@media (prefers-color-scheme: dark) {
+  .swatch-dot.teal { --swatch: oklch(from #4fc4c1 .52 calc(c * .9) h); }
+  .swatch-dot.blue { --swatch: oklch(from #7eaaff .52 calc(c * .9) h); }
+  .swatch-dot.indigo { --swatch: oklch(from #a19dff .52 calc(c * .9) h); }
+  .swatch-dot.violet { --swatch: oklch(from #c49dff .52 calc(c * .9) h); }
+  .swatch-dot.berry { --swatch: oklch(from #ff8cbb .52 calc(c * .9) h); }
+  .swatch-dot.ochre { --swatch: oklch(from #f0a75f .52 calc(c * .9) h); }
+  .swatch-dot.moss { --swatch: oklch(from #9fd27c .52 calc(c * .9) h); }
+}
+.profile-title { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.profile-title b { font-weight: var(--fw-label); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.profile-badge { flex: none; font-size: var(--fs-cap); padding: 1px 6px; border-radius: var(--r-pill); font-weight: var(--fw-label); }
+.profile-badge.current { color: var(--accent); background: var(--accent-soft); }
+.profile-badge.running { color: var(--ok); background: color-mix(in srgb, var(--ok) 12%, transparent); }
+.profile-rename-row { display: flex; align-items: center; gap: 6px; margin-bottom: 2px; }
+.profile-rename-row input { width: 200px; max-width: 100%; }
+.profile-actions { display: flex; align-items: center; gap: 6px; flex: none; }
+.profile-delete:hover:not(:disabled) { color: var(--danger); }
+

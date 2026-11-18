@@ -13,7 +13,9 @@ import { randomBytes } from 'node:crypto';
 import { mkdir, readFile, stat } from 'node:fs/promises';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isDeepStrictEqual } from 'node:util';
 import { ProfileStore } from './profile.ts';
+import { ProfileManager } from './profiles.ts';
 import { browserSession, pinNetwork, pinSessions, reservePorts } from './network.ts';
 import { applyFingerprint, buildIdentity, emulationCommands, type Identity, type PlatformHints } from './fingerprint.ts';
 import { applyPermissions } from './permissions.ts';
@@ -52,11 +54,18 @@ if (backgroundE2e) {
 }
 
 app.setName('Anyu');
-const profileDir = process.env.CAVE_PROFILE || join(app.getPath('appData'), 'Cave', 'profile');
+setLocale(systemLocale(process.env.CAVE_LANG || app.getLocale()));
+const profileManager = await ProfileManager.open({
+  baseDir: join(app.getPath('appData'), 'Cave'),
+  explicitProfileDir: process.env.CAVE_PROFILE || undefined,
+  argv: process.argv,
+  defaultName: t('profiles_defaultName'),
+});
+const profileDir = profileManager.currentDir;
 app.setPath('userData', join(profileDir, 'browser'));
 // One instance per profile: the lock lives in userData, so separate profiles run side by side.
 if (!app.requestSingleInstanceLock()) app.exit(0);
-setLocale(systemLocale(process.env.CAVE_LANG || app.getLocale()));
+else profileManager.markCurrentRunning();
 const store = await ProfileStore.open(profileDir);
 const profile = () => store.current;
 const startupProfile = profile();
@@ -127,10 +136,12 @@ async function start(): Promise<void> {
   }
   const prefs = new Prefs(database);
   if (!prefs.get('uiImported', false)) {
-    const ui: { tabLayout?: TabLayout } | null = await readFile(uiFile, 'utf8').then(JSON.parse).catch(() => null);
+    const ui: { tabLayout?: TabLayout; accent?: unknown } | null = await readFile(uiFile, 'utf8').then(JSON.parse).catch(() => null);
     if (ui?.tabLayout === 'side' || ui?.tabLayout === 'top') prefs.set('tabLayout', ui.tabLayout);
+    if (typeof ui?.accent === 'string') prefs.set('accent', accentValue(ui.accent));
     prefs.set('uiImported', true);
   }
+  const initialAccent = accentValue(prefs.get('accent', profileManager.currentEntry.accent));
   const preferredLocale = prefs.get<LocalePreference>('locale', 'system');
   setLocale(preferredLocale === 'zh' || preferredLocale === 'en' ? preferredLocale : systemLocale(app.getLocale()));
   const history = new History(database);
@@ -148,12 +159,42 @@ async function start(): Promise<void> {
   prefs.set('cleanExit', false);
   const bookmarks = new Bookmarks(database);
   const favicons = new FaviconFetcher(new Favicons(database), () => gate.open);
+  let profilesList = await profileManager.list(profile());
+  let refreshSequence = 0;
+  let appliedRefresh = 0;
+  const refreshProfiles = async () => {
+    const sequence = ++refreshSequence;
+    const updated = await profileManager.list(profile());
+    if (sequence > appliedRefresh) {
+      appliedRefresh = sequence;
+      // Settings requests panelData again after each state broadcast.
+      if (!isDeepStrictEqual(profilesList, updated)) {
+        profilesList = updated;
+        browser.broadcast();
+      }
+    }
+    return profilesList;
+  };
+  const logProfileError = (error: unknown) => console.error('Could not sync profile state', error);
+  let accentSync = Promise.resolve();
+  const syncAccent = (accent: typeof initialAccent) => {
+    accentSync = accentSync.then(async () => {
+      await profileManager.syncCurrentAccent(accent);
+      await refreshProfiles();
+    }).catch(logProfileError);
+  };
   const browser = new Browser({
     favicons,
     sessions,
-    accent: accentValue(prefs.get('accent', 'teal')),
+    accent: initialAccent,
     theme: themeValue(prefs.get('theme', 'system')),
-    saveAccent: (accent) => prefs.set('accent', accent),
+    saveAccent: (accent) => { prefs.set('accent', accent); syncAccent(accent); },
+    currentProfile: () => {
+      const entry = profilesList.find(p => p.current) ?? profileManager.currentEntry;
+      return { id: entry.id, name: entry.name, accent: entry.accent, egressCountry: profile().egressCountry };
+    },
+    profiles: () => profilesList,
+    refreshProfiles: () => { void refreshProfiles().catch(logProfileError); },
     saveTheme: (theme) => prefs.set('theme', theme),
     restoreSession: prefs.get<boolean>('restoreSession', false) === true,
     saveRestoreSession: (enabled) => prefs.set('restoreSession', enabled),
@@ -188,6 +229,7 @@ async function start(): Promise<void> {
     gate: () => gate.view,
     setup: setupState,
   });
+  syncAccent(initialAccent);
   applyPermissions(browserSession(), profile, (wc, permission, details, callback) => {
     const win = browser.windows.find(w => w.hasTab(wc));
     if (!win) return callback(false);
@@ -217,10 +259,10 @@ async function start(): Promise<void> {
     callback(browser.certificateError(wc, url, certificate.data, isMainFrame));
   });
   if (databaseNotice) { const notice = databaseNotice; browser.setNotice(() => t(notice.key, notice.key === 'databaseRecovered' ? { path: notice.value } : { error: notice.value })); }
-  app.once('will-quit', () => { browser.stopSessionSaving(); prefs.set('cleanExit', true); database.close(); });
+  app.once('will-quit', () => { profileManager.releaseCurrentLock(); browser.stopSessionSaving(); prefs.set('cleanExit', true); database.close(); });
   browser.on('closed', () => app.quit());
   gate.on('change', () => { browser.gateChanged(gate.open); browser.syncSetup(); });
-  store.onChange(() => browser.syncSetup());
+  store.onChange(() => { void refreshProfiles().catch(logProfileError); browser.syncSetup(); });
   gate.on('error', (message: string) => browser.setNotice(message));
   if (store.error) browser.setNotice(() => store.error!);
 
@@ -266,6 +308,7 @@ async function start(): Promise<void> {
       profile: profile(),
       profileError: store.error,
       profileDir,
+      profiles: await refreshProfiles(),
       hostPlatform: hostHints.platform,
       nodes: await gate.nodes().catch(() => ({ nodes: [], selected: profile().proxy.selected })),
       restartNeeded,
@@ -360,7 +403,34 @@ async function start(): Promise<void> {
     bookmarkAdd: (parent, kind, title, url) => { validateBookmark(kind, title, url); const id = bookmarks.add({ parent, kind, title, url }); browser.broadcast(); return id; },
     bookmarkUpdate: (id, title, url) => { if (!Number.isSafeInteger(id) || id <= 0) throw new Error('invalid id'); const row = database.prepare('SELECT kind FROM bookmarks WHERE id=?').get(id); if (!row) return; validateBookmark(row.kind as 'link' | 'folder', title, url); bookmarks.update(id, { title, url }); browser.broadcast(); },
     bookmarkRemove: (id) => { if (!Number.isSafeInteger(id) || id <= 0) throw new Error('invalid id'); bookmarks.remove(id); browser.broadcast(); },
-    toggleSurface: (name) => { if (name === 'menu') win.toggleMenu(); else if (name === 'bookmarkEdit') win.toggleBookmark(); else if (name === 'siteInfo' || name === 'status' || name === 'downloads') win.surfaces.toggle(name); },
+    toggleSurface: (name) => {
+      if (name === 'menu') win.toggleMenu();
+      else if (name === 'bookmarkEdit') win.toggleBookmark();
+      else if (name === 'profiles') win.openProfiles();
+      else if (name === 'siteInfo' || name === 'status' || name === 'downloads') win.surfaces.toggle(name);
+    },
+    listProfiles: refreshProfiles,
+    createProfile: async (input) => {
+      const created = await profileManager.create(input, profile());
+      await refreshProfiles();
+      return created;
+    },
+    renameProfile: async (id, name) => { await profileManager.rename(id, name); return refreshProfiles(); },
+    deleteProfile: async (id) => { await profileManager.remove(id); return refreshProfiles(); },
+    launchProfile: async (id) => { await profileManager.launch(id); await refreshProfiles(); },
+    switchProfile: async (id) => {
+      if (id === profileManager.currentId) return;
+      await profileManager.launch(id);
+      app.quit();
+    },
+    importProfileDirectory: async () => {
+      const result = await dialog.showOpenDialog(win.win, { title: t('set.profiles.importTitle'), properties: ['openDirectory'] });
+      if (result.canceled || !result.filePaths[0]) return null;
+      const imported = await profileManager.importDirectory(result.filePaths[0]);
+      await refreshProfiles();
+      return imported;
+    },
+    revealProfileDir: (id) => electronShell.openPath(id ? profileManager.dirFor(id) : profileDir),
     openAddressMenu: (anchor) => win.openAddressMenu(anchor),
     openTabMenu: (id, anchor) => win.openTabMenu(id, anchor),
     openTabStripMenu: (anchor) => win.openTabStripMenu(anchor),
@@ -514,7 +584,7 @@ async function start(): Promise<void> {
     },
     revealProfile: () => electronShell.openPath(profileDir),
     restart: () => {
-      app.relaunch();
+      app.relaunch({ args: [...process.argv.slice(1).filter(arg => !arg.startsWith('--profile-id=')), `--profile-id=${profileManager.currentId}`] });
       app.quit();
     },
     setSetup: async (choices) => {
@@ -548,6 +618,7 @@ async function start(): Promise<void> {
     ipcMain.handle(channel(name), (e: IpcMainInvokeEvent, ...args) => {
       const win = browser.windowOf(e.sender);
       if (!win) throw new Error('forbidden');
+      if (['listProfiles', 'createProfile', 'renameProfile', 'deleteProfile', 'launchProfile', 'switchProfile', 'importProfileDirectory', 'revealProfileDir'].includes(name) && e.sender !== win.settings.webContents && e.sender !== win.overlay.webContents) throw new Error('forbidden');
       if ((name === 'retryTab' || name === 'backFromError' || name === 'recoveryStatus' || name === 'continueCertificate') && e.sender !== win.recovery.webContents) return;
       if (e.sender === win.recovery.webContents && !['getState', 'retryTab', 'backFromError', 'recoveryStatus', 'continueCertificate'].includes(name)) return;
       if (['testSuggestionMouse', 'testSuggestionBounds'].includes(name) && (process.env.CAVE_TEST_HARNESS !== '1' || e.sender !== win.chrome.webContents)) return;

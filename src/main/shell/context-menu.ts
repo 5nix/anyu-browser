@@ -9,7 +9,7 @@ const command = (id: CommandId, enabled = true): MenuEntry => ({ id, label: labe
 const groups = (...parts: MenuEntry[][]): MenuEntry[] => parts.filter(p => p.length).flatMap((p, i) => i ? [{ separator: true } as MenuEntry, ...p] : p);
 
 export function toolbarMenu(web: boolean, zoomable = web): MenuEntry[] {
-  return groups([command('tab.new'), command('window.new')], [command('history.open'), command('bookmarks.open'), command('downloads.open')], [command('zoom.out', zoomable), command('zoom.reset', zoomable), command('zoom.in', zoomable)], [command('page.print', web), command('settings.open')]);
+  return groups([command('tab.new'), command('window.new')], [command('history.open'), command('bookmarks.open'), command('downloads.open')], [command('zoom.out', zoomable), command('zoom.reset', zoomable), command('zoom.in', zoomable)], [command('page.print', web), command('profiles.open'), command('settings.open')]);
 }
 export function addressMenu(): MenuEntry[] { return [item('cut', 'cut'), item('copy', 'copy'), item('paste', 'paste'), command('address.pasteAndGo'), item('selectAll', 'selectAll')]; }
 export function tabMenu(web: boolean, pinned = false, muted = false, canReopen = false): MenuEntry[] { return [command('page.reload', web), item('tab.pin', pinned ? 'tab_unpin' : 'tab_pin', web), command('tab.duplicate', web), item('tab.mute', muted ? 'tab_unmute' : 'tab_mute_menu', web), command('tab.close'), command('tab.reopen', canReopen)]; }

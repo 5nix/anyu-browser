@@ -1,7 +1,8 @@
-import { ACCENTS } from '../../shared/appearance.ts';
+import { ACCENTS, type Accent } from '../../shared/appearance.ts';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { Permission, CheckItem, PanelData, SearchEngine, SettingsSection, ShellState } from '../../shared/ipc.ts';
 import { MAX_MONITOR_URLS, type Profile, type SubscriptionVia } from '../../shared/profile.ts';
+import { DEFAULT_PROFILE_ID, MAX_PROFILE_NAME_LENGTH } from '../../shared/profiles.ts';
 import { t, setLocale, type LocalePreference } from '../../shared/i18n/index.ts';
 import { SEARCH_PRESETS, isSearchEngine, subscriptionFetchBlock } from '../../shared/url.ts';
 import { builtinUa, uaModeLabel, type UaPreference } from '../../shared/ua.ts';
@@ -169,6 +170,108 @@ function NodesSection({ active, state, data, act, confirm, busy }: Props) {
   </section>;
 }
 
+function ProfilesGroup({ active, data, act, confirm, busy }: Pick<Props, 'active' | 'data' | 'act' | 'confirm' | 'busy'>) {
+  const [creatingProfile, setCreatingProfile] = useState(false);
+  const [newProfileName, setNewProfileName] = useState('');
+  const [selectedAccent, setSelectedAccent] = useState<Accent | undefined>(undefined);
+  const [cloneProxy, setCloneProxy] = useState(true);
+  const [renamingProfile, setRenamingProfile] = useState<string | null>(null);
+  const [renameText, setRenameText] = useState('');
+
+  useEffect(() => {
+    if (!active) {
+      setCreatingProfile(false);
+      setRenamingProfile(null);
+    }
+  }, [active]);
+
+  const resetCreator = () => {
+    setCreatingProfile(false);
+    setNewProfileName('');
+    setSelectedAccent(undefined);
+    setCloneProxy(true);
+  };
+
+  const create = (andLaunch: boolean) => {
+    const trimmed = newProfileName.trim();
+    if (!trimmed) return;
+    void act(async () => {
+      const created = await cave.createProfile({ name: trimmed, accent: selectedAccent, cloneProxyFromCurrent: cloneProxy });
+      resetCreator();
+      if (andLaunch) await cave.launchProfile(created.id);
+    }, 'create-profile');
+  };
+
+  const saveRename = (id: string) => {
+    const trimmed = renameText.trim();
+    if (!trimmed) return;
+    void act(async () => {
+      await cave.renameProfile(id, trimmed);
+      setRenamingProfile(null);
+    }, `rename-${id}`);
+  };
+
+  return <div class="group" id="profiles-group">
+    <div class="nodes-toolbar">
+      <h3>{t('set.profiles.heading')}</h3>
+      <button type="button" class="btn" id="new-profile-toggle" onClick={() => setCreatingProfile(v => !v)}><Icon name="plus" />{t('set.profiles.new')}</button>
+      <button type="button" class="btn" id="import-profile" disabled={busy.has('import-profile')} onClick={() => act(() => cave.importProfileDirectory(), 'import-profile')}><Icon name="folder-input" />{t('set.profiles.import')}</button>
+    </div>
+    <p class="profiles-subhint"><small>{t('set.profiles.hint')}</small></p>
+    {creatingProfile && <div class="source-editor" id="profile-creator">
+      <label class="editor-field">
+        <span>{t('set.profiles.new')}</span>
+        <input id="new-profile-name" value={newProfileName} onInput={e => setNewProfileName(e.currentTarget.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); create(false); } if (e.key === 'Escape') resetCreator(); }} placeholder={t('set.profiles.namePlaceholder')} maxLength={MAX_PROFILE_NAME_LENGTH} spellcheck={false} />
+      </label>
+      <div class="editor-field">
+        <span>{t('set.appearance.accent')}</span>
+        <div class="accent-picker" role="radiogroup" aria-label={t('set.appearance.accent')}>
+          {ACCENTS.map(accent => <label key={accent} class={`swatch ${accent}`} title={t(`set.accent.${accent}`)}>
+            <input type="radio" name="new-profile-accent" value={accent} aria-label={t(`set.accent.${accent}`)} checked={selectedAccent === accent} onClick={() => { if (selectedAccent === accent) setSelectedAccent(undefined); }} onChange={() => setSelectedAccent(accent)} />
+            <span />
+          </label>)}
+        </div>
+      </div>
+      <label class="profile-clone-label">
+        <input type="checkbox" id="new-profile-clone" checked={cloneProxy} onChange={e => setCloneProxy(e.currentTarget.checked)} />
+        <span>{t('set.profiles.cloneProxy')}</span>
+      </label>
+      <div class="editor-actions">
+        <button type="button" class="btn" onClick={resetCreator}>{t('set.dialog.cancel')}</button>
+        <button type="button" class="btn" disabled={!newProfileName.trim() || busy.has('create-profile')} onClick={() => create(false)}>{t('set.profiles.create')}</button>
+        <button type="button" class="btn primary" disabled={!newProfileName.trim() || busy.has('create-profile')} onClick={() => create(true)}>{t('set.profiles.createAndLaunch')}</button>
+      </div>
+    </div>}
+    <div class="card" id="profiles-list">
+      {data.profiles.map(p => <div key={p.id} class="row profile-row" data-profile-id={p.id}>
+        <span class={`swatch-dot ${p.accent}`} />
+        <div class="label">
+          {renamingProfile === p.id ? <div class="profile-rename-row">
+            <input value={renameText} maxLength={MAX_PROFILE_NAME_LENGTH} spellcheck={false} onInput={e => setRenameText(e.currentTarget.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); saveRename(p.id); } if (e.key === 'Escape') setRenamingProfile(null); }} />
+            <button type="button" class="btn link" disabled={!renameText.trim() || busy.has(`rename-${p.id}`)} onClick={() => saveRename(p.id)}>{t('set.nodes.saveName')}</button>
+            <button type="button" class="icon-btn sm" aria-label={t('set.nodes.close')} onClick={() => setRenamingProfile(null)}><Icon name="x" /></button>
+          </div> : <div class="profile-title">
+            <b>{p.name}</b>
+            {p.current ? <span class="profile-badge current">{t('profiles_current')}</span> : p.running ? <span class="profile-badge running">{t('profiles_running')}</span> : null}
+          </div>}
+          <small>{t(p.egressCountry ? 'set.profiles.meta' : 'set.profiles.metaNoCountry', { country: p.egressCountry, timezone: p.timezone, nodes: p.nodeCount })}</small>
+        </div>
+        <div class="profile-actions">
+          {!p.current && <>
+            <button type="button" class="btn" disabled={busy.has(`launch-${p.id}`)} onClick={() => act(() => cave.launchProfile(p.id), `launch-${p.id}`)}>{t('set.profiles.launch')}</button>
+            <button type="button" class="btn primary" disabled={busy.has(`switch-${p.id}`)} onClick={() => act(() => cave.switchProfile(p.id), `switch-${p.id}`)}>{t('set.profiles.switch')}</button>
+          </>}
+          <button type="button" class="icon-btn sm" title={t('set.profiles.rename')} aria-label={t('set.profiles.rename')} onClick={() => { setRenameText(p.name); setRenamingProfile(p.id); }}><Icon name="pencil" /></button>
+          <button type="button" class="icon-btn sm" title={t('set.profiles.reveal')} aria-label={t('set.profiles.reveal')} onClick={() => void cave.revealProfileDir(p.id)}><Icon name="folder-open" /></button>
+          {p.id !== DEFAULT_PROFILE_ID && <button type="button" class="icon-btn sm profile-delete" disabled={p.current || p.running || busy.has(`delete-${p.id}`)} title={p.current ? t('set.profiles.cannotDeleteCurrent') : p.running ? t('set.profiles.cannotDeleteRunning') : t('set.profiles.delete')} aria-label={t('set.profiles.delete')} onClick={async () => {
+            if (await confirm(t('set.profiles.deleteTitle', { name: p.name }), t('set.profiles.deleteBody', { name: p.name }), t('set.profiles.deleteOk'), true)) await act(() => cave.deleteProfile(p.id), `delete-${p.id}`);
+          }}><Icon name="trash-2" /></button>}
+        </div>
+      </div>)}
+    </div>
+  </div>;
+}
+
 function EnvSection({ active, state, data, act, confirm, checks, runChecks, busy }: Props) {
   const values = (p: Profile) => ({ egressCountry:p.egressCountry, timezone:p.timezone, locale:p.locale, acceptLanguages:p.acceptLanguages.join(', '), platform:p.platform as string, latitude:p.geolocation ? String(p.geolocation.latitude) : '', longitude:p.geolocation ? String(p.geolocation.longitude) : '', accuracy:p.geolocation ? String(p.geolocation.accuracy) : '' });
   const [fields, setFields] = useState(() => values(data.profile));
@@ -179,6 +282,7 @@ function EnvSection({ active, state, data, act, confirm, checks, runChecks, busy
   return <section data-section="env" class="entering" hidden={!active}>
     <h2>{t('set.env.title')}</h2>
     <p class="intro">{t('set.env.intro')}</p>
+    <ProfilesGroup active={active} data={data} act={act} confirm={confirm} busy={busy} />
     <form ref={formRef} id="profile" onSubmit={saveProfile}>
       <div class="group">
         <h3>{t('set.env.region')}</h3>

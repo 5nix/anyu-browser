@@ -83,8 +83,12 @@ export class Tab {
 
   private gesture = new GestureGate();
 
+  readonly wc: WebContents;
+
   private constructor(readonly kind: TabState['kind'], readonly view: WebContentsView) {
-    this.id = view.webContents.id;
+    // Keep the wrapper itself: destroyed callbacks must not re-enter the native view getter.
+    this.wc = view.webContents;
+    this.id = this.wc.id;
     view.webContents.on('before-input-event', (_event, input) => {
       if (input.type === 'keyDown') {
         if (input.key === 'Escape') this.host?.escapeSurface();
@@ -130,10 +134,6 @@ export class Tab {
   static bookmarks(view: WebContentsView): Tab { return new Tab('bookmarks', view); }
 
   static history(view: WebContentsView): Tab { return new Tab('history', view); }
-
-  get wc(): WebContents {
-    return this.view.webContents;
-  }
 
   get state(): TabState {
     const { id, kind, wc } = this;

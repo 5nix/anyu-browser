@@ -24,6 +24,14 @@ export class Surfaces {
     private shadow: (card: Rect | null) => void = () => {},
   ) { this.park(); }
 
+  /** Cancel deferred layout before the owning native window is destroyed. */
+  dispose(): void {
+    if (this.hideTimer) clearTimeout(this.hideTimer);
+    this.hideTimer = null;
+    this.open_ = null;
+    this.focusBefore = null;
+  }
+
   get state(): ShellState['surface'] {
     return this.open_ && { name: this.open_, generation: this.generation, anchor: this.anchors[this.open_] ?? { x: 0, y: 0, width: 0, height: 0 }, viewport: this.windowSize() };
   }

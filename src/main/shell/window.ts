@@ -43,7 +43,7 @@ export interface WindowHost {
   setTabLayout(layout: TabLayout): void;
   sidebarWidth(): number;
   /** The part of the state that is the same in every window. */
-  shared(): Pick<ShellState, 'shortcuts' | 'gate' | 'downloads' | 'notice' | 'locale' | 'localePreference' | 'accent' | 'theme' | 'showTime' | 'clock24Hour' | 'timezone' | 'searchEngine' | 'restoreSession' | 'setup' | 'currentProfile' | 'profiles'>;
+  shared(): Pick<ShellState, 'shortcuts' | 'gate' | 'downloads' | 'downloadsDir' | 'defaultDownloadsDir' | 'notice' | 'locale' | 'localePreference' | 'accent' | 'theme' | 'showTime' | 'clock24Hour' | 'timezone' | 'searchEngine' | 'restoreSession' | 'setup' | 'currentProfile' | 'profiles'>;
   refreshProfiles(): void;
   canBrowse(): boolean;
   run(id: CommandId, win: ShellWindow): void;
@@ -215,9 +215,15 @@ export class ShellWindow implements TabHost {
     this.setup = this.host.shared().setup.step !== 'normal';
     this.win.contentView.addChildView(this.setup ? this.welcome : this.root);
     this.win.on('resize', () => this.layout());
-    this.win.on('move', () => this.castShadow(this.shadowCard));
-    this.win.on('focus', () => host.focused(this));
-    this.win.on('blur', () => { const hadAddress = !!this.addressSession; this.addressSession = null; if (hadAddress && !this.surfaces.state) this.broadcast(); if (this.surfaces.state?.name !== 'httpAuth' && this.surfaces.state?.name !== 'restoreSession') this.surfaces.close(false); });
+    this.win.on('move', () => { if (this.alive) this.castShadow(this.shadowCard); });
+    this.win.on('focus', () => { if (this.alive) host.focused(this); });
+    this.win.on('blur', () => {
+      if (!this.alive) return;
+      const hadAddress = !!this.addressSession;
+      this.addressSession = null;
+      if (hadAddress && !this.surfaces.state) this.broadcast();
+      if (this.surfaces.state?.name !== 'httpAuth' && this.surfaces.state?.name !== 'restoreSession') this.surfaces.close(false);
+    });
     // Windows routes right-clicks on drag regions to the system menu, never to the page.
     this.win.on('system-context-menu', (event, point) => {
       if (this.setup) return;
@@ -225,26 +231,48 @@ export class ShellWindow implements TabHost {
       const b = this.win.getContentBounds();
       this.openTabStripMenu({ x: Math.max(0, point.x - b.x), y: Math.max(0, point.y - b.y), width: 0, height: 0 });
     });
-    this.win.on('close', () => { host.windowClosing(); this.closing = true; this.surfaces.dispose(); this.clearPendingAddressCancel(); this.permissionQueue.clear(); });
+    const cleanup = () => {
+      this.closing = true;
+      this.surfaces.dispose();
+      this.clearPendingAddressCancel();
+      this.permissionQueue.clear();
+      if (this.shadowHide) { clearTimeout(this.shadowHide); this.shadowHide = null; }
+    };
+    this.win.on('close', () => { host.windowClosing(); cleanup(); });
     this.win.on('closed', () => {
+      cleanup();
       nativeTheme.off('updated', this.paint);
-      if (this.shadowHide) clearTimeout(this.shadowHide);
-      if (!this.shadow.isDestroyed()) this.shadow.destroy();
-      const contents = [...new Set([...this.tabs.map((tab) => tab.wc), ...this.ui.map((v) => v.webContents)])];
+      const contents = [...new Set([
+        ...this.tabs.map((tab) => tab.wc),
+        ...this.ui.map((v) => v.webContents),
+        ...(this.shadow.isDestroyed() ? [] : [this.shadow.webContents]),
+      ])];
       // BaseWindow does not own its WebContents. Retain this window and its views until
       // every page has finished closing, then leave the native destroyed callback before
       // removing the owner (and potentially quitting the app).
-      const destroyed = contents.map((wc) => new Promise<void>((resolve) => {
+      const destroyed = Promise.all(contents.map((wc) => new Promise<void>((resolve) => {
         if (wc.isDestroyed()) resolve();
         else wc.once('destroyed', () => resolve());
-      }));
-      void Promise.all(destroyed).then(() => { setImmediate(() => host.closed(this)); });
+      })));
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(fallback);
+        setImmediate(() => host.closed(this));
+      };
+      const fallback = setTimeout(finish, 2000);
+      void destroyed.then(finish);
+      if (!this.shadow.isDestroyed()) this.shadow.destroy();
       for (const wc of contents) {
         host.forget(wc);
         if (!wc.isDestroyed()) wc.close();
       }
     });
-    this.chrome.webContents.once('did-finish-load', () => { if (backgroundE2e) this.win.showInactive(); else this.win.show(); });
+    this.chrome.webContents.once('did-finish-load', () => {
+      if (!this.alive) return;
+      if (backgroundE2e) this.win.showInactive(); else this.win.show();
+    });
     this.layout();
   }
 
@@ -478,7 +506,7 @@ export class ShellWindow implements TabHost {
     return this.tabs.some((t) => t.wc === wc);
   }
 
-  private get alive(): boolean {
+  get alive(): boolean {
     return !this.closing && !this.win.isDestroyed();
   }
 
@@ -841,6 +869,7 @@ export class ShellWindow implements TabHost {
   historyTitle(url: string, title: string): void { this.host.historyTitle(url, title); }
 
   changed(tab: Tab): void {
+    if (!this.alive) return;
     if (tab.id === this.active) { this.updateHome(tab); this.updateRecovery(); }
     this.broadcast();
   }
@@ -902,13 +931,15 @@ export class ShellWindow implements TabHost {
   }
 
   outsidePress(): void {
+    if (!this.alive) return;
     this.send(this.chrome, 'cancelAddressEdit');
     this.surfaces.outsidePress();
   }
 
-  escapeSurface(): void { this.surfaces.escape(); }
+  escapeSurface(): void { if (this.alive) this.surfaces.escape(); }
 
   focused(): void {
+    if (!this.alive) return;
     if (this.addressSession) this.send(this.chrome, 'cancelAddressEdit');
     this.setFocus('page');
   }
@@ -945,10 +976,19 @@ export class ShellWindow implements TabHost {
   }
 
   opened(wc: WebContents, foreground: boolean): WebContents {
+    if (!this.alive) {
+      if (!wc.isDestroyed()) wc.close();
+      return wc;
+    }
     return this.newTab(undefined, wc, foreground);
   }
 
-  navigated(tab: Tab): void { this.dropTabPermissions(tab.wc); this.generations.set(tab.id, (this.generations.get(tab.id) ?? 0) + 1); if (this.menu?.tab === tab || this.addressSession?.tab === tab.id) { this.addressSession = null; this.surfaces.close(false); } }
+  navigated(tab: Tab): void {
+    if (!this.alive) return;
+    this.dropTabPermissions(tab.wc);
+    this.generations.set(tab.id, (this.generations.get(tab.id) ?? 0) + 1);
+    if (this.menu?.tab === tab || this.addressSession?.tab === tab.id) { this.addressSession = null; this.surfaces.close(false); }
+  }
 
   private showMenu(kind: 'toolbar' | 'tab' | 'tabStrip' | 'page' | 'address' | 'shortcut', items: MenuEntry[], anchor?: Rect, tab?: Tab, params?: Electron.ContextMenuParams): void {
     this.surfaces.close();

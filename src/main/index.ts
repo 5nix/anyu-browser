@@ -11,7 +11,7 @@ import { allowedSiteOrigin } from '../shared/navigation-safety.ts';
 import { app, clipboard, dialog, ipcMain, shell as electronShell, type IpcMainInvokeEvent } from 'electron';
 import { randomBytes } from 'node:crypto';
 import { mkdir, readFile, stat } from 'node:fs/promises';
-import { basename, dirname, join } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
 import { ProfileStore } from './profile.ts';
@@ -65,7 +65,11 @@ const profileDir = profileManager.currentDir;
 app.setPath('userData', join(profileDir, 'browser'));
 // One instance per profile: the lock lives in userData, so separate profiles run side by side.
 if (!app.requestSingleInstanceLock()) app.exit(0);
-else profileManager.markCurrentRunning();
+else {
+  profileManager.markCurrentRunning();
+  app.once('will-quit', () => profileManager.releaseCurrentLock());
+  process.once('exit', () => profileManager.releaseCurrentLock());
+}
 const store = await ProfileStore.open(profileDir);
 const profile = () => store.current;
 const startupProfile = profile();
@@ -107,8 +111,8 @@ async function start(): Promise<void> {
   for (const ses of [browserSession(), selfCheckSession()]) ses.setUserAgent(identity.userAgent, identity.acceptLanguages);
 
 
-  const downloadsDir = join(profileDir, 'downloads');
-  await mkdir(downloadsDir, { recursive: true });
+  const defaultDownloadsDir = join(profileDir, 'downloads');
+  await mkdir(defaultDownloadsDir, { recursive: true });
 
   const gate = new Gatekeeper({
     ...(process.platform === 'win32' ? { resolveOutboundInterface: resolveWindowsEgress } : {}),
@@ -135,6 +139,17 @@ async function start(): Promise<void> {
     database = openStore(':memory:');
   }
   const prefs = new Prefs(database);
+  const savedDownloadsDir = prefs.get<string>('downloadsDir', '');
+  let downloadsDir = defaultDownloadsDir;
+  if (typeof savedDownloadsDir === 'string' && savedDownloadsDir.trim()) {
+    const candidate = resolve(savedDownloadsDir.trim());
+    try {
+      await mkdir(candidate, { recursive: true });
+      if ((await stat(candidate)).isDirectory()) downloadsDir = candidate;
+    } catch {
+      downloadsDir = defaultDownloadsDir;
+    }
+  }
   if (!prefs.get('uiImported', false)) {
     const ui: { tabLayout?: TabLayout; accent?: unknown } | null = await readFile(uiFile, 'utf8').then(JSON.parse).catch(() => null);
     if (ui?.tabLayout === 'side' || ui?.tabLayout === 'top') prefs.set('tabLayout', ui.tabLayout);
@@ -159,12 +174,17 @@ async function start(): Promise<void> {
   prefs.set('cleanExit', false);
   const bookmarks = new Bookmarks(database);
   const favicons = new FaviconFetcher(new Favicons(database), () => gate.open);
+  let shuttingDown = false;
+  let shutdownDone = false;
+  let dbClosed = false;
   let profilesList = await profileManager.list(profile());
   let refreshSequence = 0;
   let appliedRefresh = 0;
   const refreshProfiles = async () => {
+    if (shuttingDown || dbClosed) return profilesList;
     const sequence = ++refreshSequence;
     const updated = await profileManager.list(profile());
+    if (shuttingDown || dbClosed) return profilesList;
     if (sequence > appliedRefresh) {
       appliedRefresh = sequence;
       // Settings requests panelData again after each state broadcast.
@@ -178,7 +198,9 @@ async function start(): Promise<void> {
   const logProfileError = (error: unknown) => console.error('Could not sync profile state', error);
   let accentSync = Promise.resolve();
   const syncAccent = (accent: typeof initialAccent) => {
+    if (shuttingDown || dbClosed) return;
     accentSync = accentSync.then(async () => {
+      if (shuttingDown || dbClosed) return;
       await profileManager.syncCurrentAccent(accent);
       await refreshProfiles();
     }).catch(logProfileError);
@@ -194,7 +216,7 @@ async function start(): Promise<void> {
       return { id: entry.id, name: entry.name, accent: entry.accent, egressCountry: profile().egressCountry };
     },
     profiles: () => profilesList,
-    refreshProfiles: () => { void refreshProfiles().catch(logProfileError); },
+    refreshProfiles: () => { if (!shuttingDown && !dbClosed) void refreshProfiles().catch(logProfileError); },
     saveTheme: (theme) => prefs.set('theme', theme),
     restoreSession: prefs.get<boolean>('restoreSession', false) === true,
     saveRestoreSession: (enabled) => prefs.set('restoreSession', enabled),
@@ -203,6 +225,8 @@ async function start(): Promise<void> {
     rendererDir: join(root, 'dist', 'renderer'),
     preload: join(root, 'dist', 'preload.cjs'),
     downloadsDir,
+    defaultDownloadsDir,
+    saveDownloadsDir: (dir) => { if (dir) prefs.set('downloadsDir', dir); else prefs.delete('downloadsDir'); },
     downloadStore: new DownloadRepository(database),
     ...(process.env.CAVE_TEST_DOWNLOAD_LOG ? { downloadFiles: {
       openPath: async (path: string) => { appendFileSync(process.env.CAVE_TEST_DOWNLOAD_LOG!, JSON.stringify(['open', path]) + '\n'); return ''; },
@@ -232,17 +256,17 @@ async function start(): Promise<void> {
   syncAccent(initialAccent);
   applyPermissions(browserSession(), profile, (wc, permission, details, callback) => {
     const win = browser.windows.find(w => w.hasTab(wc));
-    if (!win) return callback(false);
+    if (!win || !win.alive || shuttingDown) return callback(false);
     if (permission === 'geolocation') {
       void siteUa.locationReady(wc).then(ready => {
-        if (!ready || !siteUa.locationAvailable(wc)) return callback(false);
+        if (!ready || !siteUa.locationAvailable(wc) || !win.alive || shuttingDown) return callback(false);
         win.requestPermission(wc, permission, details, allow => callback(allow && siteUa.locationAvailable(wc)), profile, startupProfile);
       });
     } else win.requestPermission(wc, permission, details, callback, profile, startupProfile);
   }, (wc, permission, origin, details) => {
     const win = wc && browser.windows.find(w => w.hasTab(wc));
     if (permission === 'geolocation' && (!wc || !siteUa.locationAvailable(wc))) return false;
-    return !!win && win.checkPermission(wc!, permission, origin, details, profile, startupProfile);
+    return !!win && win.alive && !shuttingDown && win.checkPermission(wc!, permission, origin, details, profile, startupProfile);
   });
   applyContentBlocker(browserSession());
   siteUa.applySession(browserSession());
@@ -251,7 +275,7 @@ async function start(): Promise<void> {
     if (info.isProxy) return;
     event.preventDefault();
     const win = wc && browser.windows.find(w => w.hasTab(wc));
-    if (!win || !wc) return callback();
+    if (!win || !win.alive || shuttingDown || !wc) return callback();
     win.requestHttpAuth(wc, details, info, callback);
   });
   app.on('certificate-error', (event, wc, url, _error, certificate, callback, isMainFrame) => {
@@ -259,11 +283,19 @@ async function start(): Promise<void> {
     callback(browser.certificateError(wc, url, certificate.data, isMainFrame));
   });
   if (databaseNotice) { const notice = databaseNotice; browser.setNotice(() => t(notice.key, notice.key === 'databaseRecovered' ? { path: notice.value } : { error: notice.value })); }
-  app.once('will-quit', () => { profileManager.releaseCurrentLock(); browser.stopSessionSaving(); prefs.set('cleanExit', true); database.close(); });
-  browser.on('closed', () => app.quit());
-  gate.on('change', () => { browser.gateChanged(gate.open); browser.syncSetup(); });
-  store.onChange(() => { void refreshProfiles().catch(logProfileError); browser.syncSetup(); });
-  gate.on('error', (message: string) => browser.setNotice(message));
+  app.once('will-quit', () => {
+    profileManager.releaseCurrentLock();
+    browser.stopSessionSaving();
+    if (!dbClosed) {
+      dbClosed = true;
+      prefs.set('cleanExit', true);
+      database.close();
+    }
+  });
+  browser.on('closed', () => { if (!shuttingDown) app.quit(); });
+  gate.on('change', () => { if (shuttingDown || dbClosed) return; browser.gateChanged(gate.open); browser.syncSetup(); });
+  store.onChange(() => { if (shuttingDown || dbClosed) return; void refreshProfiles().catch(logProfileError); browser.syncSetup(); });
+  gate.on('error', (message: string) => { if (shuttingDown || dbClosed) return; browser.setNotice(message); });
   if (store.error) browser.setNotice(() => store.error!);
 
   let lastChecks: CheckItem[] = [];
@@ -452,6 +484,27 @@ async function start(): Promise<void> {
     setLocale: (locale) => browser.setLocale(locale === 'zh' || locale === 'en' ? locale : 'system'),
     listDownloads: () => browser.downloads.all(),
     downloadAction: (id, action) => browser.downloads.action(id, action),
+    chooseDownloadsDir: async () => {
+      const result = await dialog.showOpenDialog(win.win, {
+        title: t('set.downloads.chooseTitle'),
+        defaultPath: browser.currentDownloadsDir,
+        properties: ['openDirectory', 'createDirectory'],
+      });
+      if (result.canceled || !result.filePaths[0]) return null;
+      const chosen = resolve(result.filePaths[0]);
+      await mkdir(chosen, { recursive: true });
+      if (!(await stat(chosen)).isDirectory()) throw new Error('Invalid downloads directory');
+      return browser.setDownloadsDir(chosen);
+    },
+    resetDownloadsDir: async () => {
+      await mkdir(defaultDownloadsDir, { recursive: true });
+      browser.resetDownloadsDir();
+    },
+    revealDownloadsDir: async () => {
+      const current = browser.currentDownloadsDir;
+      try { await mkdir(current, { recursive: true }); } catch { /* openPath handles fallback */ }
+      await electronShell.openPath(current);
+    },
     siteInfo: async () => {
       const active = win.state.tabs.find(tab => tab.id === win.state.active && tab.kind === 'web');
       const origin = active && allowedSiteOrigin(active.url, [active.url]);
@@ -618,7 +671,9 @@ async function start(): Promise<void> {
     ipcMain.handle(channel(name), (e: IpcMainInvokeEvent, ...args) => {
       const win = browser.windowOf(e.sender);
       if (!win) throw new Error('forbidden');
+      if (shuttingDown || dbClosed || !win.alive) return;
       if (['listProfiles', 'createProfile', 'renameProfile', 'deleteProfile', 'launchProfile', 'switchProfile', 'importProfileDirectory', 'revealProfileDir'].includes(name) && e.sender !== win.settings.webContents && e.sender !== win.overlay.webContents) throw new Error('forbidden');
+      if (['chooseDownloadsDir', 'resetDownloadsDir', 'revealDownloadsDir'].includes(name) && e.sender !== win.settings.webContents) throw new Error('forbidden');
       if ((name === 'retryTab' || name === 'backFromError' || name === 'recoveryStatus' || name === 'continueCertificate') && e.sender !== win.recovery.webContents) return;
       if (e.sender === win.recovery.webContents && !['getState', 'retryTab', 'backFromError', 'recoveryStatus', 'continueCertificate'].includes(name)) return;
       if (['testSuggestionMouse', 'testSuggestionBounds'].includes(name) && (process.env.CAVE_TEST_HARNESS !== '1' || e.sender !== win.chrome.webContents)) return;
@@ -659,8 +714,21 @@ async function start(): Promise<void> {
     });
   }
 
-  app.on('second-instance', () => { if (!backgroundE2e) browser.current?.win.focus(); });
-  app.on('before-quit', () => { browser.prepareQuit(); void gate.quit(); });
+  const shutdown = () => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    browser.prepareQuit();
+    void Promise.allSettled([browser.closeAll(), gate.quit(), accentSync]).then(() => {
+      shutdownDone = true;
+      app.quit();
+    });
+  };
+  app.on('second-instance', () => { if (!backgroundE2e && !shuttingDown && browser.current?.alive) browser.current.win.focus(); });
+  app.on('before-quit', (event) => {
+    if (shutdownDone) return;
+    event.preventDefault();
+    shutdown();
+  });
 
   if (startup.action === 'restore') browser.restore(startup.snapshot);
   else {

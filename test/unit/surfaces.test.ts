@@ -26,13 +26,30 @@ test('surface bounds acknowledge only the current open', () => {
 });
 
 test('disposing a surface cancels layout after its window closes', async () => {
+  const bounds: unknown[] = [];
   let destroyed = false;
-  const overlay = { setBounds() { assert.equal(destroyed, false); }, webContents: { focus() {}, isFocused: () => false } };
-  const surfaces = new Surfaces({ getBounds() { assert.equal(destroyed, false); return { width: 800, height: 600 }; } } as never, overlay as never, () => null, () => {});
+  const content = {
+    getBounds: () => {
+      if (destroyed) throw new Error('window destroyed');
+      return { width: 800, height: 600 };
+    },
+  };
+  const overlay = {
+    setBounds: (r: unknown) => {
+      if (destroyed) throw new Error('overlay destroyed');
+      bounds.push(r);
+    },
+    webContents: { focus() {}, isFocused: () => false },
+  };
+  const surfaces = new Surfaces(content as never, overlay as never, () => null, () => {});
   surfaces.open('menu');
   surfaces.close(false);
+  const countBeforeDispose = bounds.length;
   surfaces.dispose();
   destroyed = true;
-  await new Promise(resolve => setTimeout(resolve, 180));
+  surfaces.fullBounds();
+  await new Promise((resolve) => setTimeout(resolve, 200));
+  assert.equal(bounds.length, countBeforeDispose);
   assert.equal(surfaces.state, null);
 });
+

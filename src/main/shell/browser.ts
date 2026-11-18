@@ -28,6 +28,8 @@ export interface BrowserOptions {
   rendererDir: string;
   preload: string;
   downloadsDir: string;
+  defaultDownloadsDir: string;
+  saveDownloadsDir: (dir: string | null) => void;
   downloadStore: DownloadRepository;
   downloadFiles?: Pick<typeof import('electron').shell, 'openPath' | 'showItemInFolder'>;
   history: History;
@@ -68,6 +70,7 @@ export class Browser extends EventEmitter {
   /** The window that last had the user's attention: where a menu command or a second launch goes. */
   private front: ShellWindow | null = null;
   private notice: string | (() => string) | null = null;
+  private downloadsDir: string;
   private restoreSession: boolean;
   private searchEngine: SearchEngine;
   private accent: Accent;
@@ -87,6 +90,7 @@ export class Browser extends EventEmitter {
 
   constructor(private o: BrowserOptions) {
     super();
+    this.downloadsDir = o.downloadsDir;
     this.restoreSession = o.restoreSession;
     this.searchEngine = o.searchEngine;
     this.accent = accentValue(o.accent);
@@ -98,7 +102,7 @@ export class Browser extends EventEmitter {
     this.sidebarWidth = sidebarWidth(o.sidebarWidth);
     this.localePreference = o.locale;
     setLocale(this.locale);
-    this.downloads = new Downloads(o.downloadsDir, () => this.broadcast(), o.downloadStore, o.downloadFiles);
+    this.downloads = new Downloads(o.downloadsDir, () => this.broadcast(), o.downloadStore, o.downloadFiles, o.defaultDownloadsDir);
     this.navigator = new Navigator(o.canBrowse, (wc, url) => {
       this.setNotice(() => t('navigationNotice', { host: new URL(url).host }));
       this.windows.find((w) => w.hasTab(wc))?.surfaces.open('status');
@@ -115,7 +119,7 @@ export class Browser extends EventEmitter {
       refreshProfiles: o.refreshProfiles,
       shared: () => ({
         shortcuts: o.shortcuts().map(item => ({ ...item, favicon: o.favicons.get(item.url) })),
-        gate: o.gate(), downloads: this.downloads.all(), notice: typeof this.notice === 'function' ? this.notice() : this.notice,
+        gate: o.gate(), downloads: this.downloads.all(), downloadsDir: this.downloadsDir, defaultDownloadsDir: o.defaultDownloadsDir, notice: typeof this.notice === 'function' ? this.notice() : this.notice,
         locale: this.locale, localePreference: this.localePreference, accent: this.accent, theme: this.theme,
         showTime: this.showTime, clock24Hour: this.clock24Hour, timezone: o.timezone(),
         searchEngine: this.searchEngine, restoreSession: this.restoreSession, setup: o.setup(),
@@ -154,7 +158,8 @@ export class Browser extends EventEmitter {
       windowClosing: () => this.saveSession(),
       lastTabClosed: () => this.saveSession(true),
       closed: (win) => {
-        this.windows.splice(this.windows.indexOf(win), 1);
+        const index = this.windows.indexOf(win);
+        if (index >= 0) this.windows.splice(index, 1);
         if (this.front === win) { this.front = this.windows[0] ?? null; this.updateMenu(); }
         if (!this.windows.length) this.emit('closed');
       },
@@ -180,9 +185,52 @@ export class Browser extends EventEmitter {
     else if (clearEmpty) this.o.sessions.discardSnapshots();
   }
 
-  prepareQuit(): void { this.saveSession(); this.quitting = true; this.o.sessions.cleanQuit(this.restoreSession); }
+  prepareQuit(): void {
+    if (this.quitting) return;
+    this.saveSession();
+    this.quitting = true;
+    this.o.sessions.cleanQuit(this.restoreSession);
+  }
+
+  closeAll(): Promise<void> {
+    if (!this.windows.length) return Promise.resolve();
+    return new Promise((resolve) => {
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        this.off('closed', finish);
+        resolve();
+      };
+      const timer = setTimeout(finish, 2500);
+      this.once('closed', finish);
+      for (const win of [...this.windows]) {
+        if (!win.win.isDestroyed()) win.win.close();
+      }
+    });
+  }
 
   stopSessionSaving(): void { clearInterval(this.sessionInterval); if (this.sessionTimer) clearTimeout(this.sessionTimer); }
+
+  get currentDownloadsDir(): string {
+    return this.downloadsDir;
+  }
+
+  setDownloadsDir(dir: string): string {
+    this.o.saveDownloadsDir(dir === this.o.defaultDownloadsDir ? null : dir);
+    this.downloadsDir = dir;
+    this.downloads.setDir(dir);
+    this.broadcast();
+    return dir;
+  }
+
+  resetDownloadsDir(): void {
+    this.o.saveDownloadsDir(null);
+    this.downloadsDir = this.o.defaultDownloadsDir;
+    this.downloads.setDir(this.o.defaultDownloadsDir);
+    this.broadcast();
+  }
 
   private updateMenu(): void {
     const next = { canReopen: this.front?.canReopenTab ?? false, canBookmark: this.front?.canBookmark ?? false, locale: this.locale };

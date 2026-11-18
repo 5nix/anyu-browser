@@ -76,6 +76,8 @@ export interface ShellState {
   site: string;
   gate: GateView;
   downloads: DownloadState[];
+  downloadsDir: string;
+  defaultDownloadsDir: string;
   notice: string | null;
   tabLayout: TabLayout;
   sidebarWidth: number;
@@ -185,6 +187,9 @@ export interface CaveCalls {
   setSearchEngine(engine: SearchEngine): boolean;
   listDownloads(): DownloadState[];
   downloadAction(id: number, action: 'pause' | 'resume' | 'cancel' | 'open' | 'reveal' | 'remove'): void;
+  chooseDownloadsDir(): string | null;
+  resetDownloadsDir(): void;
+  revealDownloadsDir(): void;
   siteInfo(): { permissions: PermissionEntry[]; cookies: number; certificate: CertificateDetails | null; ua: SiteUaInfo | null };
   panelData(): PanelData;
   removePermission(origin: string, permission: Permission): void;
@@ -247,7 +252,7 @@ export const CALLS: Record<keyof CaveCalls, true> = {
   testSuggestionMouse: true, testSuggestionBounds: true, beginAddress: true, suggestAddress: true, selectAddress: true, chooseAddress: true, submitAddress: true, cancelAddress: true,
   importBookmarks: true, bookmarkChildren: true, bookmarkMove: true, bookmarkAdd: true, bookmarkUpdate: true, bookmarkRemove: true,
   clearData: true, historyDelete: true, historyList: true, shortcuts: true, saveShortcut: true, removeShortcut: true, getState: true, newTab: true, closeTab: true, reopenClosedTab: true, pinTab: true, moveTab: true, duplicateTab: true, setTabMuted: true, activate: true, navigate: true, run: true, find: true, stopFind: true, focusPage: true,
-  setSurfaceBounds: true, openAddressMenu: true, openTabMenu: true, openTabStripMenu: true, openShortcutMenu: true, contextAction: true, openSettings: true, toggleSurface: true, closeSurface: true, setAnchors: true, setTabLayout: true, setShowTime: true, setClock24Hour: true, setSidebarWidth: true, setAccent: true, setTheme: true, setLocale: true, restoreSession: true, discardSession: true, setRestoreSession: true, setSearchEngine: true, listDownloads: true, downloadAction: true,
+  setSurfaceBounds: true, openAddressMenu: true, openTabMenu: true, openTabStripMenu: true, openShortcutMenu: true, contextAction: true, openSettings: true, toggleSurface: true, closeSurface: true, setAnchors: true, setTabLayout: true, setShowTime: true, setClock24Hour: true, setSidebarWidth: true, setAccent: true, setTheme: true, setLocale: true, restoreSession: true, discardSession: true, setRestoreSession: true, setSearchEngine: true, listDownloads: true, downloadAction: true, chooseDownloadsDir: true, resetDownloadsDir: true, revealDownloadsDir: true,
 
   siteInfo: true, removePermission: true, setSiteUa: true, panelData: true, updateProfile: true, importSubscriptionFile: true, importSubscriptionText: true, addSubscription: true, updateSource: true, updateSourceFile: true, updateSourceText: true, renameSource: true, removeSource: true,
   selectNode: true, testDelays: true, measureExit: true, pause: true, resume: true, restartAndCheck: true, runChecks: true, copyReport: true,

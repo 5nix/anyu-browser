@@ -11,6 +11,7 @@ export class Surfaces {
   private hideTimer: ReturnType<typeof setTimeout> | null = null;
   /** The page that had the keyboard before a surface took it. */
   private focusBefore: WebContents | null = null;
+  private disposed = false;
 
   constructor(
     private content: View,
@@ -26,10 +27,12 @@ export class Surfaces {
 
   /** Cancel deferred layout before the owning native window is destroyed. */
   dispose(): void {
+    this.disposed = true;
     if (this.hideTimer) clearTimeout(this.hideTimer);
     this.hideTimer = null;
     this.open_ = null;
     this.focusBefore = null;
+    this.shadow(null);
   }
 
   get state(): ShellState['surface'] {
@@ -41,11 +44,13 @@ export class Surfaces {
   anchor(name: SurfaceName): Rect | undefined { return this.anchors[name]; }
 
   toggle(name: SurfaceName): void {
+    if (this.disposed) return;
     if (this.open_ === name) this.close();
     else this.open(name);
   }
 
   open(name: SurfaceName, anchor?: Rect): void {
+    if (this.disposed) return;
     if (this.open_ === name) { if (anchor) this.anchors[name] = anchor; this.changed(); return; }
     if (this.open_) this.closed();
     if (anchor) this.anchors[name] = anchor;
@@ -63,7 +68,7 @@ export class Surfaces {
   }
 
   close(restore = true): void {
-    if (!this.open_) return;
+    if (this.disposed || !this.open_) return;
     this.open_ = null;
     this.shadow(null);
     this.closed();
@@ -77,6 +82,7 @@ export class Surfaces {
   }
 
   outsidePress(x?: number, y?: number): void {
+    if (this.disposed) return;
     const state = this.state;
     if (!state || ['permission', 'httpAuth', 'restoreSession'].includes(state.name)) return;
     const a = state.anchor;
@@ -85,24 +91,28 @@ export class Surfaces {
   }
 
   escape(): void {
+    if (this.disposed) return;
     if (this.open_ && !['permission', 'httpAuth', 'restoreSession', 'suggestions'].includes(this.open_)) this.close();
   }
 
   private park(): void {
+    if (this.disposed) return;
     const { width, height } = this.windowSize();
     this.shadow(null);
     this.overlay.setBounds({ x: width, y: height, width: 1, height: 1 });
   }
 
   private schedulePark(delay: number): void {
+    if (this.disposed) return;
     if (this.hideTimer) clearTimeout(this.hideTimer);
     this.hideTimer = setTimeout(() => {
       this.hideTimer = null;
-      if (!this.open_) this.park();
+      if (!this.disposed && !this.open_) this.park();
     }, delay);
   }
 
   fullBounds(): void {
+    if (this.disposed) return;
     if ((this.open_ && !['permission', 'httpAuth', 'restoreSession'].includes(this.open_)) || (!this.open_ && this.hideTimer)) return;
     if (!this.open_) { this.park(); return; }
     const { width, height } = this.windowSize();
@@ -110,7 +120,7 @@ export class Surfaces {
   }
 
   setBounds(r: Rect, name: SurfaceName = 'suggestions', generation: number): boolean {
-    if (this.open_ !== name || this.generation !== generation || !r || ![r.x, r.y, r.width, r.height].every(Number.isFinite)) return false;
+    if (this.disposed || this.open_ !== name || this.generation !== generation || !r || ![r.x, r.y, r.width, r.height].every(Number.isFinite)) return false;
     const { width, height } = this.windowSize();
     const anchor = name === 'suggestions' ? this.anchors.suggestions : undefined;
     const x = Math.max(0, Math.min(width, Math.floor(r.x)));
@@ -127,7 +137,7 @@ export class Surfaces {
   }
 
   setAnchors(anchors: Partial<Record<SurfaceName, Rect>>): void {
-    if (!anchors || typeof anchors !== 'object') return;
+    if (this.disposed || !anchors || typeof anchors !== 'object') return;
     const safe: Partial<Record<SurfaceName, Rect>> = { contextMenu: this.anchors.contextMenu };
     for (const name of ['siteInfo', 'status', 'profiles', 'menu', 'suggestions', 'downloads', 'bookmarkEdit'] as const) {
       const r = anchors[name];

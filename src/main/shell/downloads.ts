@@ -6,21 +6,35 @@ import { join, parse as parsePath } from 'node:path';
 import { browserSession } from '../network.ts';
 import type { Downloads as DownloadRepository } from '../store/downloads.ts';
 import type { DownloadState } from '../../shared/ipc.ts';
+import { ensureDownloadsDirectory } from './downloads-dir.ts';
 
 export class Downloads {
   list: DownloadState[] = [];
   private items = new Map<number, Electron.DownloadItem>();
 
-  constructor(private dir: string, private changed: () => void, private repo: DownloadRepository, private files: Pick<typeof electronShell, 'openPath' | 'showItemInFolder'> = electronShell) {
+  constructor(private dir: string, private changed: () => void, private repo: DownloadRepository, private files: Pick<typeof electronShell, 'openPath' | 'showItemInFolder'> = electronShell, private fallbackDir?: string) {
     repo.interruptUnfinished();
     this.list = repo.list(-1).map(d => ({ id: d.id, name: d.name, path: d.path, paused: false, started: d.started, ended: d.ended, exists: existsSync(d.path), received: d.state === 'completed' ? d.total : 0, total: d.total, state: d.state === 'progressing' ? 'interrupted' : d.state as DownloadState['state'] }));
     browserSession().on('will-download', (_e, item) => this.track(item));
   }
 
+  get directory(): string {
+    return this.dir;
+  }
+
+  setDir(dir: string): void {
+    this.dir = dir;
+  }
+
+  private resolveTargetDir(): string {
+    return ensureDownloadsDirectory(this.dir, this.fallbackDir);
+  }
+
   private track(item: Electron.DownloadItem): void {
+    const dir = this.resolveTargetDir();
     const { name, ext } = parsePath(item.getFilename() || 'download');
-    let path = join(this.dir, name + ext);
-    for (let n = 1; existsSync(path); n++) path = join(this.dir, `${name} (${n})${ext}`);
+    let path = join(dir, name + ext);
+    for (let n = 1; existsSync(path); n++) path = join(dir, `${name} (${n})${ext}`);
     item.setSavePath(path);
     const started = Date.now();
     const id = this.repo.insert({ url: item.getURL(), path, name: parsePath(path).base, total: item.getTotalBytes(), state: 'progressing', started });

@@ -106,6 +106,8 @@ function NodesSection({ active, state, data, act, confirm, busy }: Props) {
   };
   const gateOpen = state.gate.state === 'open';
   const showHero = !nodes.some(n => n.delay.status !== 'timeout') && !state.setup.pending;
+  const editorRef = useRef<HTMLDivElement>(null);
+  const pasteRef = useRef<HTMLDivElement>(null);
   const importFile = () => act(() => cave.importSubscriptionFile(), 'import-file');
   const fetchSubscription = () => act(async () => { await cave.addSubscription(subUrl.trim(), showHero ? 'direct' : subVia); setSubUrl(''); setEditor(false); }, 'sub-update');
   const subBlock = subscriptionFetchBlock(subUrl, showHero ? 'direct' : subVia, gateOpen);
@@ -119,8 +121,20 @@ function NodesSection({ active, state, data, act, confirm, busy }: Props) {
     : null;
   useEffect(() => { if (!gateOpen && !editor && subVia === 'proxy') setSubVia('direct'); }, [gateOpen, editor, subVia]);
   useEffect(() => { if (!active) { setEditor(false); setRenaming(null); setEditingSource(null); } }, [active]);
+  useEffect(() => {
+    if (!editor || showHero) return;
+    editorRef.current?.scrollIntoView({ block: 'nearest' });
+    editorRef.current?.querySelector<HTMLInputElement>('#sub-url')?.focus();
+  }, [editor, showHero]);
+  useEffect(() => {
+    if (!pasteOpen) return;
+    pasteRef.current?.scrollIntoView({ block: 'nearest' });
+    pasteRef.current?.querySelector<HTMLTextAreaElement>('#paste-text')?.focus();
+  }, [pasteOpen, showHero]);
+  const pasteEditor = <div id="paste" ref={pasteRef} class="source-editor"><div class="editor-paste"><textarea id="paste-text" value={pasteText} onInput={e => setPasteText(e.currentTarget.value)} rows={6} placeholder={t('set.nodes.placeholder')} spellcheck={false}></textarea><div class="end"><button class="btn" onClick={() => setPasteOpen(false)}>{t('set.dialog.cancel')}</button><button id="paste-import" class="btn primary" disabled={!pasteText.trim() || busy.has('paste-import')} onClick={() => act(async () => { await cave.importSubscriptionText(pasteText); setPasteText(''); setPasteOpen(false); }, 'paste-import')}>{t('set.nodes.import')}</button></div></div></div>;
   return <section data-section="nodes" class="entering" hidden={!active}>
-    {showHero && <div class="source-hero"><div class="hero-kicker">{t('set.nodes.noUsable')}</div><h3>{t('set.nodes.addOrImport')}</h3><div class="hero-url"><input aria-label={t('set.nodes.url')} value={subUrl} onInput={e => setSubUrl(e.currentTarget.value)} placeholder={t('set.nodes.urlPlaceholder')} spellcheck={false} /><button class="btn" disabled={subDisabled} onClick={fetchSubscription}>{t('set.nodes.fetchNodes')}</button></div>{subReason && <small>{subReason}</small>}<div class="hero-alternatives"><button class="btn" disabled={busy.has('import-file')} onClick={importFile}><Icon name="file-up" />{t('set.nodes.file')}</button><button class="btn" onClick={() => setPasteOpen(!pasteOpen)}><Icon name="clipboard-paste" />{t('set.nodes.paste')}</button></div></div>}
+    {showHero && <div class="source-hero"><div class="hero-kicker">{t('set.nodes.noUsable')}</div><h3>{t('set.nodes.addOrImport')}</h3><div class="hero-url"><input aria-label={t('set.nodes.url')} value={subUrl} onInput={e => setSubUrl(e.currentTarget.value)} placeholder={t('set.nodes.urlPlaceholder')} spellcheck={false} /><button class="btn" disabled={subDisabled} onClick={fetchSubscription}>{t('set.nodes.fetchNodes')}</button></div>{subReason && <small>{subReason}</small>}<div class="hero-alternatives"><button class="btn" disabled={busy.has('import-file')} onClick={importFile}><Icon name="file-up" />{t('set.nodes.file')}</button><button class="btn" onClick={() => { setEditor(false); setPasteOpen(!pasteOpen); }}><Icon name="clipboard-paste" />{t('set.nodes.paste')}</button></div></div>}
+    {showHero && pasteOpen && pasteEditor}
     <h2>{t('set.nodes.title')}</h2>
     <div class="group"><h3>{t('set.nodes.connection')}</h3>
     <div class="card" ref={connRef}>
@@ -142,13 +156,6 @@ function NodesSection({ active, state, data, act, confirm, busy }: Props) {
     </div>
     <div class="sources-group">
     {(nodes.length > 0 || data.profile.proxy.sources.length > 0) && <div class="nodes-toolbar"><h3>{t('set.nodes.nodeHeading')}</h3><button id="delays" disabled={busy.has('delays') || !nodes.length} onClick={() => act(() => cave.testDelays(), 'delays')} class="btn"><Icon name="zap" />{t('set.nodes.delays')}</button></div>}
-    {editor && !showHero && <div id="source-editor" class="source-editor">
-      <div class="editor-head"><div class="label"><b>{t('set.nodes.addTitle')}</b></div><button class="icon-btn sm" aria-label={t('set.nodes.close')} onClick={() => setEditor(false)}><Icon name="x" /></button></div>
-      <label class="editor-field"><span>{t('set.nodes.url')}</span><input id="sub-url" value={subUrl} onInput={e => setSubUrl(e.currentTarget.value)} placeholder="https://…" spellcheck={false} /></label>
-      <label class="editor-field"><span>{t('set.nodes.method')}</span><select id="sub-via" value={subVia} onChange={e => setSubVia(e.currentTarget.value as SubscriptionVia)}><option value="direct">{t('set.nodes.direct')}</option><option value="proxy">{t('set.nodes.proxy')}</option></select></label>
-      <div class="editor-actions"><span class="editor-fetch">{subReason && <small id="sub-fetch-reason">{subReason}</small>}<button id="sub-fetch" class="btn primary" disabled={subDisabled} onClick={fetchSubscription}>{t('set.nodes.fetchNodes')}</button></span></div>
-    </div>}
-    {pasteOpen && <div id="paste" class="source-editor"><div class="editor-paste"><textarea id="paste-text" value={pasteText} onInput={e => setPasteText(e.currentTarget.value)} rows={6} placeholder={t('set.nodes.placeholder')} spellcheck={false}></textarea><div class="end"><button class="btn" onClick={() => setPasteOpen(false)}>{t('set.dialog.cancel')}</button><button id="paste-import" class="btn primary" disabled={!pasteText.trim() || busy.has('paste-import')} onClick={() => act(async () => { await cave.importSubscriptionText(pasteText); setPasteText(''); setPasteOpen(false); }, 'paste-import')}>{t('set.nodes.import')}</button></div></div></div>}
     {data.profile.proxy.sources.map(source => {
       const rows = nodes.filter(n => n.source === source.id), origin = source.origin.kind === 'subscription' ? source.origin.url : source.origin.kind === 'file' ? source.origin.filename : t('set.nodes.pasted');
       const detail = [origin, source.origin.kind === 'subscription' ? t(source.origin.via === 'direct' ? 'set.nodes.viaDirect' : 'set.nodes.viaProxy') : '', t('set.nodes.count', { count: rows.length })].filter(Boolean).join(' · ');
@@ -165,7 +172,14 @@ function NodesSection({ active, state, data, act, confirm, busy }: Props) {
         <div class="source-body">{editingSource === source.id && <div class="editor-paste"><textarea value={replacement} onInput={e => setReplacement(e.currentTarget.value)} rows={6} placeholder={t('set.nodes.placeholder')} spellcheck={false}></textarea><div class="end"><button class="btn" onClick={() => setEditingSource(null)}>{t('set.dialog.cancel')}</button><button class="btn primary" disabled={!replacement.trim()} onClick={() => act(async () => { await cave.updateSourceText(source.id, replacement); setEditingSource(null); }, source.id)}>{t('set.nodes.update')}</button></div></div>}<NodeList rows={rows} locale={state.locale} isSelected={isSelected} onSelect={n => void select(n)} /></div>
       </div>;
     })}
-    {!showHero && <div class="new-source"><Icon name="plus" /><b>{t('set.nodes.newSource')}</b><button id="add-source" class="btn" onClick={() => { if (!gateOpen) setSubVia('direct'); setEditor(true); }}><Icon name="link" />{t('set.nodes.url')}</button><button class="btn" disabled={busy.has('import-file')} onClick={importFile}><Icon name="file-up" />{t('set.nodes.file')}</button><button class="btn" onClick={() => setPasteOpen(!pasteOpen)}><Icon name="clipboard-paste" />{t('set.nodes.paste')}</button></div>}
+    {!showHero && <div class="new-source"><Icon name="plus" /><b>{t('set.nodes.newSource')}</b><button id="add-source" class="btn" onClick={() => { if (!gateOpen) setSubVia('direct'); setPasteOpen(false); setEditor(true); }}><Icon name="link" />{t('set.nodes.url')}</button><button class="btn" disabled={busy.has('import-file')} onClick={importFile}><Icon name="file-up" />{t('set.nodes.file')}</button><button class="btn" onClick={() => { setEditor(false); setPasteOpen(!pasteOpen); }}><Icon name="clipboard-paste" />{t('set.nodes.paste')}</button></div>}
+    {editor && !showHero && <div id="source-editor" ref={editorRef} class="source-editor">
+      <div class="editor-head"><div class="label"><b>{t('set.nodes.addTitle')}</b></div><button class="icon-btn sm" aria-label={t('set.nodes.close')} onClick={() => setEditor(false)}><Icon name="x" /></button></div>
+      <label class="editor-field"><span>{t('set.nodes.url')}</span><input id="sub-url" value={subUrl} onInput={e => setSubUrl(e.currentTarget.value)} placeholder="https://…" spellcheck={false} /></label>
+      <label class="editor-field"><span>{t('set.nodes.method')}</span><select id="sub-via" value={subVia} onChange={e => setSubVia(e.currentTarget.value as SubscriptionVia)}><option value="direct">{t('set.nodes.direct')}</option><option value="proxy">{t('set.nodes.proxy')}</option></select></label>
+      <div class="editor-actions"><span class="editor-fetch">{subReason && <small id="sub-fetch-reason">{subReason}</small>}<button id="sub-fetch" class="btn primary" disabled={subDisabled} onClick={fetchSubscription}>{t('set.nodes.fetchNodes')}</button></span></div>
+    </div>}
+    {!showHero && pasteOpen && pasteEditor}
     </div>
   </section>;
 }
@@ -375,9 +389,29 @@ function PrivacySection({ active, state, data, act, confirm, checks, runChecks, 
 }
 
 function DownloadsSection({ active, state, data, act, confirm, checks, runChecks, busy }: Props) {
+  const isDefault = state.downloadsDir === state.defaultDownloadsDir;
   return <section data-section="downloads" class="entering" hidden={!active}>
     <h2>{t('set.downloads.title')}</h2>
-    <div class="card"><ul id="downloads" class="downloads">{!state.downloads.length && <li class="empty">{t('downloads_empty')}</li>}{state.downloads.map(d => <li><Icon name="file" /><span class="download-copy"><span class="name" title={d.name}>{d.name}</span><span class="state">{d.state === 'progressing' ? `${d.paused ? t('download_paused') + ' · ' : ''}${d.total ? Math.round(d.received / d.total * 100) : 0}%` : {completed:t('set.downloads.completed'), cancelled:t('set.downloads.cancelled'), interrupted:t('set.downloads.interrupted')}[d.state]}</span></span>{d.state === 'progressing' ? <><button class="icon-btn" title={d.paused ? t('download_resume') : t('download_pause')} aria-label={d.paused ? t('download_resume') : t('download_pause')} onClick={() => cave.downloadAction(d.id, d.paused ? 'resume' : 'pause')}><Icon name={d.paused ? 'play' : 'pause'} /></button><button class="icon-btn" title={t('download_cancel')} aria-label={t('download_cancel')} onClick={() => cave.downloadAction(d.id, 'cancel')}><Icon name="x" /></button></> : <>{d.state === 'completed' && <><button class="icon-btn" disabled={!d.exists} title={!d.exists ? t('download_missing') : t('download_open')} aria-label={t('download_open')} onClick={() => cave.downloadAction(d.id, 'open')}><Icon name="external-link" /></button><button class="icon-btn" disabled={!d.exists} title={t('download_reveal')} aria-label={t('download_reveal')} onClick={() => cave.downloadAction(d.id, 'reveal')}><Icon name="folder-open" /></button>{!d.exists && <small>{t('download_missing')}</small>}</>}<button class="icon-btn" title={t('download_remove')} aria-label={t('download_remove')} onClick={() => cave.downloadAction(d.id, 'remove')}><Icon name="trash-2" /></button></>}</li>)}</ul>{state.downloads.some(d => d.state !== 'progressing') && <button class="btn" onClick={() => state.downloads.filter(d => d.state !== 'progressing').forEach(d => void cave.downloadAction(d.id, 'remove'))}>{t('downloads_clear')}</button>}</div>
+    <div class="group">
+      <h3>{t('set.downloads.location')}</h3>
+      <div class="card">
+        <div class="row">
+          <div class="label">
+            <b id="downloads-dir">{state.downloadsDir}</b>
+            {isDefault && <small>{t('set.downloads.defaultHint')}</small>}
+          </div>
+          <div class="downloads-dir-actions">
+            <button type="button" id="downloads-open" class="btn" onClick={() => void cave.revealDownloadsDir()}><Icon name="folder-open" />{t('set.downloads.open')}</button>
+            <button type="button" id="downloads-choose" class="btn" disabled={busy.has('downloads-dir')} onClick={() => act(() => cave.chooseDownloadsDir(), 'downloads-dir')}>{t('set.downloads.choose')}</button>
+            <button type="button" id="downloads-reset" class="btn" disabled={isDefault || busy.has('downloads-dir')} onClick={() => act(() => cave.resetDownloadsDir(), 'downloads-dir')}>{t('set.downloads.reset')}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="group">
+      <h3>{t('set.downloads.list')}</h3>
+      <div class="card"><ul id="downloads" class="downloads">{!state.downloads.length && <li class="empty">{t('downloads_empty')}</li>}{state.downloads.map(d => <li><Icon name="file" /><span class="download-copy"><span class="name" title={d.name}>{d.name}</span><span class="state">{d.state === 'progressing' ? `${d.paused ? t('download_paused') + ' · ' : ''}${d.total ? Math.round(d.received / d.total * 100) : 0}%` : {completed:t('set.downloads.completed'), cancelled:t('set.downloads.cancelled'), interrupted:t('set.downloads.interrupted')}[d.state]}</span></span>{d.state === 'progressing' ? <><button class="icon-btn" title={d.paused ? t('download_resume') : t('download_pause')} aria-label={d.paused ? t('download_resume') : t('download_pause')} onClick={() => cave.downloadAction(d.id, d.paused ? 'resume' : 'pause')}><Icon name={d.paused ? 'play' : 'pause'} /></button><button class="icon-btn" title={t('download_cancel')} aria-label={t('download_cancel')} onClick={() => cave.downloadAction(d.id, 'cancel')}><Icon name="x" /></button></> : <>{d.state === 'completed' && <><button class="icon-btn" disabled={!d.exists} title={!d.exists ? t('download_missing') : t('download_open')} aria-label={t('download_open')} onClick={() => cave.downloadAction(d.id, 'open')}><Icon name="external-link" /></button><button class="icon-btn" disabled={!d.exists} title={t('download_reveal')} aria-label={t('download_reveal')} onClick={() => cave.downloadAction(d.id, 'reveal')}><Icon name="folder-open" /></button>{!d.exists && <small>{t('download_missing')}</small>}</>}<button class="icon-btn" title={t('download_remove')} aria-label={t('download_remove')} onClick={() => cave.downloadAction(d.id, 'remove')}><Icon name="trash-2" /></button></>}</li>)}</ul>{state.downloads.some(d => d.state !== 'progressing') && <button class="btn" onClick={() => state.downloads.filter(d => d.state !== 'progressing').forEach(d => void cave.downloadAction(d.id, 'remove'))}>{t('downloads_clear')}</button>}</div>
+    </div>
   </section>;
 }
 
@@ -464,8 +498,8 @@ export function SettingsView() {
   const [busy, setBusy] = useState<Set<string>>(new Set());
   const [dialog, setDialog] = useState<DialogRequest | null>(null);
   const contentRef = useRef<HTMLElement>(null);
-  const refresh = async () => setData(await cave.panelData());
-  const runChecks = async () => setChecks(await cave.runChecks());
+  const refresh = async () => { const next = await cave.panelData(); if (next) setData(next); };
+  const runChecks = async () => { const next = await cave.runChecks(); if (Array.isArray(next)) setChecks(next); };
   const act = async (fn: () => Promise<unknown>, key?: string) => { if (key) setBusy(prev => new Set(prev).add(key)); try { await fn(); setNotice(null); } catch (err: any) { setNotice(String(err.message ?? err).replace(/^Error invoking remote method '[^']+': (Error: )?/, '')); } finally { if (key) setBusy(prev => { const next = new Set(prev); next.delete(key); return next; }); await refresh(); } };
   const confirm = (title: string, body: string, ok: string, danger = false) => new Promise<boolean>(resolve => setDialog({title, body, ok, danger, resolve}));
   useEffect(() => { cave.on('section', setSection); void refresh(); void runChecks(); }, []);

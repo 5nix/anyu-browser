@@ -103,7 +103,8 @@ input.num { width: 96px; }
 #content { min-width: 0; }
 .row, .inline { min-width: 0; }
 @media (max-width: 850px) { #content { padding: 24px; } .row { flex-wrap: wrap; } .row .label { flex-basis: 100%; } .inline { flex-wrap: wrap; } }
-#profile-dir { overflow-wrap: anywhere; }
+#profile-dir, #downloads-dir { overflow-wrap: anywhere; }
+.downloads-dir-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
 .search-error { margin: 0; padding: 0 16px 12px; color: var(--danger); }
 
@@ -212,6 +213,8 @@ input.num { width: 96px; }
 .hero-alternatives { margin-top: 10px; }
 .hero-alternatives .btn { height: 30px; background: transparent; color: var(--on-accent); box-shadow: inset 0 0 0 1px rgb(255 255 255 / .45); }
 .new-source { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; min-height: 56px; padding: 10px 10px 10px 16px; margin-top: 12px; border-radius: var(--r-card); box-shadow: inset 0 0 0 1px var(--sep); }
+.new-source + .source-editor { margin: 12px 0 0; }
+.source-hero + #paste { margin: -8px 0 0; }
 .new-source > .icon { color: var(--text-2); margin-right: 4px; }
 .new-source > b, .nodes-toolbar h3 { flex: 1; margin: 0; }
 .sources-group .nodes-toolbar { margin: 0 0 10px; }

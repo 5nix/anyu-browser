@@ -43,7 +43,7 @@ export interface WindowHost {
   setTabLayout(layout: TabLayout): void;
   sidebarWidth(): number;
   /** The part of the state that is the same in every window. */
-  shared(): Pick<ShellState, 'shortcuts' | 'gate' | 'downloads' | 'downloadsDir' | 'defaultDownloadsDir' | 'notice' | 'locale' | 'localePreference' | 'accent' | 'theme' | 'showTime' | 'clock24Hour' | 'timezone' | 'searchEngine' | 'restoreSession' | 'setup' | 'currentProfile' | 'profiles'>;
+  shared(): Pick<ShellState, 'shortcuts' | 'gate' | 'downloads' | 'downloadsDir' | 'defaultDownloadsDir' | 'notice' | 'locale' | 'localePreference' | 'accent' | 'theme' | 'showTime' | 'clock24Hour' | 'timezone' | 'searchEngine' | 'restoreSession' | 'setup' | 'currentProfile' | 'profiles' | 'update'>;
   refreshProfiles(): void;
   canBrowse(): boolean;
   run(id: CommandId, win: ShellWindow): void;

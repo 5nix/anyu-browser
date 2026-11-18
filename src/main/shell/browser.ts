@@ -60,6 +60,7 @@ export interface BrowserOptions {
   gate: () => ShellState['gate'];
   /** First-run setup as derived from the profile and the gate. */
   setup: () => ShellState['setup'];
+  update: () => ShellState['update'];
 }
 
 export class Browser extends EventEmitter {
@@ -125,6 +126,7 @@ export class Browser extends EventEmitter {
         searchEngine: this.searchEngine, restoreSession: this.restoreSession, setup: o.setup(),
         currentProfile: { ...o.currentProfile(), accent: this.accent },
         profiles: o.profiles().map(p => p.current ? { ...p, accent: this.accent } : p),
+        update: o.update(),
       }),
       canBrowse: o.canBrowse,
       run: (id, win) => this.run(id, win),

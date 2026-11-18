@@ -10,6 +10,8 @@ import type { Profile, ProfilePatch, SubscriptionVia, NodeSelection, SetupChoice
 import type { CreateProfileInput, ProfileSummary } from './profiles.ts';
 import type { SetupStep } from './welcome.ts';
 import type { UaMode, UaOverrideEntry, UaPreference } from './ua.ts';
+import type { UpdateError, UpdateState, UpdateStatus } from '../main/updater.ts';
+import type { UpdateRelease } from './updates.ts';
 
 export interface Shortcut { id: number; name: string; url: string; favicon?: string | null }
 
@@ -48,7 +50,7 @@ export type SearchEngine =
   | { kind: 'custom'; template: string };
 
 export type TabLayout = 'top' | 'side';
-export type SettingsSection = 'overview' | 'nodes' | 'env' | 'privacy' | 'downloads' | 'appearance' | 'advanced';
+export type SettingsSection = 'overview' | 'nodes' | 'env' | 'privacy' | 'downloads' | 'appearance' | 'advanced' | 'about';
 /** In window coordinates (CSS pixels from the content area's top left). */
 export interface Rect { x: number; y: number; width: number; height: number }
 /** What can float above the page: each is an element of the overlay page, anchored to an element of the chrome. */
@@ -104,6 +106,7 @@ export interface ShellState {
   /** Current profile summary and total profile count for the toolbar badge. */
   currentProfile: { id: string; name: string; accent: Accent; egressCountry: string };
   profiles: ProfileSummary[];
+  update: UpdateState;
 }
 
 export interface PermissionEntry { origin: string; permission: Permission; decision: 'allow' | 'deny' }
@@ -119,6 +122,7 @@ export interface PanelData {
   nodes: NodeState;
   restartNeeded: boolean;
   profiles: ProfileSummary[];
+  runtime: { electron: string; chrome: string; mihomo: string };
 }
 
 /** Every call a shell page can make, as the main process sees it. Each acts on the caller's own window. */
@@ -231,6 +235,9 @@ export interface CaveCalls {
   switchProfile(id: string): void;
   importProfileDirectory(): ProfileSummary | null;
   revealProfileDir(id?: string): void;
+  checkForUpdates(): UpdateState;
+  setAutoCheckUpdates(enabled: boolean): void;
+  openUpdateUrl(url?: string): void;
 }
 
 /** Every event the main process sends to a shell page, with its payload. */
@@ -258,6 +265,7 @@ export const CALLS: Record<keyof CaveCalls, true> = {
   selectNode: true, testDelays: true, measureExit: true, pause: true, resume: true, restartAndCheck: true, runChecks: true, copyReport: true,
   clearSite: true, resetEnvironment: true, revealProfile: true, restart: true, setSetup: true, continueSetup: true, restartSetup: true, localPortOpen: true,
   listProfiles: true, createProfile: true, renameProfile: true, deleteProfile: true, launchProfile: true, switchProfile: true, importProfileDirectory: true, revealProfileDir: true,
+  checkForUpdates: true, setAutoCheckUpdates: true, openUpdateUrl: true,
 };
 export const EVENTS: Record<keyof CaveEvents, true> = { state: true, addressResults: true, found: true, resetFind: true, focusAddress: true, cancelAddressEdit: true, openFind: true, section: true, shortcutAction: true };
 
@@ -276,4 +284,4 @@ export type CaveApi = {
   on<E extends keyof CaveEvents>(event: E, listener: (data: CaveEvents[E]) => void): void;
 };
 
-export type { Profile, ProfilePatch, GateView, CreateProfileInput, ProfileSummary };
+export type { Profile, ProfilePatch, GateView, CreateProfileInput, ProfileSummary, UpdateError, UpdateState, UpdateStatus, UpdateRelease };

@@ -35,6 +35,8 @@ import { t, setLocale, systemLocale, type LocalePreference } from '../shared/i18
 import { SETUP_KEYS, type ProfilePatch, type SetupChoices } from '../shared/profile.ts';
 import { deriveSetupStep } from '../shared/welcome.ts';
 import { localPortOpen } from './local-port.ts';
+import { UpdateChecker } from './updater.ts';
+import { GITHUB_RELEASES_URL, isAllowedGithubReleaseUrl, MIHOMO_VERSION } from '../shared/updates.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const resources = app.isPackaged ? process.resourcesPath : join(root, 'resources');
@@ -205,6 +207,7 @@ async function start(): Promise<void> {
       await refreshProfiles();
     }).catch(logProfileError);
   };
+  let updater: UpdateChecker;
   const browser = new Browser({
     favicons,
     sessions,
@@ -252,6 +255,17 @@ async function start(): Promise<void> {
     canBrowse: () => gate.open,
     gate: () => gate.view,
     setup: setupState,
+    update: () => updater.state,
+  });
+  updater = new UpdateChecker({
+    currentVersion: app.getVersion(),
+    cacheFile: join(app.getPath('appData'), 'Cave', 'update-check.json'),
+    autoCheck: prefs.get<boolean>('autoCheckUpdates', true) !== false,
+    isGateOpen: () => gate.open,
+    proxyFetch: (url, init) => browserSession().fetch(url, init),
+    directFetch: (url, init) => fetch(url, init),
+    onChange: () => { if (!shuttingDown && !dbClosed) browser.broadcast(); },
+    disableAutoSchedule: backgroundE2e || process.env.CAVE_TEST_HARNESS === '1',
   });
   syncAccent(initialAccent);
   applyPermissions(browserSession(), profile, (wc, permission, details, callback) => {
@@ -293,7 +307,7 @@ async function start(): Promise<void> {
     }
   });
   browser.on('closed', () => { if (!shuttingDown) app.quit(); });
-  gate.on('change', () => { if (shuttingDown || dbClosed) return; browser.gateChanged(gate.open); browser.syncSetup(); });
+  gate.on('change', () => { if (shuttingDown || dbClosed) return; browser.gateChanged(gate.open); browser.syncSetup(); if (gate.open) updater.notifyGateOpen(); });
   store.onChange(() => { if (shuttingDown || dbClosed) return; void refreshProfiles().catch(logProfileError); browser.syncSetup(); });
   gate.on('error', (message: string) => { if (shuttingDown || dbClosed) return; browser.setNotice(message); });
   if (store.error) browser.setNotice(() => store.error!);
@@ -344,6 +358,7 @@ async function start(): Promise<void> {
       hostPlatform: hostHints.platform,
       nodes: await gate.nodes().catch(() => ({ nodes: [], selected: profile().proxy.selected })),
       restartNeeded,
+      runtime: { electron: process.versions.electron, chrome: process.versions.chrome, mihomo: MIHOMO_VERSION },
     };
   }
 
@@ -662,6 +677,17 @@ async function start(): Promise<void> {
       });
     },
     localPortOpen: () => profile().connectionMode === 'external' ? localPortOpen(profile().externalProxy) : false,
+    checkForUpdates: () => updater.checkNow(),
+    setAutoCheckUpdates: (enabled) => {
+      if (typeof enabled !== 'boolean') return;
+      prefs.set('autoCheckUpdates', enabled);
+      updater.setAutoCheck(enabled);
+    },
+    openUpdateUrl: (url) => {
+      const target = isAllowedGithubReleaseUrl(url) ? url : GITHUB_RELEASES_URL;
+      if (gate.open) void win.newTab(target);
+      else void electronShell.openExternal(target);
+    },
   });
   // What setup may change in the profile: the connection, the exit country and the identity.
   const WELCOME_PROFILE_KEYS = ['connectionMode', 'externalProxy', 'egressCountry', 'timezone', 'locale', 'acceptLanguages', 'geolocation'];
@@ -673,7 +699,7 @@ async function start(): Promise<void> {
       if (!win) throw new Error('forbidden');
       if (shuttingDown || dbClosed || !win.alive) return;
       if (['listProfiles', 'createProfile', 'renameProfile', 'deleteProfile', 'launchProfile', 'switchProfile', 'importProfileDirectory', 'revealProfileDir'].includes(name) && e.sender !== win.settings.webContents && e.sender !== win.overlay.webContents) throw new Error('forbidden');
-      if (['chooseDownloadsDir', 'resetDownloadsDir', 'revealDownloadsDir'].includes(name) && e.sender !== win.settings.webContents) throw new Error('forbidden');
+      if (['chooseDownloadsDir', 'resetDownloadsDir', 'revealDownloadsDir', 'checkForUpdates', 'setAutoCheckUpdates', 'openUpdateUrl'].includes(name) && e.sender !== win.settings.webContents) throw new Error('forbidden');
       if ((name === 'retryTab' || name === 'backFromError' || name === 'recoveryStatus' || name === 'continueCertificate') && e.sender !== win.recovery.webContents) return;
       if (e.sender === win.recovery.webContents && !['getState', 'retryTab', 'backFromError', 'recoveryStatus', 'continueCertificate'].includes(name)) return;
       if (['testSuggestionMouse', 'testSuggestionBounds'].includes(name) && (process.env.CAVE_TEST_HARNESS !== '1' || e.sender !== win.chrome.webContents)) return;
@@ -717,6 +743,7 @@ async function start(): Promise<void> {
   const shutdown = () => {
     if (shuttingDown) return;
     shuttingDown = true;
+    updater.dispose();
     browser.prepareQuit();
     void Promise.allSettled([browser.closeAll(), gate.quit(), accentSync]).then(() => {
       shutdownDone = true;
@@ -736,6 +763,7 @@ async function start(): Promise<void> {
     if (startup.action === 'offer') browser.offerSession(startup.snapshot, win);
   }
   await gate.start();
+  void updater.scheduleAutoCheck();
 
 }
 

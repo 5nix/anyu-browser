@@ -1,10 +1,11 @@
 import { ACCENTS, type Accent } from '../../shared/appearance.ts';
 import { useEffect, useRef, useState } from 'preact/hooks';
-import type { Permission, CheckItem, PanelData, SearchEngine, SettingsSection, ShellState } from '../../shared/ipc.ts';
+import type { Permission, CheckItem, PanelData, SearchEngine, SettingsSection, ShellState, UpdateError } from '../../shared/ipc.ts';
 import { MAX_MONITOR_URLS, type Profile, type SubscriptionVia } from '../../shared/profile.ts';
 import { DEFAULT_PROFILE_ID, MAX_PROFILE_NAME_LENGTH } from '../../shared/profiles.ts';
 import { t, setLocale, type LocalePreference } from '../../shared/i18n/index.ts';
 import { SEARCH_PRESETS, isSearchEngine, subscriptionFetchBlock } from '../../shared/url.ts';
+import { GITHUB_REPO_URL } from '../../shared/updates.ts';
 import { builtinUa, uaModeLabel, type UaPreference } from '../../shared/ua.ts';
 import { switchText } from '../../shared/switch.ts';
 import { cave } from '../bridge.ts';
@@ -489,7 +490,87 @@ function AdvancedSection({ active, state, data, act, confirm, checks, runChecks,
   </section>;
 }
 
-const sections: Record<SettingsSection, typeof OverviewSection> = {overview: OverviewSection, nodes: NodesSection, env: EnvSection, privacy: PrivacySection, downloads: DownloadsSection, appearance: AppearanceSection, advanced: AdvancedSection};
+function formatUpdateError(err: UpdateError): string {
+  switch (err.kind) {
+    case 'rateLimit': return t('set.about.errRateLimit', { status: err.status });
+    case 'http': return t('set.about.errHttp', { status: err.status });
+    case 'timeout': return t('set.about.errTimeout');
+    case 'network': return t('set.about.errNetwork');
+    case 'invalid': return t('set.about.errInvalid');
+  }
+}
+
+function AboutMark() {
+  return <svg width="28" height="28" viewBox="179.36 173.36 665.28 665.28" aria-hidden="true"><path d="M228 540C332 560 430 430 512 296C594 430 692 560 796 540Q822 560 796 590C692 614 590 530 512 470C434 530 332 614 228 590Q202 560 228 540Z" fill="currentColor" /><path d="M438 642a74 74 0 1 0 148 0a74 74 0 1 0 -148 0Z" fill="currentColor" /></svg>;
+}
+
+function AboutSection({ active, state, data, act, busy }: Props) {
+  const u = state.update;
+  const checking = u.status === 'checking' || busy.has('check-updates');
+  const viaText = u.via === 'proxy' ? t('set.about.checkedViaProxy') : u.via === 'direct' ? t('set.about.checkedDirect') : '';
+  const timeText = u.checkedAt ? new Date(u.checkedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+  const metaSuffix = [viaText, timeText].filter(Boolean).join(' · ');
+
+  let statusText = t('set.about.statusIdle');
+  if (checking) statusText = t('set.about.statusChecking');
+  else if (u.status === 'available' && u.available) statusText = [t(u.available.prerelease ? 'set.about.statusAvailablePre' : 'set.about.statusAvailable', { tag: u.available.tag }), viaText].filter(Boolean).join(' · ');
+  else if (u.status === 'latest') statusText = [t('set.about.statusLatest'), metaSuffix].filter(Boolean).join(' · ');
+  else if (u.status === 'error' && u.error) statusText = t('set.about.errorPrefix', { reason: formatUpdateError(u.error) });
+
+  return <section data-section="about" class="entering" hidden={!active}>
+    <h2>{t('set.about.title')}</h2>
+    <div class="about-head">
+      <div class="about-mark"><AboutMark /></div>
+      <div class="about-identity">
+        <div class="about-name-row"><strong>Anyu</strong><span class="about-version">v{u.currentVersion}</span></div>
+        <p>{t('set.about.tagline')}</p>
+      </div>
+    </div>
+    <div class="group">
+      <h3>{t('set.about.updatesHeading')}</h3>
+      <div class="card">
+        <div class="row">
+          <div class="label">
+            <b>{t('set.about.currentVersion', { version: `v${u.currentVersion}` })}</b>
+            <small id="update-status" class={u.status === 'available' ? 'about-available' : u.status === 'error' ? 'about-error' : undefined}>{statusText}</small>
+          </div>
+          <div class="about-actions">
+            {u.status === 'available' && u.available ? <>
+              <button type="button" id="download-update" class="btn primary" onClick={() => void cave.openUpdateUrl(u.available!.url)}><Icon name="external-link" />{t('set.about.download')}</button>
+              <button type="button" id="check-updates" class="btn" disabled={checking} onClick={() => act(() => cave.checkForUpdates(), 'check-updates')}>{t('set.about.recheck')}</button>
+            </> : (
+              <button type="button" id="check-updates" class="btn" disabled={checking} onClick={() => act(() => cave.checkForUpdates(), 'check-updates')}>{t('set.about.checkNow')}</button>
+            )}
+          </div>
+        </div>
+        <label class="row">
+          <div class="label">
+            <b>{t('set.about.autoCheck')}</b>
+            <small>{t('set.about.autoCheckHint')}</small>
+          </div>
+          <input id="auto-check-updates" type="checkbox" class="switch" checked={u.autoCheck} onChange={e => void cave.setAutoCheckUpdates(e.currentTarget.checked)} />
+        </label>
+      </div>
+    </div>
+    <div class="group">
+      <h3>{t('set.about.infoHeading')}</h3>
+      <div class="card">
+        <div class="row">
+          <div class="label"><b>{t('set.about.repo')}</b><small>github.com/5nix/anyu-browser</small></div>
+          <button type="button" class="btn" onClick={() => void cave.openUpdateUrl(GITHUB_REPO_URL)}><Icon name="external-link" />{t('set.about.openRepo')}</button>
+        </div>
+        <div class="row">
+          <div class="label"><b>{t('set.about.runtime')}</b><small>{`Electron ${data.runtime.electron} · Chromium ${data.runtime.chrome} · mihomo ${data.runtime.mihomo}`}</small></div>
+        </div>
+        <div class="row">
+          <div class="label"><b>{t('set.about.license')}</b><small>{t('set.about.licenseDetail')}</small></div>
+        </div>
+      </div>
+    </div>
+  </section>;
+}
+
+const sections: Record<SettingsSection, typeof OverviewSection> = {overview: OverviewSection, nodes: NodesSection, env: EnvSection, privacy: PrivacySection, downloads: DownloadsSection, appearance: AppearanceSection, advanced: AdvancedSection, about: AboutSection};
 
 export function SettingsView() {
   const state = useCave();
@@ -497,6 +578,7 @@ export function SettingsView() {
   const [section, setSection] = useState<SettingsSection>('overview'), [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState<Set<string>>(new Set());
   const [dialog, setDialog] = useState<DialogRequest | null>(null);
+  const [updateDismissedTag, setUpdateDismissedTag] = useState<string | null>(null);
   const contentRef = useRef<HTMLElement>(null);
   const refresh = async () => { const next = await cave.panelData(); if (next) setData(next); };
   const runChecks = async () => { const next = await cave.runChecks(); if (Array.isArray(next)) setChecks(next); };
@@ -510,6 +592,8 @@ export function SettingsView() {
   if (!state || !data) return null;
   setLocale(state.locale);
   document.documentElement.lang = state.locale === 'zh' ? 'zh-CN' : 'en';
-  const nav: [SettingsSection, string, string][] = [['overview','shield-check',t('set.overview.title')], ['nodes','network',t('set.nodes.title')], ['env','fingerprint',t('set.env.title')], ['privacy','database',t('set.privacy.title')], ['downloads','download',t('set.downloads.title')], ['appearance','palette',t('set.appearance.title')], ['advanced','wrench',t('set.advanced.title')]];
-  return <><nav id="nav" aria-label={t('set.nav.label')}><h1>{t('set.nav.settings')}</h1>{nav.map(([id, icon, label]) => <a data-section={id} tabindex={0} role="button" aria-current={section === id ? 'page' : undefined} class={section === id ? 'current' : ''} onClick={() => setSection(id)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSection(id); } }}><Icon name={icon} />{label}</a>)}</nav><main ref={contentRef} id="content"><div id="restart-banner" class="banner" hidden={!data.restartNeeded}><Icon name="triangle-alert" /><span>{t('set.restart.banner')}</span><button id="restart-app" class="btn" onClick={() => cave.restart()}>{t('set.restart.now')}</button></div><p id="notice" class="banner" hidden={!notice}>{notice ?? ''}</p>{Object.entries(sections).map(([id, Component]) => <Component active={section === id} state={state} data={data} act={act} confirm={confirm} checks={checks} runChecks={runChecks} busy={busy} />)}</main><SettingsDialog request={dialog} onClose={() => setDialog(null)} /></>;
+  const hasUpdate = state.update.status === 'available' && !!state.update.available;
+  const showUpdateBanner = hasUpdate && section !== 'about' && updateDismissedTag !== state.update.available!.tag;
+  const nav: [SettingsSection, string, string][] = [['overview','shield-check',t('set.overview.title')], ['nodes','network',t('set.nodes.title')], ['env','fingerprint',t('set.env.title')], ['privacy','database',t('set.privacy.title')], ['downloads','download',t('set.downloads.title')], ['appearance','palette',t('set.appearance.title')], ['advanced','wrench',t('set.advanced.title')], ['about','info',t('set.about.title')]];
+  return <><nav id="nav" aria-label={t('set.nav.label')}><h1>{t('set.nav.settings')}</h1>{nav.map(([id, icon, label]) => <a data-section={id} tabindex={0} role="button" aria-current={section === id ? 'page' : undefined} class={section === id ? 'current' : ''} onClick={() => setSection(id)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSection(id); } }}><Icon name={icon} /><span>{label}</span>{id === 'about' && hasUpdate && <span class="nav-dot" aria-hidden="true" />}</a>)}</nav><main ref={contentRef} id="content"><div id="restart-banner" class="banner" hidden={!data.restartNeeded}><Icon name="triangle-alert" /><span>{t('set.restart.banner')}</span><button id="restart-app" class="btn" onClick={() => cave.restart()}>{t('set.restart.now')}</button></div><div id="update-banner" class="banner info" hidden={!showUpdateBanner}><Icon name="info" /><span>{state.update.available ? t(state.update.available.prerelease ? 'set.about.bannerPre' : 'set.about.banner', { tag: state.update.available.tag }) : ''}</span><button type="button" class="btn" onClick={() => setSection('about')}>{t('set.about.bannerView')}</button><button type="button" class="icon-btn sm" aria-label={t('set.nodes.close')} onClick={() => setUpdateDismissedTag(state.update.available?.tag ?? null)}><Icon name="x" /></button></div><p id="notice" class="banner" hidden={!notice}>{notice ?? ''}</p>{Object.entries(sections).map(([id, Component]) => <Component active={section === id} state={state} data={data} act={act} confirm={confirm} checks={checks} runChecks={runChecks} busy={busy} />)}</main><SettingsDialog request={dialog} onClose={() => setDialog(null)} /></>;
 }

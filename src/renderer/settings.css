@@ -249,3 +249,18 @@ input.num { width: 96px; }
 .profile-actions { display: flex; align-items: center; gap: 6px; flex: none; }
 .profile-delete:hover:not(:disabled) { color: var(--danger); }
 
+.nav-dot { width: 6px; height: 6px; border-radius: 50%; margin-left: auto; background: var(--accent); flex: none; }
+.banner.info { background: var(--accent-soft); }
+.banner.info > svg { color: var(--accent); }
+
+.about-head { display: flex; align-items: center; gap: 16px; padding: 18px 20px; border-radius: var(--r-card); background: var(--sunken); }
+.about-mark { width: 44px; height: 44px; border-radius: 11px; display: grid; place-items: center; flex: none; background: var(--accent-fill); color: var(--on-accent); }
+.about-identity { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.about-name-row { display: flex; align-items: center; gap: 8px; }
+.about-name-row strong { font-size: var(--fs-title); font-weight: var(--fw-page); }
+.about-version { font-size: var(--fs-cap); padding: 1px 7px; border-radius: var(--r-pill); color: var(--text-2); background: var(--surface); box-shadow: inset 0 0 0 1px var(--sep); font-variant-numeric: tabular-nums; }
+.about-identity p { margin: 0; color: var(--text-2); font-size: var(--fs-sm); line-height: 1.5; }
+.about-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.about-available { color: var(--accent) !important; font-weight: var(--fw-label); }
+.about-error { color: var(--danger) !important; }
+

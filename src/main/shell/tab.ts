@@ -188,11 +188,32 @@ export class Tab {
     void wc.debugger.sendCommand('Page.enable').catch(() => undefined);
     void wc.debugger.sendCommand('Network.enable').catch(() => undefined);
     for (const e of ['page-title-updated', 'did-start-loading', 'did-stop-loading', 'did-navigate', 'did-navigate-in-page', 'audio-state-changed'] as const) wc.on(e as any, changed);
-    wc.on('page-favicon-updated', (_event, icons) => {
+    let faviconCandidates: { origin: string; urls: string[] } | undefined;
+    let faviconGeneration = -1;
+    let faviconRequest = 0;
+    const loadFavicon = (icons: string[]) => {
       const url = wc.getURL(), generation = this.generation;
-      void this.host?.fetchFavicon(this, url, icons).then(icon => { if (icon && generation === this.generation && wc.getURL() === url) { this.favicon = icon; changed(); } });
+      faviconGeneration = generation;
+      const request = ++faviconRequest;
+      void this.host?.fetchFavicon(this, url, icons).then(icon => {
+        if (icon && request === faviconRequest && generation === this.generation && !wc.isDestroyed()) {
+          this.favicon = icon;
+          changed();
+        }
+      });
+    };
+    wc.on('page-favicon-updated', (_event, urls) => {
+      faviconCandidates = { origin: originOf(wc.getURL()), urls };
+      loadFavicon(urls);
     });
-    wc.on('did-finish-load', () => this.host?.committed(this, wc.getURL()));
+    wc.on('did-finish-load', () => {
+      const url = wc.getURL();
+      this.host?.committed(this, url);
+      // Electron only emits the favicon event when the URL list changes, including across reloads.
+      if (!this.favicon && faviconGeneration !== this.generation) {
+        loadFavicon(faviconCandidates?.origin === originOf(url) ? faviconCandidates.urls : []);
+      }
+    });
     wc.on('did-navigate', (_event, url) => { this.insecure = this.certificateAccepted || (this.host?.hasCertificateException(url) ?? false); this.host?.committed(this, url); if (/^https?:/i.test(url)) this.host?.historyVisit(url, wc.getTitle()); });
     wc.on('page-title-updated', (_event, title) => { const url = wc.getURL(); if (/^https?:/i.test(url)) this.host?.historyTitle(url, title); });
     wc.on('did-start-navigation', (e) => {

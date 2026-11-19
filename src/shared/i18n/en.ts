@@ -18,6 +18,7 @@ export const en: Record<keyof typeof zh, string> = {
   command_downloads_open: 'Downloads',
   downloads_clear: 'Clear records', downloads_empty: 'No downloads',
   download_open: 'Open', download_reveal: 'Show in folder', download_remove: 'Remove record', download_missing: 'File not found',
+  download_started: 'Download start time', download_trash: 'Delete file (move to Trash)', download_trash_failed: 'Could not move the file to Trash.',
   download_pause: 'Pause', download_resume: 'Resume', download_cancel: 'Cancel', download_paused: 'Paused',
   auth_title: 'Site sign-in', auth_realm: 'Authentication realm: {realm}', auth_username: 'Username', auth_password: 'Password', auth_submit: 'Sign in', auth_cancel: 'Cancel', auth_insecure: 'Connection not secure — password sent in clear', auth_invalid: 'Input is too long. Edit and retry.',
   permission_allow: 'Always allow', permission_save_failed: 'Could not save. Try again.',

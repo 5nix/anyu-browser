@@ -18,6 +18,7 @@ export const zh = {
   command_downloads_open: '下载内容',
   downloads_clear: '清除记录', downloads_empty: '没有下载记录',
   download_open: '打开', download_reveal: '在文件管理器中显示', download_remove: '移除记录', download_missing: '文件不存在',
+  download_started: '下载开始时间', download_trash: '删除文件（移到回收站）', download_trash_failed: '无法将文件移到回收站。',
   download_pause: '暂停', download_resume: '继续', download_cancel: '取消', download_paused: '已暂停',
   auth_title: '网站登录', auth_realm: '认证范围：{realm}', auth_username: '用户名', auth_password: '密码', auth_submit: '登录', auth_cancel: '取消', auth_insecure: '连接不安全 — 密码将以明文发送', auth_invalid: '输入过长，请修改',
   permission_allow: '始终允许', permission_save_failed: '保存失败，请重试',

@@ -8,6 +8,12 @@ import { fileURLToPath } from 'node:url';
 
 const dir = join(dirname(fileURLToPath(import.meta.url)), 'fixtures');
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.pdf': 'application/pdf' };
+const ICON_PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAGUlEQVR4nGPQmt32nxLMMGrAqAGjBgwXAwBku0of30Lv1QAAAABJRU5ErkJggg==', 'base64');
+const ICO_HEADER = Buffer.from([
+  0, 0, 1, 0, 1, 0,             // ICO with one image
+  16, 16, 0, 0, 1, 0, 32, 0,    // 16 × 16, 32-bit
+  ICON_PNG.length, 0, 0, 0, 22, 0, 0, 0,
+]);
 
 // QM and QN are user-assigned ISO region codes, used here as synthetic exits.
 export function startFixtureServer({ port = 0, host = '127.0.0.1', country = 'QM', tls } = {}) {
@@ -17,7 +23,13 @@ export function startFixtureServer({ port = 0, host = '127.0.0.1', country = 'QM
   const handler = async (req, res) => {
     requests.push({ url: req.url, host: req.headers.host, headers: req.headers });
     const path = new URL(req.url, 'http://x').pathname;
-    if (path === '/favicon-page') return send(res, 200, '<!doctype html><title>Favicon fixture</title><link rel="icon" href="http://icon.cave.test/icon.png">', TYPES['.html']);
+    if (path === '/favicon-page') return send(res, 200, '<!doctype html><title>Favicon fixture</title><link rel="icon" href="http://icon.cave.test/icon-redirect">', TYPES['.html']);
+    if (path === '/icon-redirect') {
+      res.writeHead(302, { Location: 'http://icon-cdn.cave.test/icon.ico' });
+      return res.end();
+    }
+    if (path === '/icon.ico') return send(res, 200, Buffer.concat([ICO_HEADER, ICON_PNG]), 'application/octet-stream');
+    if (path === '/icon.svg') return send(res, 200, '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><circle cx="16" cy="16" r="16" fill="blue"/></svg>', 'image/svg+xml');
     if (path === '/speech-frame') {
       return send(res, 200, `<!doctype html><script>
 const has = 'speechSynthesis' in window;
@@ -28,7 +40,7 @@ setTimeout(() => {
 }, 800);
 </script>`, TYPES['.html']);
     }
-    if (path === '/icon.png') return send(res, 200, Buffer.from('iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAGUlEQVR4nGPQmt32nxLMMGrAqAGjBgwXAwBku0of30Lv1QAAAABJRU5ErkJggg==', 'base64'), 'image/png');
+    if (path === '/icon.png') return send(res, 200, ICON_PNG, 'image/png');
     if (path === '/slow-download') {
       const chunk = Buffer.alloc(16384, 97); let sent = 0;
       res.writeHead(200, { 'Content-Type': 'application/octet-stream', 'Content-Disposition': 'attachment; filename="slow.bin"', 'Content-Length': chunk.length * 40, 'Cache-Control': 'no-store' });

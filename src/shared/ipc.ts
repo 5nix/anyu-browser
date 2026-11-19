@@ -37,7 +37,8 @@ export interface TabState {
   /** Why the last load of the page failed (a Chromium net error), until something else is loaded. */
   error: { code: number; description: string; url: string; kind: 'network' | 'gate' | 'certificate'; generation: number } | null;
 }
-export interface DownloadState { id: number; name: string; path: string; received: number; total: number; paused: boolean; started: number; ended: number | null; exists: boolean; state: 'progressing' | 'completed' | 'cancelled' | 'interrupted' }
+export interface DownloadState { id: number; name: string; path: string; received: number; total: number; paused: boolean; started: number; ended: number | null; exists: boolean; trashing?: boolean; trashFailed?: boolean; state: 'progressing' | 'completed' | 'cancelled' | 'interrupted' }
+export type DownloadAction = 'pause' | 'resume' | 'cancel' | 'open' | 'reveal' | 'trash' | 'remove';
 export interface CheckItem { id: number; title: string; pass: boolean; detail: string }
 /** country: the egress last seen through that node in this run ('' until it has been checked) */
 export type DelayOutcome = { status: 'untested' } | { status: 'measured'; ms: number } | { status: 'timeout' };
@@ -88,6 +89,7 @@ export interface ShellState {
   showTime: boolean;
   clock24Hour: boolean;
   timezone: string;
+  systemTimezone: string;
   locale: Locale;
   localePreference: LocalePreference;
   searchEngine: SearchEngine;
@@ -190,7 +192,7 @@ export interface CaveCalls {
   setRestoreSession(enabled: boolean): void;
   setSearchEngine(engine: SearchEngine): boolean;
   listDownloads(): DownloadState[];
-  downloadAction(id: number, action: 'pause' | 'resume' | 'cancel' | 'open' | 'reveal' | 'remove'): void;
+  downloadAction(id: number, action: DownloadAction): void;
   chooseDownloadsDir(): string | null;
   resetDownloadsDir(): void;
   revealDownloadsDir(): void;

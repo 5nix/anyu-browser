@@ -73,7 +73,9 @@ body { user-select: none; }
 .download-name { display: flex; white-space: nowrap; }
 .download-name span:first-child { overflow: hidden; text-overflow: ellipsis; }
 .download-detail small { color: var(--text-2); font-size: var(--fs-sm); }
+.download-detail .download-file-status { display: block; }
 .download-actions { display: flex; flex: none; }
+.download-actions .download-delete-file:hover:not(:disabled) { color: var(--danger); }
 .download-progress { height: 2px; margin-top: 6px; background: var(--sep); border-radius: 999px; overflow: hidden; }
 .download-progress div { height: 100%; background: var(--accent); }
 

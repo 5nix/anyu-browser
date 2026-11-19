@@ -9,6 +9,7 @@ import { GITHUB_REPO_URL } from '../../shared/updates.ts';
 import { builtinUa, uaModeLabel, type UaPreference } from '../../shared/ua.ts';
 import { switchText } from '../../shared/switch.ts';
 import { cave } from '../bridge.ts';
+import { DownloadActions, DownloadFileStatus, DownloadTime, useDownloadDateFormat } from '../download-row.tsx';
 import { ConditionList, GateSummary, gateStatus, regionName } from '../gate-status.tsx';
 import { Icon, useCave } from '../ui/index.tsx';
 import { ExternalCredentials, ExternalEndpoint, NodeList, ThemePicker, protocol, type ExternalDraft } from '../proxy-controls.tsx';
@@ -390,6 +391,7 @@ function PrivacySection({ active, state, data, act, confirm, checks, runChecks, 
 }
 
 function DownloadsSection({ active, state, data, act, confirm, checks, runChecks, busy }: Props) {
+  const dateFormat = useDownloadDateFormat(state);
   const isDefault = state.downloadsDir === state.defaultDownloadsDir;
   return <section data-section="downloads" class="entering" hidden={!active}>
     <h2>{t('set.downloads.title')}</h2>
@@ -411,7 +413,26 @@ function DownloadsSection({ active, state, data, act, confirm, checks, runChecks
     </div>
     <div class="group">
       <h3>{t('set.downloads.list')}</h3>
-      <div class="card"><ul id="downloads" class="downloads">{!state.downloads.length && <li class="empty">{t('downloads_empty')}</li>}{state.downloads.map(d => <li><Icon name="file" /><span class="download-copy"><span class="name" title={d.name}>{d.name}</span><span class="state">{d.state === 'progressing' ? `${d.paused ? t('download_paused') + ' · ' : ''}${d.total ? Math.round(d.received / d.total * 100) : 0}%` : {completed:t('set.downloads.completed'), cancelled:t('set.downloads.cancelled'), interrupted:t('set.downloads.interrupted')}[d.state]}</span></span>{d.state === 'progressing' ? <><button class="icon-btn" title={d.paused ? t('download_resume') : t('download_pause')} aria-label={d.paused ? t('download_resume') : t('download_pause')} onClick={() => cave.downloadAction(d.id, d.paused ? 'resume' : 'pause')}><Icon name={d.paused ? 'play' : 'pause'} /></button><button class="icon-btn" title={t('download_cancel')} aria-label={t('download_cancel')} onClick={() => cave.downloadAction(d.id, 'cancel')}><Icon name="x" /></button></> : <>{d.state === 'completed' && <><button class="icon-btn" disabled={!d.exists} title={!d.exists ? t('download_missing') : t('download_open')} aria-label={t('download_open')} onClick={() => cave.downloadAction(d.id, 'open')}><Icon name="external-link" /></button><button class="icon-btn" disabled={!d.exists} title={t('download_reveal')} aria-label={t('download_reveal')} onClick={() => cave.downloadAction(d.id, 'reveal')}><Icon name="folder-open" /></button>{!d.exists && <small>{t('download_missing')}</small>}</>}<button class="icon-btn" title={t('download_remove')} aria-label={t('download_remove')} onClick={() => cave.downloadAction(d.id, 'remove')}><Icon name="trash-2" /></button></>}</li>)}</ul>{state.downloads.some(d => d.state !== 'progressing') && <button class="btn" onClick={() => state.downloads.filter(d => d.state !== 'progressing').forEach(d => void cave.downloadAction(d.id, 'remove'))}>{t('downloads_clear')}</button>}</div>
+      <div class="card">
+        <ul id="downloads" class="downloads">
+          {!state.downloads.length && <li class="empty">{t('downloads_empty')}</li>}
+          {state.downloads.map(d => {
+            const status = d.state === 'progressing'
+              ? `${d.paused ? t('download_paused') + ' · ' : ''}${d.total ? Math.round(d.received / d.total * 100) : 0}%`
+              : { completed: t('set.downloads.completed'), cancelled: t('set.downloads.cancelled'), interrupted: t('set.downloads.interrupted') }[d.state];
+            return <li key={d.id}><Icon name="file" />
+              <span class="download-copy">
+                <span class="name" title={d.name}>{d.name}</span>
+                <span class="state">{status}</span>
+                <span class="state"><DownloadTime started={d.started} format={dateFormat} /></span>
+                <DownloadFileStatus download={d} />
+              </span>
+              <DownloadActions download={d} />
+            </li>;
+          })}
+        </ul>
+        {state.downloads.some(d => d.state !== 'progressing') && <button class="btn" onClick={() => state.downloads.filter(d => d.state !== 'progressing').forEach(d => void cave.downloadAction(d.id, 'remove'))}>{t('downloads_clear')}</button>}
+      </div>
     </div>
   </section>;
 }

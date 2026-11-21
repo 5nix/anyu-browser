@@ -11,7 +11,7 @@ import { canBookmarkUrl, isSearchEngine } from '../../shared/url.ts';
 import type { SearchEngine, ShellState, TabLayout, Shortcut } from '../../shared/ipc.ts';
 import { appMenu, bindCommands, type Commands } from './commands.ts';
 import type { History, Bookmarks, SiteSettings, Sessions, Downloads as DownloadRepository } from '../store/index.ts';
-import { Downloads } from './downloads.ts';
+import { Downloads, type DownloadFileActions } from './downloads.ts';
 import { Navigator } from './navigation.ts';
 import { localSuggestions } from './suggestions.ts';
 import type { SessionSnapshot } from './session-snapshot.ts';
@@ -31,7 +31,7 @@ export interface BrowserOptions {
   defaultDownloadsDir: string;
   saveDownloadsDir: (dir: string | null) => void;
   downloadStore: DownloadRepository;
-  downloadFiles?: Pick<typeof import('electron').shell, 'openPath' | 'showItemInFolder'>;
+  downloadFiles?: DownloadFileActions;
   history: History;
   bookmarks: Bookmarks;
   siteSettings: SiteSettings;
@@ -49,6 +49,7 @@ export interface BrowserOptions {
   saveShowTime: (enabled: boolean) => void;
   saveClock24Hour: (enabled: boolean) => void;
   timezone: () => string;
+  systemTimezone: string;
   tabLayout: TabLayout;
   saveTabLayout: (layout: TabLayout) => void;
   sidebarWidth: number;
@@ -122,7 +123,7 @@ export class Browser extends EventEmitter {
         shortcuts: o.shortcuts().map(item => ({ ...item, favicon: o.favicons.get(item.url) })),
         gate: o.gate(), downloads: this.downloads.all(), downloadsDir: this.downloadsDir, defaultDownloadsDir: o.defaultDownloadsDir, notice: typeof this.notice === 'function' ? this.notice() : this.notice,
         locale: this.locale, localePreference: this.localePreference, accent: this.accent, theme: this.theme,
-        showTime: this.showTime, clock24Hour: this.clock24Hour, timezone: o.timezone(),
+        showTime: this.showTime, clock24Hour: this.clock24Hour, timezone: o.timezone(), systemTimezone: o.systemTimezone,
         searchEngine: this.searchEngine, restoreSession: this.restoreSession, setup: o.setup(),
         currentProfile: { ...o.currentProfile(), accent: this.accent },
         profiles: o.profiles().map(p => p.current ? { ...p, accent: this.accent } : p),
@@ -146,7 +147,7 @@ export class Browser extends EventEmitter {
       getZoom: (origin) => o.siteSettings.getZoom(origin),
       setZoom: (origin, value) => { o.siteSettings.setZoom(origin, value); for (const w of this.windows) w.applyOriginZoom(origin, value); },
       favicon: (url) => o.favicons.get(url),
-      fetchFavicon: (tab, url, icons) => o.favicons.load(tab.wc.session, url, icons),
+      fetchFavicon: (tab, url, icons, chrome) => o.favicons.load(tab.wc.session, url, icons, chrome),
       historyVisit: (url, title) => o.history.visit(url, title, false),
       historyTitle: (url, title) => o.history.setTitle(url, title),
       load: (wc, url) => this.navigator.load(wc, url),

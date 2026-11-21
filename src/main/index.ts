@@ -81,6 +81,9 @@ const startupProfile = profile();
 const ports = await reservePorts();
 pinNetwork(ports);
 app.commandLine.appendSwitch('lang', startupProfile.locale);
+// A relaunch or a second profile can inherit the previous instance's TZ override.
+delete process.env.TZ;
+const systemTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 // Engine-wide default for anything the debugger cannot reach before it runs (macOS/Linux).
 process.env.TZ = startupProfile.timezone;
 registerProbeScheme();
@@ -238,6 +241,7 @@ async function start(): Promise<void> {
     ...(process.env.CAVE_TEST_DOWNLOAD_LOG ? { downloadFiles: {
       openPath: async (path: string) => { appendFileSync(process.env.CAVE_TEST_DOWNLOAD_LOG!, JSON.stringify(['open', path]) + '\n'); return ''; },
       showItemInFolder: (path: string) => { appendFileSync(process.env.CAVE_TEST_DOWNLOAD_LOG!, JSON.stringify(['reveal', path]) + '\n'); },
+      trashItem: async (path: string) => { appendFileSync(process.env.CAVE_TEST_DOWNLOAD_LOG!, JSON.stringify(['trash', path]) + '\n'); },
     } } : {}),
     history,
     bookmarks,
@@ -249,6 +253,7 @@ async function start(): Promise<void> {
     saveShowTime: (enabled) => prefs.set('showTime', enabled),
     saveClock24Hour: (enabled) => prefs.set('clock24Hour', enabled),
     timezone: () => profile().timezone,
+    systemTimezone,
     tabLayout: prefs.get<TabLayout>('tabLayout', 'top') === 'side' ? 'side' : 'top',
     saveTabLayout: (tabLayout) => prefs.set('tabLayout', tabLayout),
     sidebarWidth: prefs.get<number>('sidebarWidth', 256),

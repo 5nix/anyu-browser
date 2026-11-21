@@ -6,7 +6,7 @@ export const FAVICON_CACHE_BYTES = 20 * 1024 * 1024;
 export function faviconOrigin(url: string): string | null {
   try { const u = new URL(url); return u.protocol === 'http:' || u.protocol === 'https:' ? u.origin : null; } catch { return null; }
 }
-export function faviconType(type: string): boolean { return /^image\/(?:png|jpeg|gif|webp|x-icon|vnd\.microsoft\.icon|avif)(?:\s*;|\s*$)/i.test(type); }
+export function faviconType(type: string): boolean { return /^image\/(?:png|jpeg|gif|webp|ico|x-icon|vnd\.microsoft\.icon|avif|svg\+xml|bmp)(?:\s*;|\s*$)/i.test(type); }
 export class Favicons {
   private store: Store;
   constructor(store: Store) { this.store = store; }

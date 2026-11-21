@@ -666,10 +666,16 @@ test('history: excludes internal pages, failed loads and subframes', async (t) =
 
 test('favicon and site info route through proxy', async (t) => {
   const { w, port, shell, overlay } = await launch(t, { tls: true, blank: true, open: true });
-  await shell("cave.navigate('http://fp.cave.test/favicon-page')");
-  await waitFor(() => shell("!!document.querySelector('.tab.active .fav img') && !!document.querySelector('#site-icon img')"));
+  const page = 'http://fp.cave.test/favicon-page';
+  await shell(`cave.navigate(${JSON.stringify(page)})`);
+  const icon = () => shell("document.querySelector('.tab.active .fav img')?.naturalWidth === 32 && document.querySelector('#site-icon img')?.naturalWidth === 32 && document.querySelector('#site-icon img').src");
+  const ico = await waitFor(icon);
   assert.ok(w.socks.targets.some(x => x.host === 'icon.cave.test' && x.port === 80));
-  assert.ok(w.fixture.requests.some(x => x.host === 'icon.cave.test' && x.url === '/icon.png'));
+  assert.ok(w.socks.targets.some(x => x.host === 'icon-cdn.cave.test' && x.port === 80));
+  assert.ok(w.fixture.requests.some(x => x.host === 'icon-cdn.cave.test' && x.url === '/icon.ico'));
+  await evaluate(port, u => u === page, "document.querySelector('link[rel=icon]').href = 'http://icon.cave.test/icon.svg'");
+  await waitFor(async () => { const svg = await icon(); return svg && svg !== ico; });
+  assert.ok(w.fixture.requests.some(x => x.host === 'icon.cave.test' && x.url === '/icon.svg'));
   await shell("document.querySelector('#site-icon').click()");
   await waitFor(() => overlay("document.querySelector('#siteInfo.in')?.textContent.includes('连接不安全')"));
   await shell("document.querySelector('#site-icon').click()");

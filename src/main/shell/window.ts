@@ -34,7 +34,7 @@ export interface WindowHost {
   suggest(win: ShellWindow, input: string): { items: LocalSuggestion[]; unavailable: boolean };
   activateSuggestion(target: LocalTab): boolean;
   favicon(url: string): string | null;
-  fetchFavicon(tab: Tab, url: string, icons: string[]): Promise<string | null>;
+  fetchFavicon(tab: Tab, url: string, icons: string[], chrome: WebContents): Promise<string | null>;
   historyVisit(url: string, title: string): void;
   historyTitle(url: string, title: string): void;
   rendererDir: string;
@@ -43,7 +43,7 @@ export interface WindowHost {
   setTabLayout(layout: TabLayout): void;
   sidebarWidth(): number;
   /** The part of the state that is the same in every window. */
-  shared(): Pick<ShellState, 'shortcuts' | 'gate' | 'downloads' | 'downloadsDir' | 'defaultDownloadsDir' | 'notice' | 'locale' | 'localePreference' | 'accent' | 'theme' | 'showTime' | 'clock24Hour' | 'timezone' | 'searchEngine' | 'restoreSession' | 'setup' | 'currentProfile' | 'profiles' | 'update'>;
+  shared(): Pick<ShellState, 'shortcuts' | 'gate' | 'downloads' | 'downloadsDir' | 'defaultDownloadsDir' | 'notice' | 'locale' | 'localePreference' | 'accent' | 'theme' | 'showTime' | 'clock24Hour' | 'timezone' | 'systemTimezone' | 'searchEngine' | 'restoreSession' | 'setup' | 'currentProfile' | 'profiles' | 'update'>;
   refreshProfiles(): void;
   canBrowse(): boolean;
   run(id: CommandId, win: ShellWindow): void;
@@ -864,7 +864,9 @@ export class ShellWindow implements TabHost {
   // ---- what the window's tabs tell it (TabHost) ----
 
   favicon(url: string): string | null { return this.host.favicon(url); }
-  fetchFavicon(tab: Tab, url: string, icons: string[]): Promise<string | null> { return this.host.fetchFavicon(tab, url, icons); }
+  fetchFavicon(tab: Tab, url: string, icons: string[]): Promise<string | null> {
+    return this.host.fetchFavicon(tab, url, icons, this.chrome.webContents);
+  }
   historyVisit(url: string, title: string): void { this.host.historyVisit(url, title); }
   historyTitle(url: string, title: string): void { this.host.historyTitle(url, title); }
 

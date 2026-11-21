@@ -84,7 +84,7 @@ input.num { width: 96px; }
 .downloads li + li { border-top: 1px solid var(--sep); }
 .downloads .download-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .downloads .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.downloads .state { color: var(--text-2); font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
+.downloads .state, .downloads .download-file-status { color: var(--text-2); font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
 
 #tab-layout svg { color: var(--text-2); width: 20px; height: 20px; }
 
@@ -111,7 +111,7 @@ input.num { width: 96px; }
 
 #site-permissions .icon-btn:hover:not(:disabled), #site-ua-list .icon-btn:hover:not(:disabled) { color: var(--danger); }
 
-.downloads .icon-btn:last-child:hover:not(:disabled) { color: var(--danger); }
+.downloads .download-delete-file:hover:not(:disabled) { color: var(--danger); }
 
 /* Appearance controls. Native radios provide arrow-key navigation within each group. */
 .accent-picker { display: flex; gap: 8px; }

@@ -38,7 +38,6 @@ body.top :is(#nav, #find, #tools) .icon-btn { width: var(--button); height: var(
 body.top .icon-btn svg.icon { width: 16px; height: 16px; }
 body.top :is(#nav, #find, #tools) .icon-btn:hover:not(:disabled) { background: var(--press); }
 body.top :is(#nav, #find, #tools) .icon-btn:active:not(:disabled), body.top #tools .icon-btn.on { background: color-mix(in srgb, var(--text) 15%, transparent); }
-body.top #status .dot { right: 5px; bottom: 6px; box-shadow: 0 0 0 1.5px var(--band); }
 body.top #tablist { display: flex; gap: 2px; min-width: 0; flex: 0 1 auto; align-self: stretch; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; padding: 0 var(--foot); scroll-padding-inline: var(--foot); }
 body.top #tablist.more-above { mask-image: linear-gradient(to right, transparent, black 16px); }
 body.top #tablist.more-below { mask-image: linear-gradient(to right, black calc(100% - 16px), transparent); }
@@ -63,7 +62,6 @@ body.top .tab.active::before, body.top .tab.active::after { content: ''; display
 body.top .tab.active::before { left: calc(-1 * var(--foot)); background: radial-gradient(circle at 0 0, transparent calc(var(--foot) - .4px), var(--band) calc(var(--foot) + .2px)); }
 body.top .tab.active::after { right: calc(-1 * var(--foot)); background: radial-gradient(circle at 100% 0, transparent calc(var(--foot) - .4px), var(--band) calc(var(--foot) + .2px)); }
 body.top #tablist.reordering .tab.dragging { box-shadow: none; }
-body.top .tab .close { border-radius: 50%; }
 /* Pulled into the list's foot padding: 4px from the last tab. */
 body.top #new-tab { width: 28px; height: 28px; border-radius: 50%; margin-left: calc(4px - var(--foot)); flex: none; }
 body.top #new-tab .label { display: none; }
@@ -107,6 +105,7 @@ body.side .tab.leaving { animation: tab-out-y var(--dur-tab) var(--ease-out) for
 .tab { touch-action: none; }
 
 .icon-btn:hover:not(:disabled) { background: var(--frame-hover); }
+:is(#nav, #find, #tools) .icon-btn { border-radius: 50%; }
 .icon-btn:active:not(:disabled), .icon-btn.on { background: var(--frame-press); }
 #nav { grid-area: nav; }
 #address-form { grid-area: address; }
@@ -123,7 +122,7 @@ body.side .tab.leaving { animation: tab-out-y var(--dur-tab) var(--ease-out) for
 .tab .fav .spin { animation: spin .9s linear infinite; color: var(--accent); }
 @keyframes spin { to { transform: rotate(360deg); } }
 .tab .title { flex: 1; min-width: 0; overflow: hidden; mask-image: linear-gradient(90deg, #000 calc(100% - 16px), transparent); }
-.tab .close { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 7px; opacity: 0; flex: none; }
+.tab .close { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%; opacity: 0; flex: none; }
 .tab .close svg { width: 14px; height: 14px; }
 .tab.active .close, .tab:hover .close { opacity: 1; }
 .tab .close:hover { background: var(--frame-press); }
@@ -169,22 +168,31 @@ body.side #address-form:has(#address:focus) { background: var(--field-focus); ou
 #downloads { position: relative; }
 #download-count { position: absolute; right: 1px; top: 1px; min-width: 14px; height: 14px; padding: 0 3px; border-radius: 7px; background: var(--accent); color: #fff; font-size: 10px; line-height: 14px; }
 #download-count:empty { display: none; }
-#status { position: relative; }
-#status .status-icon { position: relative; display: grid; place-items: center; flex: none; width: 30px; height: 30px; }
-body.top #tools #status:has(.status-time), body.side #status:has(.status-time) { display: flex; width: auto; gap: 4px; padding: 0 9px 0 0; border-radius: 999px; }
+/* One control for the environment and the gate: the avatar, with the gate's state on its corner badge. --ring is the
+   opaque colour behind the button, so the badge's ring cuts the avatar in every button state. */
+#status { --ring: var(--frame); }
+#status:hover { --ring: var(--frame-hover); }
+#status:active, #status.on { --ring: var(--frame-press); }
+body.top #status { --ring: var(--band); }
+body.top #status:hover { --ring: color-mix(in srgb, var(--text) 8.5%, var(--band)); }
+body.top #status:active, body.top #status.on { --ring: color-mix(in srgb, var(--text) 15%, var(--band)); }
+#tools #status:has(.status-time) { display: flex; width: auto; gap: 6px; padding: 0 10px 0 4px; border-radius: var(--r-pill); }
+body.side #tools #status:has(.status-time) { padding-left: 3px; }
 #status .status-time { color: var(--text-2); font-size: 12px; font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
-#status .dot { position: absolute; right: 4px; bottom: 5px; width: 7px; height: 7px; box-shadow: 0 0 0 1.5px var(--frame); }
-body.side #status .dot { box-shadow: 0 0 0 1.5px var(--frame); }
-#status.on { background: var(--frame-press); color: var(--text); }
+#status .dot { position: absolute; right: -2px; bottom: -2px; width: 11px; height: 11px; display: grid; place-items: center; color: var(--surface); box-shadow: 0 0 0 1.5px var(--ring); }
+#status .dot svg.icon { width: 7px; height: 7px; stroke-width: 4; }
+#status.paused .dot svg.icon { fill: currentColor; stroke-width: 0; }
+#status.unchecked .dot { background: var(--ring); box-shadow: inset 0 0 0 1.5px var(--idle), 0 0 0 1.5px var(--ring); }
+#status.on { color: var(--text); }
 
 #zoom-reset, #zoom-error { position: relative; z-index: 1; flex: none; font-size: var(--fs-sm); }
-#zoom-reset { margin-right: 4px; padding: 3px 6px; border-radius: 4px; }
+#zoom-reset { margin-right: 4px; padding: 3px 8px; border-radius: var(--r-pill); }
 #zoom-error { margin-right: 4px; color: var(--text-2); }
 
 body.top .tab.pinned { flex: 0 0 44px; width: 44px; padding: 0; justify-content: center; }
 body.top .tab.pinned .title, body.top .tab.pinned .close { display: none; }
 
-.tab .audio { width: 20px; height: 20px; flex: none; display: grid; place-items: center; border-radius: var(--r-sm); }
+.tab .audio { width: 20px; height: 20px; flex: none; display: grid; place-items: center; border-radius: 50%; }
 .tab .audio:hover { background: var(--press); }
 .tab .audio svg { width: 14px; height: 14px; }
 body.top .tab.pinned .audio { position: absolute; right: 0; bottom: 0; width: 14px; height: 14px; background: var(--surface); }
@@ -200,22 +208,4 @@ body.top #sheet { left: var(--gap); top: calc(var(--strip) + var(--toolbar)); }
 #side-resize:hover { background: var(--frame-hover); }
 
 .tab .fav img, #site-icon img { width: 16px; height: 16px; object-fit: contain; }
-#status .dot.unchecked { background: var(--frame); box-shadow: inset 0 0 0 1.5px var(--idle), 0 0 0 1.5px var(--frame); }
-body.top #status .dot.unchecked { background: var(--band); box-shadow: inset 0 0 0 1.5px var(--idle), 0 0 0 1.5px var(--band); }
-
-#profiles-button { position: relative; gap: 6px; }
-body.top #tools #profiles-button.multi, body.side #profiles-button.multi { display: flex; width: auto; max-width: 132px; padding: 0 10px; border-radius: 999px; }
-#profiles-button .profile-dot { width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--swatch, var(--accent)); box-shadow: inset 0 0 0 1px rgb(0 0 0 / .12); }
-#profiles-button .profile-dot.teal { --swatch: #0b7479; } #profiles-button .profile-dot.blue { --swatch: #1d5fd0; } #profiles-button .profile-dot.indigo { --swatch: #4a46cf; } #profiles-button .profile-dot.violet { --swatch: #7b3fc2; } #profiles-button .profile-dot.berry { --swatch: #b02f68; } #profiles-button .profile-dot.ochre { --swatch: #9c4f0c; } #profiles-button .profile-dot.moss { --swatch: #3b7629; }
-@media (prefers-color-scheme: dark) {
-  #profiles-button .profile-dot.teal { --swatch: oklch(from #4fc4c1 .52 calc(c * .9) h); }
-  #profiles-button .profile-dot.blue { --swatch: oklch(from #7eaaff .52 calc(c * .9) h); }
-  #profiles-button .profile-dot.indigo { --swatch: oklch(from #a19dff .52 calc(c * .9) h); }
-  #profiles-button .profile-dot.violet { --swatch: oklch(from #c49dff .52 calc(c * .9) h); }
-  #profiles-button .profile-dot.berry { --swatch: oklch(from #ff8cbb .52 calc(c * .9) h); }
-  #profiles-button .profile-dot.ochre { --swatch: oklch(from #f0a75f .52 calc(c * .9) h); }
-  #profiles-button .profile-dot.moss { --swatch: oklch(from #9fd27c .52 calc(c * .9) h); }
-}
-#profiles-button .profile-label { color: var(--text-2); font-size: 12px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#profiles-button.on { background: var(--frame-press); color: var(--text); }
 

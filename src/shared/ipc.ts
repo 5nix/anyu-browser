@@ -55,7 +55,7 @@ export type SettingsSection = 'overview' | 'nodes' | 'env' | 'privacy' | 'downlo
 export interface Rect { x: number; y: number; width: number; height: number }
 /** What can float above the page: each is an element of the overlay page, anchored to an element of the chrome. */
 export type Permission = 'media-camera' | 'media-microphone' | 'geolocation' | 'notifications' | 'clipboard-read';
-export type SurfaceName = 'siteInfo' | 'status' | 'profiles' | 'menu' | 'contextMenu' | 'suggestions' | 'permission' | 'httpAuth' | 'restoreSession' | 'downloads' | 'bookmarkEdit';
+export type SurfaceName = 'siteInfo' | 'status' | 'menu' | 'contextMenu' | 'suggestions' | 'permission' | 'httpAuth' | 'restoreSession' | 'downloads' | 'bookmarkEdit';
 export type MenuEntry = { separator: true } | { id: string; label: string; enabled: boolean; checked?: boolean; shortcut?: string };
 
 export interface AddressSuggestion { id: string; kind: 'tab' | 'bookmark' | 'history' | 'search'; title: string; url: string; favicon?: string | null }

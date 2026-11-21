@@ -14,9 +14,9 @@ import { Downloads } from './surfaces/downloads.tsx';
 import { Suggestions } from './surfaces/suggestions.tsx';
 import { HttpAuthPrompt } from './surfaces/http-auth.tsx';
 import { PermissionPrompt } from './surfaces/permission.tsx';
-import { Profiles } from './surfaces/profiles.tsx';
 import { ContextMenu } from './surfaces/context-menu.tsx';
 import { Icon, Surface, useCave, setSurfaceViewport } from './ui/index.tsx';
+import { Avatar } from './avatar.tsx';
 
 function Status({ state, open }: { state: ShellState; open: boolean }) {
   // Pausing stops the core on purpose, and the gate view keeps no node; the selected node is in the profile.
@@ -30,15 +30,29 @@ function Status({ state, open }: { state: ShellState; open: boolean }) {
   const phase = st === 'checking' ? 'checking' : st === 'open' ? 'open' : failed ? 'failed' : 'unchecked';
   const cardRows = rows.map(row => row.id === 'node' && st !== 'open' ? { ...row, condition: 'unknown' as const } : row.id === 'exit' && st === 'checking' ? { ...row, condition: 'running' as const } : row.id === 'exit' && failed && !state.gate.egress ? { ...row, value: t('statusCard.failed'), condition: 'failed' as const } : row);
   const toggle = () => { setBusy(true); void (st === 'paused' ? cave.resume() : cave.pause()).finally(() => setBusy(false)); };
+  const others = state.profiles.filter(p => !p.current);
   return <Surface name="status" anchor={state.surface!.anchor} open={open} prefer={state.tabLayout === 'side' ? 'top' : 'bottom'}>
     <div class={`status-heading ${phase}`}>
-      <span class="overview-badge"><Icon name={st === 'checking' ? 'loader-circle' : st === 'open' ? 'lock-open' : 'lock'} className={st === 'checking' ? 'spin' : undefined} /></span>
-      <div class="label"><b id="title">{st === 'closed' ? t('statusCard.blocked') : title}</b><div class="status-reason" id="detail"><span>{state.gate.reason}</span>{st !== 'open' && st !== 'paused' && <button id="restart" class="btn primary" disabled={st === 'checking'} onClick={() => cave.restartAndCheck()}><Icon name={st === 'checking' ? 'loader-circle' : 'refresh-cw'} className={st === 'checking' ? 'spin' : undefined} />{t(st === 'checking' ? 'statusCard.checking' : failed ? 'statusCard.recheck' : 'welcome.checkExit')}</button>}</div></div>
+      <Avatar name={state.currentProfile.name} accent={state.currentProfile.accent} big />
+      <div class="label"><b id="title" title={state.currentProfile.name}>{state.currentProfile.name}</b>
+        <span class="status-line"><span class="dot" />{st === 'closed' ? t('statusCard.blocked') : title}</span>
+        {st !== 'open' && st !== 'paused' && <div class="status-reason" id="detail"><span>{state.gate.reason}</span><button id="restart" class="btn primary" disabled={st === 'checking'} onClick={() => cave.restartAndCheck()}><Icon name={st === 'checking' ? 'loader-circle' : 'refresh-cw'} className={st === 'checking' ? 'spin' : undefined} />{t(st === 'checking' ? 'statusCard.checking' : failed ? 'statusCard.recheck' : 'welcome.checkExit')}</button></div>}</div>
     </div>
     <ConditionList st={st} rows={cardRows} switchControl={{ busy, toggle }} />
     <div class="status-clock"><span>{clockTime(now, state.locale, state.timezone, state.clock24Hour, true)}</span><span>{state.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone}</span></div>
+    {others.length > 0 && <ul class="profiles-list">{others.map(p => <li key={p.id} class="profile-item">
+      <Avatar name={p.name} accent={p.accent} />
+      <div class="profile-meta">
+        <div class="profile-name-row"><b title={p.name}>{p.name}</b>{p.running && <span class="profile-badge running">{t('profiles_running')}</span>}</div>
+        <small>{p.egressCountry ? `${t('egress', { country: p.egressCountry })} · ${p.timezone}` : `${t('profiles_unconfigured')} · ${p.timezone}`}</small>
+      </div>
+      <div class="profile-item-actions">
+        <button class="icon-btn" title={t('profiles_openSideBySide')} aria-label={t('profiles_openSideBySide')} onClick={() => { void cave.launchProfile(p.id); void cave.closeSurface(); }}><Icon name="app-window" /></button>
+        <button class="btn" onClick={() => void cave.switchProfile(p.id)}>{t('profiles_switch')}</button>
+      </div>
+    </li>)}</ul>}
     <p id="notice" hidden={!state.notice} title={state.notice ?? ''}>{state.notice ?? ''}</p>
-    <div class="status-actions"><button class="btn" onClick={() => cave.openSettings('nodes')}><Icon name="swap" />{t('set.conditions.changeNode')}</button><button id="open-settings" class="btn" onClick={() => cave.openSettings('overview')}><Icon name="sliders" />{t('openSettings')}</button></div>
+    <div class="status-actions"><button class="btn" onClick={() => cave.openSettings('nodes')}><Icon name="swap" />{t('set.conditions.changeNode')}</button><button id="open-settings" class="btn" onClick={() => cave.openSettings('env')}><Icon name="layers" />{t('profiles_manage')}</button></div>
   </Surface>;
 }
 
@@ -49,7 +63,7 @@ function RestoreSession({ state, open }: { state: ShellState; open: boolean }) {
   </Surface>;
 }
 
-const surfaces: Record<SurfaceName, (props: { state: ShellState; open: boolean }) => preact.ComponentChildren> = { siteInfo: SiteInfo, bookmarkEdit: BookmarkEdit, downloads: Downloads, status: Status, profiles: Profiles, menu: ContextMenu, contextMenu: ContextMenu, suggestions: Suggestions, permission: PermissionPrompt, httpAuth: HttpAuthPrompt, restoreSession: RestoreSession };
+const surfaces: Record<SurfaceName, (props: { state: ShellState; open: boolean }) => preact.ComponentChildren> = { siteInfo: SiteInfo, bookmarkEdit: BookmarkEdit, downloads: Downloads, status: Status, menu: ContextMenu, contextMenu: ContextMenu, suggestions: Suggestions, permission: PermissionPrompt, httpAuth: HttpAuthPrompt, restoreSession: RestoreSession };
 function App() {
   const state = useCave();
   const [results, setResults] = useState<(AddressQueryResult & { active: number }) | null>(null);

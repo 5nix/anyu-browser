@@ -11,12 +11,13 @@ import { Icon } from './ui/index.tsx';
 import { addressDisplay, addressSecurity } from './address-display.ts';
 import { completion } from './address-completion.ts';
 import { clockTime, useMinute } from './clock.ts';
+import { Avatar } from './avatar.tsx';
 
 document.body.classList.add(cave.platform === 'darwin' ? 'mac' : 'win');
 for (const [name, px] of Object.entries({ strip: METRICS.strip, tab: METRICS.tab, toolbar: METRICS.toolbar, button: METRICS.button, caption: METRICS.caption, 'side-top': METRICS.sideTop, side: METRICS.side, gap: METRICS.gap, lights: LIGHTS_WIDTH }))
   document.documentElement.style.setProperty(`--${name}`, `${px}px`);
 
-const STATUS_ICON = { open: 'shield-check', checking: 'shield', closed: 'shield-off', paused: 'shield' };
+const STATUS_MARK: Record<string, string | undefined> = { open: 'check', closed: 'x', paused: 'pause' };
 let reported = '';
 function reportAnchors() {
   const anchors: Partial<Record<SurfaceName, Rect>> = {};
@@ -238,6 +239,8 @@ function App() {
   const indicator = { https: ['globe', 'addressHttps'], http: ['triangle-alert', 'addressInsecure'], exception: ['shield-alert', 'addressException'], internal: ['settings', 'addressInternal'], unknown: ['info', 'addressUnknown'] } as const;
   const [indicatorIcon, indicatorLabel] = indicator[security];
   const st = state && status(state.gate);
+  const unchecked = st === 'closed' && !['checkFailed', 'mismatch'].includes(gateReason(state!.gate));
+  const label = state && st ? [state.currentProfile?.name, STATUS_TITLE[st], state.gate.egress?.node].filter(Boolean).join(' · ') : undefined;
   const running = state?.downloads.filter((d) => d.state === 'progressing').length ?? 0;
   return <>
     <div id="drag-bar" class="drag" /><div id="drag-side" class="drag" /><div id="sheet" />
@@ -286,11 +289,10 @@ function App() {
       <button id="find-close" class="icon-btn" title={t('closeFind')} onClick={closeFind}><Icon name="x" /></button></div>
     <div id="tools">
       <button id="downloads" class="icon-btn" title={t('downloads')} aria-label={t('downloads')} data-anchor="downloads" hidden={!state?.downloads.length} onClick={() => cave.toggleSurface('downloads')}><Icon name="download" /><span id="download-count">{running || ''}</span></button>
-      <button id="profiles-button" class={`icon-btn${state?.surface?.name === 'profiles' ? ' on' : ''}${(state?.profiles?.length ?? 0) > 1 ? ' multi' : ''}`} title={state?.currentProfile ? `${t('profiles_title')} · ${state.currentProfile.name}` : t('profiles_title')} aria-label={t('profiles_title')} data-anchor="profiles" onClick={() => cave.toggleSurface('profiles')}>
-        <span class={`profile-dot ${state?.currentProfile?.accent ?? state?.accent ?? 'teal'}`} />
-        {(state?.profiles?.length ?? 0) > 1 && <span class="profile-label">{state?.currentProfile?.name}</span>}
+      <button id="status" class={`icon-btn${st ? ` ${st}` : ''}${unchecked ? ' unchecked' : ''}${state?.surface?.name === 'status' ? ' on' : ''}`} title={label} aria-label={label} data-anchor="status" onClick={() => cave.toggleSurface('status')}>
+        <Avatar name={state?.currentProfile?.name ?? ''} accent={state?.currentProfile?.accent ?? state?.accent}><span class="dot">{st && STATUS_MARK[st] && !unchecked && <Icon name={STATUS_MARK[st]} />}</span></Avatar>
+        {state?.showTime && <span class="status-time">{clockTime(now, state.locale, state.timezone, state.clock24Hour)}</span>}
       </button>
-      <button id="status" class={`icon-btn${st ? ` ${st}` : ''}${state?.surface?.name === 'status' ? ' on' : ''}`} title={st && state ? state.gate.egress?.node ? `${STATUS_TITLE[st]} · ${state.gate.egress.node}` : STATUS_TITLE[st] : t('networkStatus')} data-anchor="status" onClick={() => cave.toggleSurface('status')}><span class="status-icon">{st && <Icon name={STATUS_ICON[st]} />}<span class={`dot${st === 'closed' && state && !['checkFailed', 'mismatch'].includes(gateReason(state.gate)) ? ' unchecked' : ''}`} /></span>{state?.showTime && <span class="status-time">{clockTime(now, state.locale, state.timezone, state.clock24Hour)}</span>}</button>
       <button id="menu-button" class="icon-btn" title={t('menu')} aria-label={t('menu')} data-anchor="menu" onClick={() => cave.toggleSurface('menu')}><Icon name="ellipsis" /></button>
     </div>
     {state && <Tabs state={state} />}

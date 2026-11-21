@@ -100,6 +100,7 @@ export const settingsEn: Record<keyof typeof settingsZh, string> = {
   "set.nodes.import": "Import",
   "set.env.title": "Environment",
   "set.env.intro": "Copy the entire profile folder to another computer to use the same environment.",
+  "set.env.current": "Current environment",
   "set.env.region": "Exit and region",
   "set.env.countryHint": "The connection opens only when the exit country matches",
   "set.env.countryPlaceholder": "Country code",

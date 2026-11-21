@@ -299,6 +299,7 @@ function EnvSection({ active, state, data, act, confirm, checks, runChecks, busy
     <p class="intro">{t('set.env.intro')}</p>
     <ProfilesGroup active={active} data={data} act={act} confirm={confirm} busy={busy} />
     <form ref={formRef} id="profile" onSubmit={saveProfile}>
+      <h2 class="subheading">{t('set.env.current')}</h2>
       <div class="group">
         <h3>{t('set.env.region')}</h3>
         <div class="card">

@@ -49,6 +49,8 @@ export class Tab {
   private certificateAccepted = false;
   private generation = 0;
   private target = '';
+  /** A main-frame load not committed yet, shown in the address bar meanwhile. Only when the browser started it or no web page is on screen, so a page cannot put another site's address over its own content. */
+  private pendingUrl = '';
   retryPending = false;
   private challenge: { generation: number; url: string; host: string; fingerprint: string } | null = null;
 
@@ -142,11 +144,12 @@ export class Tab {
     if (kind === 'history') return { id, kind, title: t('command_history_open'), url: '', ...none };
     if (kind === 'settings') return { id, kind, title: t('settings'), url: '', ...none };
     const url = (this.error || this.crashed) ? this.recoveryTarget : this.saved?.url || wc.getURL();
+    const shown = !this.error && !this.crashed && this.pendingUrl && wc.isLoading() ? this.pendingUrl : url;
     return {
       id,
       kind,
       title: !url || url === 'about:blank' ? t('newTab') : (this.saved?.title || (this.error || this.crashed ? url : wc.getTitle() || url)),
-      url: url === 'about:blank' ? '' : url,
+      url: shown === 'about:blank' ? '' : shown,
       favicon: this.error || this.crashed ? null : this.favicon,
       loading: wc.isLoading(),
       canBack: wc.navigationHistory.canGoBack(),
@@ -193,7 +196,8 @@ export class Tab {
       void this.host?.fetchFavicon(this, url, icons).then(icon => { if (icon && generation === this.generation && wc.getURL() === url) { this.favicon = icon; changed(); } });
     });
     wc.on('did-finish-load', () => this.host?.committed(this, wc.getURL()));
-    wc.on('did-navigate', (_event, url) => { this.insecure = this.certificateAccepted || (this.host?.hasCertificateException(url) ?? false); this.host?.committed(this, url); if (/^https?:/i.test(url)) this.host?.historyVisit(url, wc.getTitle()); });
+    wc.on('did-stop-loading', () => { this.pendingUrl = ''; });
+    wc.on('did-navigate', (_event, url) => { this.pendingUrl = ''; this.insecure = this.certificateAccepted || (this.host?.hasCertificateException(url) ?? false); this.host?.committed(this, url); if (/^https?:/i.test(url)) this.host?.historyVisit(url, wc.getTitle()); });
     wc.on('page-title-updated', (_event, title) => { const url = wc.getURL(); if (/^https?:/i.test(url)) this.host?.historyTitle(url, title); });
     wc.on('did-start-navigation', (e) => {
       if (e.isMainFrame) this.host?.navigated(this);
@@ -206,6 +210,7 @@ export class Tab {
       if (/^https?:/i.test(e.url)) this.saved = null;
       this.favicon = this.host?.favicon(e.url) ?? null;
       this.target = e.url;
+      this.pendingUrl = !e.initiator || !/^https?:/i.test(wc.getURL()) ? e.url : '';
       this.certificate = null;
       pending = null;
       this.certificateAccepted = false;
@@ -216,7 +221,7 @@ export class Tab {
       this.crashed = false;
       changed();
     });
-    wc.on('did-redirect-navigation', (e) => { if (e.isMainFrame) this.host?.navigated(this); if (e.isMainFrame && !e.isSameDocument) { failures.redirect(e.url); this.target = e.url; this.certificateAccepted = false; this.challenge = null; } });
+    wc.on('did-redirect-navigation', (e) => { if (e.isMainFrame) this.host?.navigated(this); if (e.isMainFrame && !e.isSameDocument) { failures.redirect(e.url); this.target = e.url; if (this.pendingUrl) this.pendingUrl = e.url; this.certificateAccepted = false; this.challenge = null; } });
     wc.on('did-fail-load', (_e, code, description, url, isMainFrame) => {
       if (!isMainFrame || code === -3 || !failures.accepts(url)) return; // -3: aborted, by the user or by another navigation
       this.retryPending = false;

@@ -16,6 +16,7 @@ section.entering { animation: page-in var(--dur-page) var(--ease-out); }
 button, label, select, h2, h3, .label > b { cursor: default; user-select: none; }
 label small, .nodes .name, .nodes .country, .nodes .type, .nodes .delay, #site-name { cursor: text; user-select: text; }
 h2 { font-size: var(--fs-page); font-weight: 600; margin: 0; }
+h2.subheading { font-size: 16px; margin: 8px 0 14px; }
 h3 { font-size: var(--fs-sm); font-weight: 600; color: var(--text-2); margin: 0 0 8px; }
 h3 #score, h3 .hint { font-weight: 400; margin-left: 6px; }
 .intro { margin: -12px 0 0; color: var(--text-2); }

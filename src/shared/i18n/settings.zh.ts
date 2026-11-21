@@ -96,6 +96,7 @@ export const settingsZh = {
   "set.nodes.import": "导入",
   "set.env.title": "环境配置",
   "set.env.intro": "把整个配置文件夹复制到另一台电脑，即可使用同一套环境。",
+  "set.env.current": "当前环境配置",
   "set.env.region": "出口与地区",
   "set.env.countryHint": "只有出口国家与它一致时才放行外网",
   "set.env.countryPlaceholder": "国家代码",

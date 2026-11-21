@@ -206,7 +206,8 @@ export class Tab {
     });
     wc.on('did-finish-load', () => this.host?.committed(this, wc.getURL()));
     wc.on('did-stop-loading', () => { this.pendingUrl = ''; });
-    wc.on('did-navigate', (_event, url) => { this.pendingUrl = ''; this.insecure = this.certificateAccepted || (this.host?.hasCertificateException(url) ?? false); this.host?.committed(this, url); if (/^https?:/i.test(url)) this.host?.historyVisit(url, wc.getTitle()); });
+    // A gesture ends with the page it was made on. Not at navigation start: will-navigate runs after did-start-navigation and still needs it.
+    wc.on('did-navigate', (_event, url) => { this.gesture.reset(); this.pendingUrl = ''; this.insecure = this.certificateAccepted || (this.host?.hasCertificateException(url) ?? false); this.host?.committed(this, url); if (/^https?:/i.test(url)) this.host?.historyVisit(url, wc.getTitle()); });
     wc.on('page-title-updated', (_event, title) => { const url = wc.getURL(); if (/^https?:/i.test(url)) this.host?.historyTitle(url, title); });
     wc.on('did-start-navigation', (e) => {
       if (e.isMainFrame) {
@@ -215,7 +216,6 @@ export class Tab {
       }
       // Chromium's own error document is the failure being shown, not a new attempt.
       if (!e.isMainFrame || e.isSameDocument || e.url.startsWith('chrome-error:')) return;
-      this.gesture.reset();
       this.host?.findNavigation(this);
       this.retryPending = false;
       failures.start(e.url);

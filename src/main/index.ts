@@ -215,6 +215,7 @@ async function start(): Promise<void> {
     }).catch(logProfileError);
   };
   let updater: UpdateChecker;
+  const seenUpdateTags = prefs.get<unknown>('seenUpdateTags', []);
   const browser = new Browser({
     favicons,
     sessions,
@@ -265,6 +266,8 @@ async function start(): Promise<void> {
     gate: () => gate.view,
     setup: setupState,
     update: () => updater.state,
+    seenUpdateTags: Array.isArray(seenUpdateTags) ? seenUpdateTags.filter(tag => typeof tag === 'string') : [],
+    saveSeenUpdateTags: (tags) => prefs.set('seenUpdateTags', tags),
   });
   updater = new UpdateChecker({
     currentVersion: app.getVersion(),

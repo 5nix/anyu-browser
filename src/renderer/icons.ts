@@ -15,6 +15,7 @@ const PATHS: Record<string, string> = {
   'folder-plus': '<path d="M12 20H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H20a2 2 0 0 1 2 2v4"/> <path d="M16 19h6"/> <path d="M19 16v6"/>',
   'pencil': '<path d="M21.174 6.812a1 1 0 0 0-3.986-3.986L3.842 16.174a2 2 0 0 0-.5.82L2.03 21.37a.5.5 0 0 0 .6.6l4.376-1.312a2 2 0 0 0 .82-.5z"/> <path d="m15 5 4 4"/>',
   'arrow-up': '<path d="m5 12 7-7 7 7"/> <path d="M12 19V5"/>',
+  'arrow-up-circle': '<circle cx="12" cy="12" r="10"/><path d="M12 16V8m-4 4 4-4 4 4"/>',
   'arrow-down': '<path d="M12 5v14"/> <path d="m19 12-7 7-7-7"/>',
   'folder-input': '<path d="M12 10v6"/> <path d="m9 13 3 3 3-3"/> <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9l-.81-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
   'upload': '<path d="M12 3v12"/> <path d="m17 8-5-5-5 5"/> <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>',

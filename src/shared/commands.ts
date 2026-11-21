@@ -44,13 +44,14 @@ export const COMMANDS = {
   'history.open': { label: 'command_history_open', key: 'Ctrl+H', macKey: 'Cmd+Y' },
   'downloads.open': { label: 'command_downloads_open', key: 'Ctrl+J', macKey: 'Cmd+Shift+J' },
   'settings.open': { label: 'command_settings_open', key: 'CmdOrCtrl+,' },
+  'settings.about': { label: 'command_settings_about' },
   'settings.status': { label: 'command_settings_status', key: 'CmdOrCtrl+Shift+K' },
   'profiles.open': { label: 'command_profiles_open', key: 'CmdOrCtrl+Shift+M' },
 } as const satisfies Record<string, CommandSpec>;
 
 export type CommandId = keyof typeof COMMANDS;
 
-export const label = (id: CommandId): string => t(COMMANDS[id].label);
+export const label = (id: CommandId, params?: Record<string, string | number>): string => t(COMMANDS[id].label, params);
 
 export const isCommand = (id: unknown): id is CommandId => typeof id === 'string' && Object.hasOwn(COMMANDS, id);
 

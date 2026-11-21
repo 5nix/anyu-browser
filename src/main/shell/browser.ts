@@ -62,6 +62,8 @@ export interface BrowserOptions {
   /** First-run setup as derived from the profile and the gate. */
   setup: () => ShellState['setup'];
   update: () => ShellState['update'];
+  seenUpdateTags: readonly string[];
+  saveSeenUpdateTags: (tags: string[]) => void;
 }
 
 export class Browser extends EventEmitter {
@@ -82,6 +84,7 @@ export class Browser extends EventEmitter {
   private tabLayout: TabLayout;
   private sidebarWidth: number;
   private localePreference: LocalePreference;
+  private readonly seenUpdateTags: Set<string>;
   private navigator: Navigator;
   private commands: Commands;
   private host: WindowHost;
@@ -103,8 +106,12 @@ export class Browser extends EventEmitter {
     this.tabLayout = o.tabLayout;
     this.sidebarWidth = sidebarWidth(o.sidebarWidth);
     this.localePreference = o.locale;
+    this.seenUpdateTags = new Set(o.seenUpdateTags);
     setLocale(this.locale);
     this.downloads = new Downloads(o.downloadsDir, () => this.broadcast(), o.downloadStore, o.downloadFiles, o.defaultDownloadsDir);
+    o.favicons.on('stored', () => {
+      if (!this.quitting) for (const w of this.windows) w.broadcastHomeShortcuts();
+    });
     this.navigator = new Navigator(o.canBrowse, (wc, url) => {
       this.setNotice(() => t('navigationNotice', { host: new URL(url).host }));
       this.windows.find((w) => w.hasTab(wc))?.surfaces.open('status');
@@ -120,7 +127,7 @@ export class Browser extends EventEmitter {
       sidebarWidth: () => this.sidebarWidth,
       refreshProfiles: o.refreshProfiles,
       shared: () => ({
-        shortcuts: o.shortcuts().map(item => ({ ...item, favicon: o.favicons.get(item.url) })),
+        shortcuts: o.shortcuts().map(item => ({ ...item, favicon: o.favicons.getForShortcut(item.url) })),
         gate: o.gate(), downloads: this.downloads.all(), downloadsDir: this.downloadsDir, defaultDownloadsDir: o.defaultDownloadsDir, notice: typeof this.notice === 'function' ? this.notice() : this.notice,
         locale: this.locale, localePreference: this.localePreference, accent: this.accent, theme: this.theme,
         showTime: this.showTime, clock24Hour: this.clock24Hour, timezone: o.timezone(), systemTimezone: o.systemTimezone,
@@ -128,7 +135,17 @@ export class Browser extends EventEmitter {
         currentProfile: { ...o.currentProfile(), accent: this.accent },
         profiles: o.profiles().map(p => p.current ? { ...p, accent: this.accent } : p),
         update: o.update(),
+        updateMenuUnseen: this.updateMenuUnseen,
       }),
+      updateMenuTag: () => this.updateMenuTag,
+      updateMenuOpened: (win) => {
+        const tag = this.updateMenuTag;
+        if (tag === null || this.seenUpdateTags.has(tag)) return;
+        this.seenUpdateTags.add(tag);
+        try { o.saveSeenUpdateTags([...this.seenUpdateTags]); }
+        catch (error) { console.warn('Could not save seen update tags', error); }
+        for (const window of this.windows) if (window !== win) window.broadcast();
+      },
       canBrowse: o.canBrowse,
       run: (id, win) => this.run(id, win),
       prepareTab: o.prepareTab,
@@ -169,6 +186,16 @@ export class Browser extends EventEmitter {
     };
     this.updateMenu();
     this.sessionInterval = setInterval(() => this.saveSession(), 5000);
+  }
+
+  private get updateMenuTag(): string | null {
+    const update = this.o.update();
+    return update.autoCheck ? update.available?.tag ?? null : null;
+  }
+
+  private get updateMenuUnseen(): boolean {
+    const tag = this.updateMenuTag;
+    return tag !== null && !this.seenUpdateTags.has(tag);
   }
 
   private menuState: { canReopen: boolean; canBookmark: boolean; locale: string } | null = null;

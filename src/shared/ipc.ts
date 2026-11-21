@@ -109,6 +109,7 @@ export interface ShellState {
   currentProfile: { id: string; name: string; accent: Accent; egressCountry: string };
   profiles: ProfileSummary[];
   update: UpdateState;
+  updateMenuUnseen: boolean;
 }
 
 export interface PermissionEntry { origin: string; permission: Permission; decision: 'allow' | 'deny' }

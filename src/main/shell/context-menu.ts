@@ -5,11 +5,11 @@ const WEB = /^(https?|about|blob|data):/i;
 
 export const validWeb = (url: unknown): url is string => typeof url === 'string' && url.length <= 8192 && URL.canParse(url) && WEB.test(url);
 const item = (id: string, key: TranslationKey, enabled = true): MenuEntry => ({ id, label: t(key), enabled });
-const command = (id: CommandId, enabled = true): MenuEntry => ({ id, label: label(id), enabled, shortcut: accelerator(id, process.platform === 'darwin') });
+const command = (id: CommandId, enabled = true, params?: Record<string, string | number>): MenuEntry => ({ id, label: label(id, params), enabled, shortcut: accelerator(id, process.platform === 'darwin') });
 const groups = (...parts: MenuEntry[][]): MenuEntry[] => parts.filter(p => p.length).flatMap((p, i) => i ? [{ separator: true } as MenuEntry, ...p] : p);
 
-export function toolbarMenu(web: boolean, zoomable = web): MenuEntry[] {
-  return groups([command('tab.new'), command('window.new')], [command('history.open'), command('bookmarks.open'), command('downloads.open')], [command('zoom.out', zoomable), command('zoom.reset', zoomable), command('zoom.in', zoomable)], [command('page.print', web), command('settings.open')]);
+export function toolbarMenu(web: boolean, zoomable = web, updateTag: string | null = null): MenuEntry[] {
+  return groups(updateTag ? [command('settings.about', true, { tag: updateTag })] : [], [command('tab.new'), command('window.new')], [command('history.open'), command('bookmarks.open'), command('downloads.open')], [command('zoom.out', zoomable), command('zoom.reset', zoomable), command('zoom.in', zoomable)], [command('page.print', web), command('settings.open')]);
 }
 export function addressMenu(): MenuEntry[] { return [item('cut', 'cut'), item('copy', 'copy'), item('paste', 'paste'), command('address.pasteAndGo'), item('selectAll', 'selectAll')]; }
 export function tabMenu(web: boolean, pinned = false, muted = false, canReopen = false): MenuEntry[] { return [command('page.reload', web), item('tab.pin', pinned ? 'tab_unpin' : 'tab_pin', web), command('tab.duplicate', web), item('tab.mute', muted ? 'tab_unmute' : 'tab_mute_menu', web), command('tab.close'), command('tab.reopen', canReopen)]; }

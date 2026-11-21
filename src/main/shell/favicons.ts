@@ -1,4 +1,5 @@
 import { net, type Session, type WebContents } from 'electron';
+import { EventEmitter } from 'node:events';
 import { FAVICON_MAX_BYTES, faviconOrigin, faviconType, type Favicons } from '../store/favicons.ts';
 
 const PNG_PREFIX = 'data:image/png;base64,';
@@ -84,11 +85,12 @@ function fetchIcon(ses: Session, url: string, active: () => boolean): Promise<st
 }
 
 // Share requests in flight. Failed URLs can be fetched again on a later page load.
-export class FaviconFetcher {
+export class FaviconFetcher extends EventEmitter<{ stored: [] }> {
   private pending = new WeakMap<Session, Map<string, Promise<string | null>>>();
   private generation = 0;
-  constructor(private cache: Favicons, private canBrowse: () => boolean) {}
+  constructor(private cache: Favicons, private canBrowse: () => boolean) { super(); }
   get(page: string): string | null { return this.cache.get(page); }
+  getForShortcut(page: string): string | null { return this.cache.getForShortcut(page); }
   clear(url?: string): void {
     this.generation++;
     this.pending = new WeakMap();
@@ -112,7 +114,9 @@ export class FaviconFetcher {
       if (!active() || chrome.isDestroyed()) return null;
       if (data?.length) {
         this.cache.put(page, data);
-        return this.cache.get(page);
+        const icon = this.cache.get(page);
+        if (icon) this.emit('stored');
+        return icon;
       }
     }
     return null;

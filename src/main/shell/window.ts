@@ -527,6 +527,12 @@ export class ShellWindow implements TabHost {
     for (const v of this.ui) this.send(v, 'state', s);
   }
 
+  broadcastHomeShortcuts(): void {
+    if (!this.alive || !this.homes.size) return;
+    const state = this.state;
+    for (const home of this.homes.values()) this.send(home, 'state', state);
+  }
+
   sessionSnapshot(): SavedWindow | null {
     const eligible = this.tabs.filter(t => {
       if (t.kind !== 'web' || t.wc.isDestroyed()) return false;

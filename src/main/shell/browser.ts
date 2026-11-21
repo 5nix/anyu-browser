@@ -109,6 +109,9 @@ export class Browser extends EventEmitter {
     this.seenUpdateTags = new Set(o.seenUpdateTags);
     setLocale(this.locale);
     this.downloads = new Downloads(o.downloadsDir, () => this.broadcast(), o.downloadStore, o.downloadFiles, o.defaultDownloadsDir);
+    o.favicons.on('stored', () => {
+      if (!this.quitting) for (const w of this.windows) w.broadcastHomeShortcuts();
+    });
     this.navigator = new Navigator(o.canBrowse, (wc, url) => {
       this.setNotice(() => t('navigationNotice', { host: new URL(url).host }));
       this.windows.find((w) => w.hasTab(wc))?.surfaces.open('status');
@@ -124,7 +127,7 @@ export class Browser extends EventEmitter {
       sidebarWidth: () => this.sidebarWidth,
       refreshProfiles: o.refreshProfiles,
       shared: () => ({
-        shortcuts: o.shortcuts().map(item => ({ ...item, favicon: o.favicons.get(item.url) })),
+        shortcuts: o.shortcuts().map(item => ({ ...item, favicon: o.favicons.getForShortcut(item.url) })),
         gate: o.gate(), downloads: this.downloads.all(), downloadsDir: this.downloadsDir, defaultDownloadsDir: o.defaultDownloadsDir, notice: typeof this.notice === 'function' ? this.notice() : this.notice,
         locale: this.locale, localePreference: this.localePreference, accent: this.accent, theme: this.theme,
         showTime: this.showTime, clock24Hour: this.clock24Hour, timezone: o.timezone(), systemTimezone: o.systemTimezone,

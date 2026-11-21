@@ -23,3 +23,21 @@ test('favicon cache is per origin, expires, enforces size and clears with browsi
     assert.equal(cache.get('https://example.com/', now), null);
   } finally { store.close(); }
 });
+
+test('shortcut favicon lookup prefers the exact origin, then www, then HTTPS', () => {
+  const store = openStore(':memory:');
+  try {
+    const cache = new Favicons(store), now = Date.now();
+    cache.put('https://www.example.com/', Buffer.from('secure alias'), now);
+    assert.equal(cache.getForShortcut('http://example.com/path', now), cache.get('https://www.example.com/', now));
+    cache.put('https://example.com/', Buffer.from('secure'), now);
+    assert.equal(cache.getForShortcut('http://example.com/', now), cache.get('https://example.com/', now));
+    cache.put('http://www.example.com/', Buffer.from('alias'), now);
+    assert.equal(cache.getForShortcut('http://example.com/', now), cache.get('http://www.example.com/', now));
+    cache.put('http://example.com/', Buffer.from('exact'), now);
+    assert.equal(cache.getForShortcut('http://example.com/', now), cache.get('http://example.com/', now));
+    assert.equal(cache.getForShortcut('https://shop.example.com/', now), null);
+    assert.equal(cache.getForShortcut('https://example.com:8443/', now), null);
+    assert.equal(cache.getForShortcut('http://example.com/', now + FAVICON_MAX_AGE), null);
+  } finally { store.close(); }
+});

@@ -15,6 +15,17 @@ export class Favicons {
     const row = this.store.prepare('SELECT data FROM favicons WHERE origin=? AND updated>?').get(origin, now - FAVICON_MAX_AGE);
     return row ? `data:image/png;base64,${Buffer.from(row.data as Uint8Array).toString('base64')}` : null;
   }
+  getForShortcut(url: string, now = Date.now()): string | null {
+    const origin = faviconOrigin(url);
+    if (!origin) return null;
+    const exact = this.get(origin, now);
+    const { protocol, hostname, port } = new URL(origin);
+    if (exact || port) return exact;
+    const alias = hostname.startsWith('www.') ? hostname.slice(4) : `www.${hostname}`;
+    const aliasIcon = this.get(`${protocol}//${alias}`, now);
+    if (aliasIcon || protocol !== 'http:') return aliasIcon;
+    return this.get(`https://${hostname}`, now) ?? this.get(`https://${alias}`, now);
+  }
   put(url: string, data: Uint8Array, now = Date.now()): void {
     const origin = faviconOrigin(url); if (!origin || !data.length || data.length > FAVICON_MAX_BYTES) return;
     this.store.prepare('INSERT INTO favicons VALUES(?,?,?) ON CONFLICT(origin) DO UPDATE SET data=excluded.data,updated=excluded.updated').run(origin, data, now);

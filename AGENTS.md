@@ -1,12 +1,10 @@
 # Contributor and agent guidelines
 
-**Never test over a direct connection. No exception.** Nothing you run may reach an external
-site from this machine: no curl, wget, node or Python fetch, dev-mode Electron, plain browser
-or script that touches a real website, favicon, GitHub release or similar. Unit tests stub every
-fetch. The archived e2e worlds use their fake node only. Live behaviour is checked solely in the
-installed `/Applications/Anyu.app`, which routes everything through the proxy, and only the
-maintainer drives it (or exports the diagnostic log from Settings → Advanced). If a check would
-need the real network, do not run it: say it is unverified.
+**Never test Anyu's own network behaviour over a direct connection.** Anything that exercises
+what the browser requests (pages, favicons, update checks, sign-in flows) must go through the
+proxy: in the installed `/Applications/Anyu.app` or in a test world whose node is the proxy. Never
+use curl, scripts or a plain browser as a stand-in for what Anyu would fetch. Development tooling
+(git, npm, electron-builder downloads, docs) is not testing and is fine.
 
 **Non-disruptive execution is a precondition for every test.** Do not run a check that
 would take the mouse, keyboard focus or frontmost window, or could leave a dialog or a

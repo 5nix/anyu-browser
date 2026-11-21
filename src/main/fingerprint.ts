@@ -32,6 +32,12 @@ export interface Identity {
   metadata: UAMetadata;
 }
 
+const gestureListeners = new WeakMap<WebContents, () => void>();
+
+export function observeFrameGestures(wc: WebContents, listener: () => void): void {
+  gestureListeners.set(wc, listener);
+}
+
 export interface FingerprintHandle {
   update(commands: [string, object][]): void;
   locationReady: Promise<boolean>;
@@ -173,25 +179,42 @@ export function applyFingerprint(wc: WebContents, commands: [string, object][]):
     const ua = current.find(([m]) => m === 'Emulation.setUserAgentOverride')?.[1] as { platform?: string } | undefined;
     return `Object.defineProperty(WorkerNavigator.prototype, "platform", { get: () => ${JSON.stringify(ua?.platform ?? '')}, configurable: true, enumerable: true })`;
   };
+  const gestureWorld = 'cave-gesture';
+  const gestureBinding = '__caveGesture';
+  const gestureScript = `(() => {
+    const mark = (event) => {
+      if (!event.isTrusted || (event.type === 'keydown' && ['Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'Escape'].includes(event.key))) return;
+      globalThis.__caveGesture('');
+    };
+    window.addEventListener('pointerdown', mark, true);
+    window.addEventListener('keydown', mark, true);
+  })();`;
   const screenScript = `for (const key of ["colorDepth", "pixelDepth"]) Object.defineProperty(Screen.prototype, key, { get: () => 24, configurable: true, enumerable: true });`;
   // A command a target type does not implement may never answer; never let that keep a worker paused.
   const send = (m: string, p: object, sessionId?: string) =>
     Promise.race([dbg.sendCommand(m, p, sessionId).catch(() => undefined), new Promise((r) => setTimeout(r, 1000))]);
-  const configure = (sessionId?: string, worker = false) =>
+  const configureGestures = async (sessionId?: string) => {
+    await send('Runtime.addBinding', { name: gestureBinding, executionContextName: gestureWorld }, sessionId);
+    await send('Page.addScriptToEvaluateOnNewDocument', { source: gestureScript, worldName: gestureWorld, runImmediately: true }, sessionId);
+  };
+  const configure = (sessionId?: string, worker = false, frame = false) =>
     Promise.all([
       worker
         ? send('Runtime.evaluate', { expression: platformScript() }, sessionId)
         : send('Page.addScriptToEvaluateOnNewDocument', { source: screenScript }, sessionId),
+      ...(frame ? [configureGestures(sessionId)] : []),
       ...current.filter(([m]) => m !== 'Emulation.setGeolocationOverride' || sessionId !== undefined).map(([m, p]) => send(m, p, sessionId)),
       send('Target.setAutoAttach', { autoAttach: true, waitForDebuggerOnStart: true, flatten: true }, sessionId),
     ]);
   dbg.on('message', (_e, method, params: any) => {
-    if (method === 'Target.attachedToTarget') {
+    if (method === 'Runtime.bindingCalled' && params.name === gestureBinding) {
+      gestureListeners.get(wc)?.();
+    } else if (method === 'Target.attachedToTarget') {
       const id = params.sessionId as string;
       sessions.add(id);
       const worker = ['worker', 'shared_worker', 'service_worker'].includes(params.targetInfo.type);
       if (worker) workerSessions.add(id);
-      void configure(id, worker).finally(() =>
+      void configure(id, worker, params.targetInfo.type === 'iframe').finally(() =>
         dbg.sendCommand('Runtime.runIfWaitingForDebugger', {}, id).catch(() => undefined),
       );
     } else if (method === 'Target.detachedFromTarget') {

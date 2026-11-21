@@ -1,3 +1,4 @@
+import { observeFrameGestures } from '../fingerprint.ts';
 import { certificateFailure, failureKind } from './recovery.ts';
 import { t } from '../../shared/i18n/index.ts';
 import { isAllowedPdfViewerFrame, NavigationFailures } from '../../shared/navigation-safety.ts';
@@ -122,6 +123,7 @@ export class Tab {
     view.webContents.setZoomMode('isolated');
     prepare(view.webContents);
     const tab = new Tab('web', view);
+    observeFrameGestures(view.webContents, () => tab.gesture.mark());
     tab.wire();
     // A webContents that never navigated has no history entry; give every new tab one.
     if (!adopt) void view.webContents.loadURL('about:blank').catch(() => undefined);

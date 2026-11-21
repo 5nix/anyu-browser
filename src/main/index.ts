@@ -58,7 +58,8 @@ if (backgroundE2e) {
 app.setName('Anyu');
 setLocale(systemLocale(process.env.CAVE_LANG || app.getLocale()));
 const profileManager = await ProfileManager.open({
-  baseDir: join(app.getPath('appData'), 'Cave'),
+  // A test world keeps its environment list inside its own folder, never the real one.
+  baseDir: process.env.CAVE_TEST_HARNESS === '1' && process.env.CAVE_PROFILE ? join(process.env.CAVE_PROFILE, 'registry') : join(app.getPath('appData'), 'Cave'),
   explicitProfileDir: process.env.CAVE_PROFILE || undefined,
   argv: process.argv,
   defaultName: t('profiles_defaultName'),

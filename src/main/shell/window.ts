@@ -570,7 +570,7 @@ export class ShellWindow implements TabHost {
 
   setSuggestionBounds(session: string, sequence: number, bounds: Rect, generation: number): boolean {
     if (this.addressSession?.session === session && this.addressSession.sequence === sequence) return this.surfaces.setBounds(bounds, 'suggestions', generation);
-    else if (sequence === -1 && ['siteInfo', 'status', 'profiles', 'downloads', 'menu', 'bookmarkEdit', 'contextMenu'].includes(session)) return this.surfaces.setBounds(bounds, session as SurfaceName, generation);
+    else if (sequence === -1 && ['siteInfo', 'status', 'downloads', 'menu', 'bookmarkEdit', 'contextMenu'].includes(session)) return this.surfaces.setBounds(bounds, session as SurfaceName, generation);
     return false;
   }
 
@@ -811,7 +811,7 @@ export class ShellWindow implements TabHost {
 
   openProfiles(): void {
     this.host.refreshProfiles();
-    if (this.surfaces.hasAnchor('profiles')) this.surfaces.toggle('profiles');
+    if (this.surfaces.hasAnchor('status')) this.surfaces.toggle('status');
     else this.openSettings('env');
   }
 
@@ -1080,7 +1080,7 @@ export class ShellWindow implements TabHost {
       return;
     }
     if (menu.kind === 'toolbar') {
-      if (['tab.new', 'window.new', 'profiles.open', 'history.open', 'bookmarks.open', 'downloads.open', 'zoom.out', 'zoom.reset', 'zoom.in', 'page.print', 'settings.open'].includes(id) && (!['zoom.out', 'zoom.reset', 'zoom.in', 'page.print'].includes(id) || this.current)) this.host.run(id as CommandId, this);
+      if (['tab.new', 'window.new', 'history.open', 'bookmarks.open', 'downloads.open', 'zoom.out', 'zoom.reset', 'zoom.in', 'page.print', 'settings.open'].includes(id) && (!['zoom.out', 'zoom.reset', 'zoom.in', 'page.print'].includes(id) || this.current)) this.host.run(id as CommandId, this);
       return;
     }
     if (!tab || !this.tabs.includes(tab) || tab.wc.isDestroyed()) return;

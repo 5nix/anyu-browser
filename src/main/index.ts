@@ -453,8 +453,8 @@ async function start(): Promise<void> {
     toggleSurface: (name) => {
       if (name === 'menu') win.toggleMenu();
       else if (name === 'bookmarkEdit') win.toggleBookmark();
-      else if (name === 'profiles') win.openProfiles();
-      else if (name === 'siteInfo' || name === 'status' || name === 'downloads') win.surfaces.toggle(name);
+      else if (name === 'status') win.openProfiles();
+      else if (name === 'siteInfo' || name === 'downloads') win.surfaces.toggle(name);
     },
     listProfiles: refreshProfiles,
     createProfile: async (input) => {

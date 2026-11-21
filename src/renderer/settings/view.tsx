@@ -559,7 +559,7 @@ function AboutSection({ active, state, data, act, busy }: Props) {
             <small id="update-status" class={u.status === 'available' ? 'about-available' : u.status === 'error' ? 'about-error' : undefined}>{statusText}</small>
           </div>
           <div class="about-actions">
-            {u.status === 'available' && u.available ? <>
+            {u.available ? <>
               <button type="button" id="download-update" class="btn primary" onClick={() => void cave.openUpdateUrl(u.available!.url)}><Icon name="external-link" />{t('set.about.download')}</button>
               <button type="button" id="check-updates" class="btn" disabled={checking} onClick={() => act(() => cave.checkForUpdates(), 'check-updates')}>{t('set.about.recheck')}</button>
             </> : (
@@ -599,7 +599,8 @@ const sections: Record<SettingsSection, typeof OverviewSection> = {overview: Ove
 export function SettingsView() {
   const state = useCave();
   const [data, setData] = useState<PanelData | null>(null), [checks, setChecks] = useState<CheckItem[]>([]);
-  const [section, setSection] = useState<SettingsSection>('overview'), [notice, setNotice] = useState<string | null>(null);
+  const [selectedSection, setSection] = useState<SettingsSection | null>(null), [notice, setNotice] = useState<string | null>(null);
+  const section = selectedSection ?? state?.settingsSection ?? 'overview';
   const [busy, setBusy] = useState<Set<string>>(new Set());
   const [dialog, setDialog] = useState<DialogRequest | null>(null);
   const [updateDismissedTag, setUpdateDismissedTag] = useState<string | null>(null);

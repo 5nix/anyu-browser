@@ -167,6 +167,7 @@ export const en: Record<keyof typeof zh, string> = {
   command_zoom_reset: "Actual Size",
   command_devtools_toggle: "Developer Tools",
   command_settings_open: "Settings",
+  command_settings_about: "Update to {tag}",
   command_settings_status: "Status and Self-Check",
   command_profiles_open: 'Switch or Manage Environments',
   profiles_defaultName: 'Default',

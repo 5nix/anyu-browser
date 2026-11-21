@@ -168,6 +168,8 @@ body.side #address-form:has(#address:focus) { background: var(--field-focus); ou
 #downloads { position: relative; }
 #download-count { position: absolute; right: 1px; top: 1px; min-width: 14px; height: 14px; padding: 0 3px; border-radius: 7px; background: var(--accent); color: #fff; font-size: 10px; line-height: 14px; }
 #download-count:empty { display: none; }
+#menu-button { position: relative; }
+#menu-button[data-update-unseen]::after { content: ''; position: absolute; top: 3px; right: 3px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); pointer-events: none; }
 /* One control for the environment and the gate: the avatar, with the gate's state on its corner badge. --ring is the
    opaque colour behind the button, so the badge's ring cuts the avatar in every button state. */
 #status { --ring: var(--frame); }

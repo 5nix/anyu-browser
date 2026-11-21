@@ -48,6 +48,7 @@ export function bindCommands(newWindow: () => void): Commands {
     'downloads.open': (win) => win.openSettings('downloads'),
     'profiles.open': (win) => win.openProfiles(),
     'settings.open': (win) => win.openSettings(),
+    'settings.about': (win) => win.openSettings('about'),
     'settings.status': (win) => win.openSettings('overview'),
   };
 }

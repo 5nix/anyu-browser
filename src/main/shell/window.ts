@@ -43,7 +43,9 @@ export interface WindowHost {
   setTabLayout(layout: TabLayout): void;
   sidebarWidth(): number;
   /** The part of the state that is the same in every window. */
-  shared(): Pick<ShellState, 'shortcuts' | 'gate' | 'downloads' | 'downloadsDir' | 'defaultDownloadsDir' | 'notice' | 'locale' | 'localePreference' | 'accent' | 'theme' | 'showTime' | 'clock24Hour' | 'timezone' | 'systemTimezone' | 'searchEngine' | 'restoreSession' | 'setup' | 'currentProfile' | 'profiles' | 'update'>;
+  shared(): Pick<ShellState, 'shortcuts' | 'gate' | 'downloads' | 'downloadsDir' | 'defaultDownloadsDir' | 'notice' | 'locale' | 'localePreference' | 'accent' | 'theme' | 'showTime' | 'clock24Hour' | 'timezone' | 'systemTimezone' | 'searchEngine' | 'restoreSession' | 'setup' | 'currentProfile' | 'profiles' | 'update' | 'updateMenuUnseen'>;
+  updateMenuTag(): string | null;
+  updateMenuOpened(win: ShellWindow): void;
   refreshProfiles(): void;
   canBrowse(): boolean;
   run(id: CommandId, win: ShellWindow): void;
@@ -992,15 +994,16 @@ export class ShellWindow implements TabHost {
     if (this.menu?.tab === tab || this.addressSession?.tab === tab.id) { this.addressSession = null; this.surfaces.close(false); }
   }
 
-  private showMenu(kind: 'toolbar' | 'tab' | 'tabStrip' | 'page' | 'address' | 'shortcut', items: MenuEntry[], anchor?: Rect, tab?: Tab, params?: Electron.ContextMenuParams): void {
+  private showMenu(kind: 'toolbar' | 'tab' | 'tabStrip' | 'page' | 'address' | 'shortcut', items: MenuEntry[] | (() => MenuEntry[]), anchor?: Rect, tab?: Tab, params?: Electron.ContextMenuParams): void {
     this.surfaces.close();
-    this.menu = { token: randomUUID(), items, kind, tab, params };
+    this.menu = { token: randomUUID(), get items() { return typeof items === 'function' ? items() : items; }, kind, tab, params };
     this.surfaces.open(kind === 'toolbar' ? 'menu' : 'contextMenu', anchor);
   }
 
   toggleMenu(): void {
     if (this.surfaces.state?.name === 'menu') { this.surfaces.close(); return; }
-    this.showMenu('toolbar', toolbarMenu(!!this.current, !!this.current && !this.recoveryState && !!zoomOrigin(this.current.getURL())));
+    this.host.updateMenuOpened(this);
+    this.showMenu('toolbar', () => toolbarMenu(!!this.current, !!this.current && !this.recoveryState && !!zoomOrigin(this.current.getURL()), this.host.updateMenuTag()));
   }
 
   openTabMenu(id: number, anchor: Rect): void {
@@ -1082,7 +1085,7 @@ export class ShellWindow implements TabHost {
       return;
     }
     if (menu.kind === 'toolbar') {
-      if (['tab.new', 'window.new', 'history.open', 'bookmarks.open', 'downloads.open', 'zoom.out', 'zoom.reset', 'zoom.in', 'page.print', 'settings.open'].includes(id) && (!['zoom.out', 'zoom.reset', 'zoom.in', 'page.print'].includes(id) || this.current)) this.host.run(id as CommandId, this);
+      if (['tab.new', 'window.new', 'history.open', 'bookmarks.open', 'downloads.open', 'zoom.out', 'zoom.reset', 'zoom.in', 'page.print', 'settings.open', 'settings.about'].includes(id) && (!['zoom.out', 'zoom.reset', 'zoom.in', 'page.print'].includes(id) || this.current)) this.host.run(id as CommandId, this);
       return;
     }
     if (!tab || !this.tabs.includes(tab) || tab.wc.isDestroyed()) return;

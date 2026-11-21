@@ -167,6 +167,7 @@ export const zh = {
   command_zoom_reset: "实际大小",
   command_devtools_toggle: "开发者工具",
   command_settings_open: "设置",
+  command_settings_about: "更新到 {tag}",
   command_settings_status: "状态与自检",
   command_profiles_open: '切换或管理环境',
   profiles_defaultName: '默认环境',

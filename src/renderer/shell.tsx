@@ -293,7 +293,7 @@ function App() {
         <Avatar name={state?.currentProfile?.name ?? ''} accent={state?.currentProfile?.accent ?? state?.accent}><span class="dot">{st && STATUS_MARK[st] && !unchecked && <Icon name={STATUS_MARK[st]} />}</span></Avatar>
         {state?.showTime && <span class="status-time">{clockTime(now, state.locale, state.timezone, state.clock24Hour)}</span>}
       </button>
-      <button id="menu-button" class="icon-btn" title={t('menu')} aria-label={t('menu')} data-anchor="menu" onClick={() => cave.toggleSurface('menu')}><Icon name="ellipsis" /></button>
+      <button id="menu-button" class="icon-btn" title={t('menu')} aria-label={t('menu')} data-anchor="menu" data-update-unseen={state?.updateMenuUnseen ? '' : undefined} onClick={() => cave.toggleSurface('menu')}><Icon name="ellipsis" /></button>
     </div>
     {state && <Tabs state={state} />}
   </>;

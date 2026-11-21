@@ -83,8 +83,13 @@ below apply to any such launch.
     through the proxy, there is no direct connection under any failure, and the gate stays
     closed unless every release condition has been verified for the node in use right now.
     A change in these files may make the gate stricter or more accurate, never more
-    permissive; when in doubt it stays closed. List every changed line in these files in
-    your report with the reason.
+    permissive; when in doubt it stays closed. List every changed line in these files in your
+    report with the reason.
+    **The only two sanctioned direct connections**, both set by the maintainer: the update check
+    (`src/main/updater.ts`, `directFetch`, GitHub releases API, used while the gate is closed so a
+    broken core can still learn of a fixed release) and fetching a proxy subscription when the
+    user picks the "direct" route (`fetchSubscription` in `src/main/network.ts`). Do not remove
+    them, do not widen them to other hosts, and do not add a third.
 
 ## Settled, do not re-test
 

@@ -16,6 +16,7 @@ import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
 import { ProfileStore } from './profile.ts';
 import { ProfileManager } from './profiles.ts';
+import { diagnosticLog } from './diagnostic-log.ts';
 import { browserSession, pinNetwork, pinSessions, reservePorts } from './network.ts';
 import { applyFingerprint, buildIdentity, emulationCommands, type Identity, type PlatformHints } from './fingerprint.ts';
 import { applyPermissions } from './permissions.ts';
@@ -142,6 +143,8 @@ async function start(): Promise<void> {
     database = openStore(':memory:');
   }
   const prefs = new Prefs(database);
+  const saveDiagnosticLog = () => prefs.get<boolean>('saveDiagnosticLog', false) === true;
+  await diagnosticLog.initialize(profileDir, saveDiagnosticLog()).catch(error => console.error('Diagnostic log:', error));
   const savedDownloadsDir = prefs.get<string>('downloadsDir', '');
   let downloadsDir = defaultDownloadsDir;
   if (typeof savedDownloadsDir === 'string' && savedDownloadsDir.trim()) {
@@ -308,6 +311,14 @@ async function start(): Promise<void> {
     }
   });
   browser.on('closed', () => { if (!shuttingDown) app.quit(); });
+  let lastGateState: Pick<typeof gate.view, 'state' | 'paused'> | undefined;
+  const logGateState = ({ state, paused }: typeof gate.view) => {
+    if (lastGateState?.state === state && lastGateState.paused === paused) return;
+    lastGateState = { state, paused };
+    diagnosticLog.record('gate.change', lastGateState);
+  };
+  logGateState(gate.view);
+  gate.on('change', logGateState);
   gate.on('change', () => { if (shuttingDown || dbClosed) return; browser.gateChanged(gate.open); browser.syncSetup(); if (gate.open) updater.notifyGateOpen(); });
   store.onChange(() => { if (shuttingDown || dbClosed) return; void refreshProfiles().catch(logProfileError); browser.syncSetup(); });
   gate.on('error', (message: string) => { if (shuttingDown || dbClosed) return; browser.setNotice(message); });
@@ -355,6 +366,7 @@ async function start(): Promise<void> {
       profile: profile(),
       profileError: store.error,
       profileDir,
+      saveDiagnosticLog: saveDiagnosticLog(),
       profiles: await refreshProfiles(),
       hostPlatform: hostHints.platform,
       nodes: await gate.nodes().catch(() => ({ nodes: [], selected: profile().proxy.selected })),
@@ -652,6 +664,19 @@ async function start(): Promise<void> {
       } finally { browser.certificateRevoking = false; }
     },
     revealProfile: () => electronShell.openPath(profileDir),
+    setSaveDiagnosticLog: async (enabled) => {
+      if (typeof enabled !== 'boolean') throw new Error('invalid log setting');
+      try {
+        await diagnosticLog.setDisk(enabled, () => prefs.set('saveDiagnosticLog', enabled));
+      } finally { if (!shuttingDown && !dbClosed) browser.broadcast(); }
+    },
+    exportDiagnosticLog: async () => {
+      if (backgroundE2e || process.env.CAVE_TEST_HARNESS === '1') return;
+      await diagnosticLog.export(async defaultPath => {
+        const result = await dialog.showSaveDialog(win.win, { defaultPath, filters: [{ name: 'Text', extensions: ['txt'] }] });
+        return result.canceled ? undefined : result.filePath;
+      });
+    },
     restart: () => {
       app.relaunch({ args: [...process.argv.slice(1).filter(arg => !arg.startsWith('--profile-id=')), `--profile-id=${profileManager.currentId}`] });
       app.quit();
@@ -700,7 +725,7 @@ async function start(): Promise<void> {
       if (!win) throw new Error('forbidden');
       if (shuttingDown || dbClosed || !win.alive) return;
       if (['listProfiles', 'createProfile', 'renameProfile', 'deleteProfile', 'launchProfile', 'switchProfile', 'importProfileDirectory', 'revealProfileDir'].includes(name) && e.sender !== win.settings.webContents && e.sender !== win.overlay.webContents) throw new Error('forbidden');
-      if (['chooseDownloadsDir', 'resetDownloadsDir', 'revealDownloadsDir', 'checkForUpdates', 'setAutoCheckUpdates', 'openUpdateUrl'].includes(name) && e.sender !== win.settings.webContents) throw new Error('forbidden');
+      if (['chooseDownloadsDir', 'resetDownloadsDir', 'revealDownloadsDir', 'checkForUpdates', 'setAutoCheckUpdates', 'openUpdateUrl', 'setSaveDiagnosticLog', 'exportDiagnosticLog'].includes(name) && e.sender !== win.settings.webContents) throw new Error('forbidden');
       if ((name === 'retryTab' || name === 'backFromError' || name === 'recoveryStatus' || name === 'continueCertificate') && e.sender !== win.recovery.webContents) return;
       if (e.sender === win.recovery.webContents && !['getState', 'retryTab', 'backFromError', 'recoveryStatus', 'continueCertificate'].includes(name)) return;
       if (['testSuggestionMouse', 'testSuggestionBounds'].includes(name) && (process.env.CAVE_TEST_HARNESS !== '1' || e.sender !== win.chrome.webContents)) return;
@@ -746,7 +771,7 @@ async function start(): Promise<void> {
     shuttingDown = true;
     updater.dispose();
     browser.prepareQuit();
-    void Promise.allSettled([browser.closeAll(), gate.quit(), accentSync]).then(() => {
+    void Promise.allSettled([browser.closeAll(), gate.quit(), accentSync]).then(() => diagnosticLog.flush()).then(() => {
       shutdownDone = true;
       app.quit();
     });

@@ -7,6 +7,7 @@ import { GestureGate, shouldBlockMainFrameNavigation, shouldBlockPopupTarget } f
 // which window it is in; the window that holds it is its host and hears what happens to it.
 import { WebContentsView, type BrowserWindowConstructorOptions, type WebContents } from 'electron';
 import { browserSession } from '../network.ts';
+import { diagnosticLog, diagnosticUrl } from '../diagnostic-log.ts';
 import type { CertificateDetails, TabState } from '../../shared/ipc.ts';
 
 /** The only schemes a web tab may show; never file:, so no tab can load the shell's own pages. */
@@ -100,7 +101,13 @@ export class Tab {
     });
     view.webContents.on('focus', () => this.host?.focused(this));
     view.webContents.on('context-menu', (_e, p) => this.host?.contextMenu(this, p));
-    view.webContents.on('before-mouse-event', (_event, mouse) => { if (mouse.type === 'mouseDown') { this.gesture.mark(); this.host?.outsidePress(); this.host?.focused(this); } });
+    view.webContents.on('before-mouse-event', (_event, mouse) => {
+      if (mouse.type !== 'mouseDown') return;
+      this.gesture.mark();
+      if (this.kind === 'web') diagnosticLog.record('before-mouse-event', { tabId: this.id, type: mouse.type, url: diagnosticUrl(this.wc.getURL()) });
+      this.host?.outsidePress();
+      this.host?.focused(this);
+    });
   }
 
   /** A web tab in the isolated browsing session; `adopt` is the page a window.open() already made. */
@@ -202,7 +209,10 @@ export class Tab {
     wc.on('did-navigate', (_event, url) => { this.pendingUrl = ''; this.insecure = this.certificateAccepted || (this.host?.hasCertificateException(url) ?? false); this.host?.committed(this, url); if (/^https?:/i.test(url)) this.host?.historyVisit(url, wc.getTitle()); });
     wc.on('page-title-updated', (_event, title) => { const url = wc.getURL(); if (/^https?:/i.test(url)) this.host?.historyTitle(url, title); });
     wc.on('did-start-navigation', (e) => {
-      if (e.isMainFrame) this.host?.navigated(this);
+      if (e.isMainFrame) {
+        diagnosticLog.record('did-start-navigation', { tabId: this.id, url: diagnosticUrl(e.url), isSameDocument: e.isSameDocument });
+        this.host?.navigated(this);
+      }
       // Chromium's own error document is the failure being shown, not a new attempt.
       if (!e.isMainFrame || e.isSameDocument || e.url.startsWith('chrome-error:')) return;
       this.gesture.reset();
@@ -225,6 +235,7 @@ export class Tab {
     });
     wc.on('did-redirect-navigation', (e) => { if (e.isMainFrame) this.host?.navigated(this); if (e.isMainFrame && !e.isSameDocument) { failures.redirect(e.url); this.target = e.url; if (this.pendingUrl) this.pendingUrl = e.url; this.certificateAccepted = false; this.challenge = null; } });
     wc.on('did-fail-load', (_e, code, description, url, isMainFrame) => {
+      if (isMainFrame) diagnosticLog.record('did-fail-load', { tabId: this.id, url: diagnosticUrl(url), code, description });
       if (!isMainFrame || code === -3 || !failures.accepts(url)) return; // -3: aborted, by the user or by another navigation
       this.retryPending = false;
       this.error = { code, description, url, kind: certificateFailure(code) ? 'certificate' : failureKind(this.host?.gateState() ?? 'closed'), generation: this.generation };
@@ -238,9 +249,13 @@ export class Tab {
     });
     wc.on('found-in-page', (_e, r) => this.host?.found(this, r));
     wc.setWindowOpenHandler(({ disposition, url }) => {
-      if (!this.host || !WEB.test(url) || shouldBlockPopupTarget(url, wc.getURL()) || !this.gesture.consumePopup()) {
-        return { action: 'deny' };
-      }
+      let reason = null;
+      if (!this.host) reason = 'no-host';
+      else if (!WEB.test(url)) reason = 'not-web';
+      else if (shouldBlockPopupTarget(url, wc.getURL())) reason = 'blocked-target';
+      else if (!this.gesture.consumePopup()) reason = 'no-gesture';
+      diagnosticLog.record('setWindowOpenHandler', { tabId: this.id, url: diagnosticUrl(url), disposition, decision: reason ? 'deny' : 'allow', reason });
+      if (reason) return { action: 'deny' };
       return {
         action: 'allow',
         overrideBrowserWindowOptions: { webPreferences: { focusOnNavigation: false } },
@@ -249,15 +264,15 @@ export class Tab {
       };
     });
     wc.on('will-navigate', (e) => {
-      if (!e.isMainFrame) return;
-      if (!WEB.test(e.url) || shouldBlockMainFrameNavigation({
-        url: e.url,
-        currentUrl: wc.getURL(),
-        isChildFrame: Boolean(e.initiator && (e.initiator.parent !== null || (e.frame && e.initiator !== e.frame))),
-        hasGesture: this.gesture.hasRecent(),
-      })) {
-        e.preventDefault();
-      }
+      const { url, isMainFrame } = e;
+      const web = WEB.test(url);
+      if (isMainFrame && !web) e.preventDefault();
+      const initiator = e.initiator;
+      const isChildFrame = Boolean(initiator && (initiator.parent !== null || (e.frame && initiator !== e.frame)));
+      const hasGesture = this.gesture.hasRecent();
+      const blockedWeb = isMainFrame && web && shouldBlockMainFrameNavigation({ url, currentUrl: wc.getURL(), isChildFrame, hasGesture });
+      if (blockedWeb) e.preventDefault();
+      diagnosticLog.record('will-navigate', { tabId: this.id, url: diagnosticUrl(url), isMainFrame, initiatorUrl: diagnosticUrl(initiator?.url), isChildFrame, hasGesture, blocked: isMainFrame && (!web || blockedWeb) });
     });
     wc.on('will-redirect', (e) => {
       if (!e.isMainFrame) return;
@@ -268,10 +283,14 @@ export class Tab {
         hasGesture: this.gesture.hasRecent(),
       })) {
         e.preventDefault();
+        diagnosticLog.record('will-redirect', { tabId: this.id, url: diagnosticUrl(e.url), isMainFrame: e.isMainFrame, blocked: true });
       }
     });
     wc.on('will-frame-navigate', (e) => {
-      if (!WEB.test(e.url) && !isAllowedPdfViewerFrame(e.url, e.isMainFrame, e.initiator?.origin, e.frame?.parent?.origin)) e.preventDefault();
+      if (!WEB.test(e.url) && !isAllowedPdfViewerFrame(e.url, e.isMainFrame, e.initiator?.origin, e.frame?.parent?.origin)) {
+        e.preventDefault();
+        diagnosticLog.record('will-frame-navigate', { tabId: this.id, url: diagnosticUrl(e.url), isMainFrame: e.isMainFrame, blocked: true });
+      }
     });
     wc.on('destroyed', () => this.host?.closed(this));
   }

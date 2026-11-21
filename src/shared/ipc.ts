@@ -118,6 +118,7 @@ export interface PanelData {
   profile: Profile;
   profileError: string | null;
   profileDir: string;
+  saveDiagnosticLog: boolean;
   hostPlatform: string;
   nodes: NodeState;
   restartNeeded: boolean;
@@ -218,6 +219,8 @@ export interface CaveCalls {
   clearSite(url: string): void;
   resetEnvironment(): void;
   revealProfile(): void;
+  setSaveDiagnosticLog(enabled: boolean): void;
+  exportDiagnosticLog(): void;
   restart(): void;
   /** Records a setup choice; the window follows the step derived from it. */
   setSetup(choices: Partial<SetupChoices>): void;
@@ -264,6 +267,7 @@ export const CALLS: Record<keyof CaveCalls, true> = {
   siteInfo: true, removePermission: true, setSiteUa: true, panelData: true, updateProfile: true, importSubscriptionFile: true, importSubscriptionText: true, addSubscription: true, updateSource: true, updateSourceFile: true, updateSourceText: true, renameSource: true, removeSource: true,
   selectNode: true, testDelays: true, measureExit: true, pause: true, resume: true, restartAndCheck: true, runChecks: true, copyReport: true,
   clearSite: true, resetEnvironment: true, revealProfile: true, restart: true, setSetup: true, continueSetup: true, restartSetup: true, localPortOpen: true,
+  setSaveDiagnosticLog: true, exportDiagnosticLog: true,
   listProfiles: true, createProfile: true, renameProfile: true, deleteProfile: true, launchProfile: true, switchProfile: true, importProfileDirectory: true, revealProfileDir: true,
   checkForUpdates: true, setAutoCheckUpdates: true, openUpdateUrl: true,
 };

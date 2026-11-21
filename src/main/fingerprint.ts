@@ -4,6 +4,7 @@
 import type { WebContents } from 'electron';
 import type { Profile } from '../shared/profile.ts';
 import type { UaMode } from '../shared/ua.ts';
+import { diagnosticLog, diagnosticUrl } from './diagnostic-log.ts';
 
 export interface Brand { brand: string; version: string }
 
@@ -163,6 +164,7 @@ export function emulationCommands(profile: Profile, id: Identity): [string, obje
  */
 export function applyFingerprint(wc: WebContents, commands: [string, object][]): FingerprintHandle {
   const dbg = wc.debugger;
+  const tabId = wc.id;
   dbg.attach('1.3');
   let current = commands;
   let locationAvailable = false;
@@ -191,26 +193,38 @@ export function applyFingerprint(wc: WebContents, commands: [string, object][]):
   })();`;
   const screenScript = `for (const key of ["colorDepth", "pixelDepth"]) Object.defineProperty(Screen.prototype, key, { get: () => 24, configurable: true, enumerable: true });`;
   // A command a target type does not implement may never answer; never let that keep a worker paused.
-  const send = (m: string, p: object, sessionId?: string) =>
-    Promise.race([dbg.sendCommand(m, p, sessionId).catch(() => undefined), new Promise((r) => setTimeout(r, 1000))]);
+  const send = async (m: string, p: object, sessionId?: string, script?: 'gesture' | 'screen') => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const status = await Promise.race([
+        dbg.sendCommand(m, p, sessionId).then(() => 'ok' as const),
+        new Promise<'timeout'>(resolve => { timer = setTimeout(() => resolve('timeout'), 1000); }),
+      ]);
+      if (script) diagnosticLog.record(m, { tabId, sessionId: sessionId ?? null, script, status });
+    } catch (error) {
+      if (script) diagnosticLog.record(m, { tabId, sessionId: sessionId ?? null, script, status: 'error', error: error instanceof Error ? error.message : String(error) });
+    } finally { clearTimeout(timer); }
+  };
   const configureGestures = async (sessionId?: string) => {
-    await send('Runtime.addBinding', { name: gestureBinding, executionContextName: gestureWorld }, sessionId);
-    await send('Page.addScriptToEvaluateOnNewDocument', { source: gestureScript, worldName: gestureWorld, runImmediately: true }, sessionId);
+    await send('Runtime.addBinding', { name: gestureBinding, executionContextName: gestureWorld }, sessionId, 'gesture');
+    await send('Page.addScriptToEvaluateOnNewDocument', { source: gestureScript, worldName: gestureWorld, runImmediately: true }, sessionId, 'gesture');
   };
   const configure = (sessionId?: string, worker = false, frame = false) =>
     Promise.all([
       worker
         ? send('Runtime.evaluate', { expression: platformScript() }, sessionId)
-        : send('Page.addScriptToEvaluateOnNewDocument', { source: screenScript }, sessionId),
+        : send('Page.addScriptToEvaluateOnNewDocument', { source: screenScript }, sessionId, 'screen'),
       ...(frame ? [configureGestures(sessionId)] : []),
       ...current.filter(([m]) => m !== 'Emulation.setGeolocationOverride' || sessionId !== undefined).map(([m, p]) => send(m, p, sessionId)),
       send('Target.setAutoAttach', { autoAttach: true, waitForDebuggerOnStart: true, flatten: true }, sessionId),
     ]);
-  dbg.on('message', (_e, method, params: any) => {
+  dbg.on('message', (_e, method, params: any, sessionId) => {
     if (method === 'Runtime.bindingCalled' && params.name === gestureBinding) {
       gestureListeners.get(wc)?.();
+      diagnosticLog.record(method, { tabId, sessionId: sessionId ?? null, executionContextId: params.executionContextId });
     } else if (method === 'Target.attachedToTarget') {
       const id = params.sessionId as string;
+      diagnosticLog.record(method, { tabId, sessionId: id, type: params.targetInfo.type, url: diagnosticUrl(params.targetInfo.url) });
       sessions.add(id);
       const worker = ['worker', 'shared_worker', 'service_worker'].includes(params.targetInfo.type);
       if (worker) workerSessions.add(id);

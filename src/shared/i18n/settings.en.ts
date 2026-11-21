@@ -181,6 +181,8 @@ export const settingsEn: Record<keyof typeof settingsZh, string> = {
   "set.advanced.title": "Advanced",
   "set.advanced.folder": "Profile folder",
   "set.advanced.open": "Open",
+  "set.advanced.saveLog": "Save log to disk",
+  "set.advanced.exportLog": "Export log",
   "set.nav.label": "Settings categories",
   "set.nav.settings": "Settings",
   "set.restart.banner": "Some settings require a restart to take effect.",

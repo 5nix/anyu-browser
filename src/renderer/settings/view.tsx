@@ -482,11 +482,13 @@ function AppearanceSection({ active, state, data, act, confirm, checks, runCheck
   </section>;
 }
 
-function AdvancedSection({ active, state, data, act, confirm, checks, runChecks, busy }: Props) {
+function AdvancedSection({ active, data, act, busy }: Props) {
   return <section data-section="advanced" class="entering" hidden={!active}>
     <h2>{t('set.advanced.title')}</h2>
     <div class="card">
       <div class="row"><div class="label"><b>{t('set.advanced.folder')}</b><small id="profile-dir">{data.profileDir}</small></div><button id="reveal" onClick={() => cave.revealProfile()} class="btn"><Icon name="folder-open" />{t('set.advanced.open')}</button></div>
+      <label class="row"><span class="label"><b>{t('set.advanced.saveLog')}</b></span><input id="save-diagnostic-log" type="checkbox" class="switch" checked={data.saveDiagnosticLog} disabled={busy.has('save-diagnostic-log')} onChange={e => { const enabled = e.currentTarget.checked; void act(() => cave.setSaveDiagnosticLog(enabled), 'save-diagnostic-log'); }} /></label>
+      <div class="row end"><button id="export-diagnostic-log" type="button" class="btn" disabled={busy.has('export-diagnostic-log')} onClick={() => act(() => cave.exportDiagnosticLog(), 'export-diagnostic-log')}>{t('set.advanced.exportLog')}</button></div>
     </div>
   </section>;
 }

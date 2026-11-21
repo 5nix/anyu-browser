@@ -177,6 +177,8 @@ export const settingsZh = {
   "set.advanced.title": "高级",
   "set.advanced.folder": "配置文件夹",
   "set.advanced.open": "打开",
+  "set.advanced.saveLog": "保存日志到硬盘",
+  "set.advanced.exportLog": "导出日志",
   "set.nav.label": "设置分类",
   "set.nav.settings": "设置",
   "set.restart.banner": "部分设置需要重启 Anyu 才会生效。",
